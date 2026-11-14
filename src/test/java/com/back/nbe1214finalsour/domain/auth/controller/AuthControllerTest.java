@@ -26,7 +26,7 @@ import com.back.nbe1214finalsour.domain.auth.dto.UniversitySummary;
 import com.back.nbe1214finalsour.domain.auth.service.EmailVerificationService;
 import com.back.nbe1214finalsour.domain.auth.service.LoginService;
 import com.back.nbe1214finalsour.domain.auth.service.LoginService.LoginResult;
-import com.back.nbe1214finalsour.domain.auth.service.RefreshTokenService;
+import com.back.nbe1214finalsour.domain.auth.service.LogoutService;
 import com.back.nbe1214finalsour.domain.auth.service.TokenReissueService;
 import com.back.nbe1214finalsour.domain.auth.service.TokenReissueService.ReissueResult;
 import com.back.nbe1214finalsour.domain.auth.service.SignupService;
@@ -95,7 +95,7 @@ class AuthControllerTest {
     private TokenReissueService tokenReissueService;
 
     @MockitoBean
-    private RefreshTokenService refreshTokenService;
+    private LogoutService logoutService;
 
     @Autowired
     private JwtProvider jwtProvider;
@@ -448,7 +448,7 @@ class AuthControllerTest {
                         containsString("HttpOnly"),
                         containsString("SameSite=Strict"))));
 
-        verify(refreshTokenService).revoke("my-refresh", 1024L);
+        verify(logoutService).logout(1024L, "my-refresh");
     }
 
     @Test
@@ -458,7 +458,7 @@ class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON_UNAUTHORIZED"));
 
-        verify(refreshTokenService, never()).revoke(any(), any());
+        verify(logoutService, never()).logout(any(), any());
     }
 
     private static String loginBody(String email, String password) {

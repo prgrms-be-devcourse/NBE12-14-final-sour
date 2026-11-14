@@ -97,7 +97,8 @@ public class UserService {
     /**
      * 회원 탈퇴 (추가 명세 §3-1). 비밀번호를 확인한 뒤 soft delete 하고 refresh 토큰을 모두 지운다.
      * 정지·차단 회원은 탈퇴할 수 없다 (탈퇴 후 재가입으로 정지를 피하는 것 방지). 확인 순서는 로그인과 같다: 비밀번호 → 상태.
-     * 커밋 뒤 클릭용 상태 캐시도 {@code WITHDRAWN}으로 바꾼다 ({@code UserStatusCacheSyncListener}).
+     * 커밋 뒤 클릭용 상태 캐시도 {@code WITHDRAWN}으로 바꾸고({@code UserStatusCacheSyncListener}) 로그인 세션을 지운다
+     * ({@code LoginSessionCleanupListener}).
      *
      * @throws BusinessException 400 {@code USER_INVALID_PASSWORD}: 비밀번호 불일치.
      *                           403 {@code USER_SUSPENDED}: 정지·차단.
