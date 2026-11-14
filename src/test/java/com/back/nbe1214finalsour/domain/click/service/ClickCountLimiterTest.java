@@ -13,6 +13,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -42,7 +45,7 @@ class ClickCountLimiterTest {
     @ValueSource(longs = {1L, 899L, 900L})
     @DisplayName("INCRBY 결과가 900 이하면 통과한다 (합계 900까지 허용)")
     void check_allowsUpToLimit(long count) {
-        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any())).willReturn(count);
+        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any(), any(), any(), any())).willReturn(count);
 
         assertThatCode(() -> clickCountLimiter.check(USER_ID, 20)).doesNotThrowAnyException();
     }
@@ -51,7 +54,7 @@ class ClickCountLimiterTest {
     @ValueSource(longs = {901L, 2000L})
     @DisplayName("INCRBY 결과가 900을 넘으면 CLICK_COUNT_EXCEEDED 예외")
     void check_rejectsOverLimit(long count) {
-        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any())).willReturn(count);
+        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any(), any(), any(), any())).willReturn(count);
 
         assertThatThrownBy(() -> clickCountLimiter.check(USER_ID, 20))
                 .isInstanceOf(BusinessException.class)
@@ -62,24 +65,27 @@ class ClickCountLimiterTest {
     @Test
     @DisplayName("스크립트 결과가 null이면 막지 않는다 (한도 판단을 포기하고 통과시킨다)")
     void check_allowsWhenScriptReturnsNull() {
-        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any())).willReturn(null);
+        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any(), any(), any(), any())).willReturn(null);
 
         assertThatCode(() -> clickCountLimiter.check(USER_ID, 20)).doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("ratelimit:click:{userId} 키 하나와 TTL 60초, clickCount를 스크립트에 넘긴다")
+    @DisplayName("클릭 한도 키와 오늘 부정행위 순위 키, TTL 60초, clickCount, 한도, 순위 TTL, userId를 스크립트에 넘긴다")
     void check_passesClickKeyWindowSecondsAndClickCount() {
-        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any())).willReturn(20L);
+        given(stringRedisTemplate.<Long>execute(any(), anyList(), any(), any(), any(), any(), any())).willReturn(20L);
 
         clickCountLimiter.check(USER_ID, 20);
 
         ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.captor();
         ArgumentCaptor<Object> argsCaptor = ArgumentCaptor.captor();
-        verify(stringRedisTemplate).execute(any(), keysCaptor.capture(), argsCaptor.capture(), argsCaptor.capture());
+        verify(stringRedisTemplate).execute(any(), keysCaptor.capture(),
+                argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture(),
+                argsCaptor.capture(), argsCaptor.capture());
 
-        assertThat(keysCaptor.getValue()).containsExactly("ratelimit:click:1");
-        // Lua의 ARGV[1]은 EXPIRE 초, ARGV[2]는 INCRBY 증가량이다. 문자열로 넘어간다
-        assertThat(argsCaptor.getAllValues()).containsExactly("60", "20");
+        String today = LocalDate.now(ZoneId.of("Asia/Seoul")).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        assertThat(keysCaptor.getValue()).containsExactly("ratelimit:click:1", "rank:user:abuse:" + today);
+        // Lua의 ARGV[1]은 EXPIRE 초, ARGV[2]는 INCRBY 증가량, ARGV[3]은 한도, ARGV[4]는 순위 키 TTL 초, ARGV[5]는 userId다. 문자열로 넘어간다
+        assertThat(argsCaptor.getAllValues()).containsExactly("60", "20", "900", "259200", "1");
     }
 }

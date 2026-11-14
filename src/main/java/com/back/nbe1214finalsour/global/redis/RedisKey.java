@@ -37,6 +37,8 @@ public enum RedisKey {
     RANK_USER("rank:univ:%s:user", Structure.ZSET, ValueFormat.PLAIN),
     /** 공격 점수. field: userId → 누적 공격 점수 (HINCRBY 대상) */
     SCORE_USER_ATTACK("score:user:attack", Structure.HASH, ValueFormat.PLAIN),
+    /** 회원 부정행위 횟수 순위. member: userId, score: 부정행위 횟수 */
+    RANK_USER_ABUSE("rank:user:abuse:%s", Structure.ZSET, ValueFormat.PLAIN),
 
     // 변경 추적 (Batch)
     DIRTY_UNIV("dirty:univ", Structure.SET, ValueFormat.PLAIN),

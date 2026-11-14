@@ -133,6 +133,7 @@ class RedisKeyTest {
                 "RANK_DEPT|rank:univ:%s:dept|ZSET|PLAIN",
                 "RANK_USER|rank:univ:%s:user|ZSET|PLAIN",
                 "SCORE_USER_ATTACK|score:user:attack|HASH|PLAIN",
+                "RANK_USER_ABUSE|rank:user:abuse:%s|ZSET|PLAIN",
                 // 변경 추적 (Batch)
                 "DIRTY_UNIV|dirty:univ|SET|PLAIN",
                 "DIRTY_DEPT|dirty:dept|SET|PLAIN",
