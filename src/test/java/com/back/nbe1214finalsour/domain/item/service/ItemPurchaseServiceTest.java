@@ -76,4 +76,20 @@ public class ItemPurchaseServiceTest {
         verify(this.contributionWallet, never())
                 .tryDeduct(anyLong(), anyLong(), anyLong());
     }
+
+    @Test
+    @DisplayName("기여도로 잔여 기여도보다 가격이 비싼 아이템 구매 시 ITEM_NOT_ENOUGH_SCORE 반환")
+    void purchase_ItemNotEnoughScore() {
+        // given
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
+        given(this.contributionWallet.tryDeduct(USER_ID, UNIVERSITY_ID, 500L))
+                .willReturn(OptionalLong.empty());
+
+        // when & then
+        assertThatThrownBy(() -> this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ITEM_NOT_ENOUGH_SCORE);
+    }
 }
