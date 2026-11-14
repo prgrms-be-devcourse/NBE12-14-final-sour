@@ -3,7 +3,11 @@ package com.back.nbe1214finalsour.domain.item.controller;
 import com.back.nbe1214finalsour.domain.item.entity.Item;
 import com.back.nbe1214finalsour.domain.item.entity.ItemType;
 import com.back.nbe1214finalsour.domain.item.entity.PayType;
+import com.back.nbe1214finalsour.domain.item.service.ItemPurchaseResult;
+import com.back.nbe1214finalsour.domain.item.service.ItemPurchaseService;
 import com.back.nbe1214finalsour.domain.item.service.ItemService;
+import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.exception.GlobalExceptionHandler;
 import com.back.nbe1214finalsour.global.security.*;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
@@ -12,14 +16,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.hamcrest.Matchers.nullValue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,15 +42,31 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         GlobalExceptionHandler.class
 })
 public class ItemControllerTest {
+    // 토큰의 회원: userId 1, universityId 7, departmentId 34
+    private static final AuthUser USER = new AuthUser(1L, 7L, 34L, Role.USER);
+
+    private static final Item POTION =
+            new Item(2L, "4배 물약", "1시간 동안 클릭 점수 4배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 1000L, 3600, 4.0);
+
     @Autowired
     private MockMvc mockMvc;
 
-    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @Autowired
+    private JwtProvider jwtProvider;
+
+    // SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다
     @MockitoBean
     private LoginSessionStore loginSessionStore;
 
     @MockitoBean
     private ItemService itemService;
+
+    @MockitoBean
+    private ItemPurchaseService itemPurchaseService;
+
+    private String bearerToken() {
+        return "Bearer " + jwtProvider.createAccessToken(USER, null);
+    }
 
     @Test
     @DisplayName("[GET] /api/v1/items는 로그인 없이 아이템 목록을 200으로 응답")
@@ -69,5 +93,61 @@ public class ItemControllerTest {
                 .andExpect(jsonPath("$.data[1].type").value("LOGO_UNIVERSITY"))
                 .andExpect(jsonPath("$.data[1].payType").value("CREDIT"))
                 .andExpect(jsonPath("$.data[1].durationSeconds").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("[POST] /api/v1/items/{itemId}/purchase는 토큰이 없으면 401")
+    void purchase_requiresToken() throws Exception {
+        mockMvc.perform(post("/api/v1/items/2/purchase"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON_UNAUTHORIZED"));
+    }
+
+    @Test
+    @DisplayName("[POST] /api/v1/items/{itemId}/purchase는 토큰의 회원·학교로 구매하고 201과 구매 결과를 응답")
+    void purchase() throws Exception {
+        // given: 1시간 뒤 만료(UTC 04:00 = KST 13:00), 차감 후 기여도 1500, 크레딧 1100
+        OffsetDateTime expiredAt = OffsetDateTime.of(2026, 11, 14, 4, 0, 0, 0, ZoneOffset.UTC);
+        given(itemPurchaseService.purchase(1L, 7L, 2L))
+                .willReturn(new ItemPurchaseResult(5530L, POTION, 1000L, expiredAt, 1500L, 1100L));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/items/2/purchase")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.userItemId").value(5530))
+                .andExpect(jsonPath("$.data.item.id").value(2))
+                .andExpect(jsonPath("$.data.item.name").value("4배 물약"))
+                .andExpect(jsonPath("$.data.item.payType").value("CONTRIBUTION"))
+                .andExpect(jsonPath("$.data.price").value(1000))
+                // API 명세 §1: 시각은 KST 오프셋으로 응답 (application.yaml의 jackson.time-zone)
+                .andExpect(jsonPath("$.data.expiredAt").value("2026-11-14T13:00:00+09:00"))
+                .andExpect(jsonPath("$.data.myContribScore").value(1500))
+                .andExpect(jsonPath("$.data.myCreditBalance").value(1100));
+    }
+
+    @Test
+    @DisplayName("[POST] /api/v1/items/{itemId}/purchase는 없는 아이템이면 404 ITEM_NOT_FOUND")
+    void purchase_itemNotFound() throws Exception {
+        given(itemPurchaseService.purchase(1L, 7L, 9999L))
+                .willThrow(new BusinessException(ErrorCode.ITEM_NOT_FOUND));
+
+        mockMvc.perform(post("/api/v1/items/9999/purchase")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ITEM_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("[POST] /api/v1/items/{itemId}/purchase는 기여도가 부족하면 400 ITEM_NOT_ENOUGH_SCORE")
+    void purchase_notEnoughScore() throws Exception {
+        given(itemPurchaseService.purchase(1L, 7L, 2L))
+                .willThrow(new BusinessException(ErrorCode.ITEM_NOT_ENOUGH_SCORE));
+
+        mockMvc.perform(post("/api/v1/items/2/purchase")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ITEM_NOT_ENOUGH_SCORE"));
     }
 }
