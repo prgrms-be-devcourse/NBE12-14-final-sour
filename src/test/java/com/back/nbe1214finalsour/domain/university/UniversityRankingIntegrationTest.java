@@ -88,7 +88,8 @@ class UniversityRankingIntegrationTest {
             String token = jwtProvider.createAccessToken(
                     new AuthUser(
                             999L, second.getId(), null, Role.USER
-                    )
+                    ),
+                    null
             );
 
             mockMvc.perform(get("/api/v1/rankings/universities")

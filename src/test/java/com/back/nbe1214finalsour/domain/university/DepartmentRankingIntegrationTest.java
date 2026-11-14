@@ -140,7 +140,8 @@ class DepartmentRankingIntegrationTest {
                             universityId,
                             second.getId(),
                             Role.USER
-                    )
+                    ),
+                    null
             );
 
             mockMvc.perform(

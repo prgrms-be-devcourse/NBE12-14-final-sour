@@ -173,7 +173,8 @@ class UserRankingIntegrationTest {
                             universityId,
                             computer.getId(),
                             Role.USER
-                    )
+                    ),
+                    null
             );
 
             // 내 사용자가 첫 페이지 밖에 있어도
@@ -261,7 +262,8 @@ class UserRankingIntegrationTest {
 
             // 로그인한 정상 회원도 공개 순위 기준 1위를 반환한다.
             String token = jwtProvider.createAccessToken(
-                    new AuthUser(active.getId(), university.getId(), department.getId(), Role.USER)
+                    new AuthUser(active.getId(), university.getId(), department.getId(), Role.USER),
+                    null
             );
             mockMvc.perform(get("/api/v1/rankings/universities/{id}/users", university.getId())
                             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))

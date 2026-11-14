@@ -46,6 +46,10 @@ class RankingControllerTest {
     @Autowired
     private JwtProvider jwtProvider;
 
+    // SecurityConfig의 JWT 필터에 필요한 의존성
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
+
     @MockitoBean
     private UniversityRankingQueryService rankingQueryService;
 
@@ -105,7 +109,7 @@ class RankingControllerTest {
                         get("/api/v1/rankings/universities")
                                 .header(
                                         HttpHeaders.AUTHORIZATION,
-                                        "Bearer " + jwtProvider.createAccessToken(authUser)
+                                        "Bearer " + jwtProvider.createAccessToken(authUser, null)
                                 )
                 )
                 .andExpect(status().isOk())
@@ -199,7 +203,7 @@ class RankingControllerTest {
                         get("/api/v1/rankings/universities/12/departments")
                                 .header(
                                         HttpHeaders.AUTHORIZATION,
-                                        "Bearer " + jwtProvider.createAccessToken(authUser)
+                                        "Bearer " + jwtProvider.createAccessToken(authUser, null)
                                 )
                 )
                 .andExpect(status().isOk())
@@ -305,7 +309,7 @@ class RankingControllerTest {
                         get("/api/v1/rankings/universities/12/users")
                                 .header(
                                         HttpHeaders.AUTHORIZATION,
-                                        "Bearer " + jwtProvider.createAccessToken(authUser)
+                                        "Bearer " + jwtProvider.createAccessToken(authUser, null)
                                 )
                 )
                 .andExpect(status().isOk())
@@ -336,7 +340,7 @@ class RankingControllerTest {
                         get("/api/v1/rankings/universities/12/users")
                                 .header(
                                         HttpHeaders.AUTHORIZATION,
-                                        "Bearer " + jwtProvider.createAccessToken(authUser)
+                                        "Bearer " + jwtProvider.createAccessToken(authUser, null)
                                 )
                 )
                 .andExpect(status().isOk())
