@@ -15,6 +15,11 @@ public enum RedisKey {
     AUTH_LOGIN_FAIL("auth:login:fail:%s", Structure.STRING, ValueFormat.PLAIN),
     /** 로그인 잠금. of(emailHash). SET EX 10분 */
     AUTH_LOGIN_LOCK("auth:login:lock:%s", Structure.STRING, ValueFormat.PLAIN),
+    /**
+     * 현재 로그인 세션 (계정당 1기기). of(userId). 값: 세션 ID(UUID). TTL = {@code jwt.refresh-token-ttl}, 로그인·재발급 때 다시 설정.
+     * 읽기·쓰기는 {@code LoginSessionStore}만 한다
+     */
+    AUTH_SESSION("auth:session:%s", Structure.STRING, ValueFormat.PLAIN),
 
     // 회원 (User)
     /**

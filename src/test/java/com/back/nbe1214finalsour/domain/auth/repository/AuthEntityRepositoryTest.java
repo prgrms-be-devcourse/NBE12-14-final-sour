@@ -8,6 +8,7 @@ import com.back.nbe1214finalsour.domain.auth.entity.UniDomain;
 import jakarta.persistence.EntityManager;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,14 +64,17 @@ class AuthEntityRepositoryTest {
         long userId = insertUser();
         String tokenHash = "c".repeat(64);
         OffsetDateTime expiredAt = OffsetDateTime.now().plusDays(30).truncatedTo(ChronoUnit.MICROS);
+        UUID sessionId = UUID.randomUUID();
 
-        Long id = refreshTokenRepository.saveAndFlush(RefreshToken.issue(userId, tokenHash, expiredAt)).getId();
+        Long id = refreshTokenRepository.saveAndFlush(RefreshToken.issue(userId, tokenHash, expiredAt, sessionId))
+                .getId();
         entityManager.clear();
 
         RefreshToken found = refreshTokenRepository.findById(id).orElseThrow();
         assertThat(found.getUserId()).isEqualTo(userId);
         assertThat(found.getToken()).isEqualTo(tokenHash);
         assertThat(found.getExpiredAt().toInstant()).isEqualTo(expiredAt.toInstant());
+        assertThat(found.getSessionId()).isEqualTo(sessionId);
         assertThat(found.getCreatedAt()).isNotNull();
     }
 

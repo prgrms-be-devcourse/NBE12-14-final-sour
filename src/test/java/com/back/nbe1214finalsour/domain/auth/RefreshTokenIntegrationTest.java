@@ -274,19 +274,16 @@ class RefreshTokenIntegrationTest {
     }
 
     @Test
-    @DisplayName("B: 로그인하면 그 회원의 만료된 행만 지우고, 다른 기기의 유효한 행과 다른 회원의 만료된 행은 남긴다")
-    void loginDeletesOwnExpiredTokensOnly() throws Exception {
-        String otherDevice = loginAndGetRefreshToken(null);
+    @DisplayName("로그인하면 그 회원의 행(다른 기기의 유효한 행·만료된 행)을 모두 지우고, 다른 회원의 행은 남긴다 (계정당 1기기, SCRUM-84)")
+    void loginDeletesAllOwnTokensOnly() throws Exception {
+        loginAndGetRefreshToken(null);
         insertToken(user.getId(), "a".repeat(64), OffsetDateTime.now().minusDays(1));
         User other = createUser("다른회원", "other@" + DOMAIN);
         insertToken(other.getId(), "b".repeat(64), OffsetDateTime.now().minusDays(1));
 
         String thisDevice = loginAndGetRefreshToken(null);
 
-        assertThat(tokenHashes()).containsExactlyInAnyOrder(
-                RefreshTokenService.hash(otherDevice),
-                RefreshTokenService.hash(thisDevice),
-                "b".repeat(64));
+        assertThat(tokenHashes()).containsExactlyInAnyOrder(RefreshTokenService.hash(thisDevice), "b".repeat(64));
     }
 
     private User createUser(String nickname, String email) {
@@ -295,7 +292,7 @@ class RefreshTokenIntegrationTest {
     }
 
     private String accessTokenOf(User target) {
-        return jwtProvider.createAccessToken(new AuthUser(target.getId(), universityId, departmentId, Role.USER));
+        return jwtProvider.createAccessToken(new AuthUser(target.getId(), universityId, departmentId, Role.USER), null);
     }
 
     private ResultActions login(String password, String previousToken) throws Exception {

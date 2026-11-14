@@ -41,7 +41,7 @@ class ApiErrorControllerIntegrationTest {
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + FAILING_PATH))
                 .header("Accept", "text/html")
                 // /api/** 는 로그인이 필요하다. 인증을 통과해야 보안 필터 뒤의 실패 필터까지 간다
-                .header("Authorization", "Bearer " + jwtProvider.createAccessToken(new AuthUser(1L, 1L, 34L, Role.USER)))
+                .header("Authorization", "Bearer " + jwtProvider.createAccessToken(new AuthUser(1L, 1L, 34L, Role.USER), null))
                 .GET()
                 .build();
 

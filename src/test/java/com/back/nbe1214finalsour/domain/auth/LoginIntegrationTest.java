@@ -15,10 +15,12 @@ import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 import com.jayway.jsonpath.JsonPath;
+import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -138,12 +140,30 @@ class LoginIntegrationTest {
     }
 
     @Test
-    @DisplayName("다시 로그인하면 refresh 토큰 행을 하나 더 만든다 (기기마다 로그인)")
-    void loginTwiceKeepsBothRefreshTokens() throws Exception {
-        login(EMAIL, PASSWORD).andExpect(status().isOk());
-        login(EMAIL, PASSWORD).andExpect(status().isOk());
+    @DisplayName("로그인하면 새 세션을 만든다: access 토큰 sid = refresh 토큰 행 session_id = Redis auth:session:{id} (TTL = refresh 토큰 TTL)")
+    void loginStartsSession() throws Exception {
+        MvcResult result = login(EMAIL, PASSWORD).andExpect(status().isOk()).andReturn();
 
-        assertThat(refreshTokenCount()).isEqualTo(2);
+        String sessionId = sessionIdOf(result);
+        assertThat(sessionId).isNotBlank();
+        assertThat(jdbcTemplate.queryForObject("SELECT session_id::text FROM refresh_token WHERE user_id = ?",
+                String.class, user.getId())).isEqualTo(sessionId);
+        assertThat(redis.opsForValue().get(sessionKey())).isEqualTo(sessionId);
+        assertThat(redis.getExpire(sessionKey())).isBetween(
+                jwtProvider.refreshTokenTtl().toSeconds() - 10, jwtProvider.refreshTokenTtl().toSeconds());
+    }
+
+    @Test
+    @DisplayName("다른 기기에서 다시 로그인하면 이전 기기의 refresh 토큰을 지우고 새 세션으로 바꾼다 (계정당 1기기, SCRUM-84)")
+    void loginOnAnotherDeviceReplacesSession() throws Exception {
+        MvcResult deviceA = login(EMAIL, PASSWORD).andExpect(status().isOk()).andReturn();
+        MvcResult deviceB = login(EMAIL, PASSWORD).andExpect(status().isOk()).andReturn();
+
+        assertThat(refreshTokenCount()).isEqualTo(1);
+        assertThat(sessionIdOf(deviceB)).isNotEqualTo(sessionIdOf(deviceA));
+        assertThat(redis.opsForValue().get(sessionKey())).isEqualTo(sessionIdOf(deviceB));
+        mockMvc.perform(post("/api/v1/auth/reissue").cookie(new Cookie("refreshToken", refreshTokenOf(deviceA))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -284,6 +304,20 @@ class LoginIntegrationTest {
         return mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"));
+    }
+
+    private String sessionIdOf(MvcResult result) throws Exception {
+        String accessToken = JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");
+        return jwtProvider.parseAccessTokenPayload(accessToken).sessionId();
+    }
+
+    private static String refreshTokenOf(MvcResult result) {
+        String setCookie = result.getResponse().getHeader("Set-Cookie");
+        return setCookie.substring("refreshToken=".length(), setCookie.indexOf(';'));
+    }
+
+    private String sessionKey() {
+        return RedisKey.AUTH_SESSION.of(user.getId());
     }
 
     private int refreshTokenCount() {
