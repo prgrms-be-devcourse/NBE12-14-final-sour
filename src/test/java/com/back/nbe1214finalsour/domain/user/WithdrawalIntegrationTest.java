@@ -198,7 +198,7 @@ class WithdrawalIntegrationTest {
     }
 
     private String accessTokenOf(User target) {
-        return jwtProvider.createAccessToken(new AuthUser(target.getId(), universityId, Role.USER));
+        return jwtProvider.createAccessToken(new AuthUser(target.getId(), universityId, departmentId, Role.USER));
     }
 
     private ResultActions withdraw(String accessToken, String password) throws Exception {

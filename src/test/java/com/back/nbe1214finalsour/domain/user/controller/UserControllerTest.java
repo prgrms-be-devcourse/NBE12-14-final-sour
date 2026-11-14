@@ -177,7 +177,7 @@ class UserControllerTest {
     }
 
     private ResultActions updateProfile(String body) throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
         return mockMvc.perform(patch("/api/v1/users/me")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -337,7 +337,7 @@ class UserControllerTest {
     }
 
     private ResultActions withdraw(String body) throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
         return mockMvc.perform(post("/api/v1/users/me/withdrawal")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -349,7 +349,7 @@ class UserControllerTest {
     }
 
     private ResultActions changePassword(String body) throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
         return mockMvc.perform(patch("/api/v1/users/me/password")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)

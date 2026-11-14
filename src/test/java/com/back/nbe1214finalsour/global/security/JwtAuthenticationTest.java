@@ -49,8 +49,8 @@ class JwtAuthenticationTest {
     /** 명세서 인증 "선택" 경로 (학교 상세). 공개 목록은 SecurityConfig.PUBLIC_GET */
     private static final String OPTIONAL_PATH = "/api/v1/universities/7";
 
-    private static final AuthUser USER = new AuthUser(42L, 7L, Role.USER);
-    private static final AuthUser ADMIN = new AuthUser(1L, 7L, Role.ADMIN);
+    private static final AuthUser USER = new AuthUser(42L, 7L, 34L, Role.USER);
+    private static final AuthUser ADMIN = new AuthUser(1L, 7L, 34L, Role.ADMIN);
 
     @Autowired
     private MockMvc mockMvc;

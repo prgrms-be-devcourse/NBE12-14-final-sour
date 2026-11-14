@@ -47,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 public class ClickerControllerTest {
 
-    private static final AuthUser USER = new AuthUser(1L, 7L, Role.USER);
+    private static final AuthUser USER = new AuthUser(1L, 7L, 34L, Role.USER);
 
     @Autowired
     private MockMvc mockMvc;

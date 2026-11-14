@@ -429,7 +429,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("[POST] /api/v1/auth/logout은 로그인한 회원의 토큰을 지우고 204와 Max-Age=0 쿠키로 응답")
     void logout() throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
 
         mockMvc.perform(post("/api/v1/auth/logout")
                         .header("Authorization", "Bearer " + accessToken)

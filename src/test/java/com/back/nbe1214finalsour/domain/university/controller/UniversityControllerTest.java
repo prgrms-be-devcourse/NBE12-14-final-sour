@@ -238,7 +238,7 @@ class UniversityControllerTest {
     @DisplayName("로그인 사용자가 자기 학교를 조회하면 isMyUniversity가 true이다")
     void getUniversityDetail_myUniversity() throws Exception {
 
-        AuthUser authUser = new AuthUser(101L, 12L, Role.USER);
+        AuthUser authUser = new AuthUser(101L, 12L, 34L, Role.USER);
 
         var authentication =
                 UsernamePasswordAuthenticationToken.authenticated(
@@ -277,7 +277,7 @@ class UniversityControllerTest {
 
         // given
         // 로그인한 사용자는 9번 학교 소속
-        AuthUser authUser = new AuthUser(101L, 9L, Role.USER);
+        AuthUser authUser = new AuthUser(101L, 9L, 34L, Role.USER);
 
         var authentication =
                 UsernamePasswordAuthenticationToken.authenticated(

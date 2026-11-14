@@ -25,8 +25,9 @@ public class ClickController {
                                      @RequestBody @Valid ClickRequest request) {
         Long userId = user.userId();
         Long universityId = user.universityId();
+        Long departmentId = user.departmentId();
 
-        ClickResponse response = clickService.click(userId, universityId, request);
+        ClickResponse response = clickService.click(userId, universityId, departmentId, request);
 
         return ApiResponse.ok(response);
     }

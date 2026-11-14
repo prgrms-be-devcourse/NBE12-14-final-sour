@@ -6,6 +6,7 @@ import com.back.nbe1214finalsour.domain.click.dto.ClickResponse;
 import com.back.nbe1214finalsour.domain.clicker.entity.Clicker;
 import com.back.nbe1214finalsour.domain.clicker.service.ClickerService;
 import com.back.nbe1214finalsour.domain.user.entity.User;
+import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
@@ -34,13 +35,22 @@ public class ClickService {
 
     private static final RedisScript<List> APPLY_CLICK = RedisScript.of(new ClassPathResource("redis/apply-click.lua"), List.class);
 
-    public ClickResponse click(Long userId, Long universityId, ClickRequest request) {
+    /**
+     * @param universityId 토큰의 학교 ID
+     * @param departmentId 토큰의 학과 ID. {@code null}이면(학과 claim을 넣기 전에 발급된 토큰) DB 값을 쓴다
+     */
+    public ClickResponse click(Long userId, Long universityId, Long departmentId, ClickRequest request) {
         int clickCount = request.clickCount();
         String submissionId = request.submissionId();
 
         // 회원이 활성화인 경우만 가능
         String userStatus = stringRedisTemplate.opsForValue().get(RedisKey.USER_STATUS.of(userId));
-        if (userStatus == null || !userStatus.equals("ACTIVE")) {
+        if (userStatus == null) {
+            User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            userStatus = String.valueOf(user.getStatus());
+            stringRedisTemplate.opsForValue().set(RedisKey.USER_STATUS.of(userId), userStatus);
+        }
+        if (!userStatus.equals("ACTIVE")) {
             throw new BusinessException(ErrorCode.USER_SUSPENDED);
         }
 
@@ -62,12 +72,17 @@ public class ClickService {
         // 클리커 데미지 가져오기
         String clickerLevel = stringRedisTemplate.opsForValue().get(RedisKey.USER_CLICKER.of(userId));
 
-        // 레디스에 정보가 없으면 레디스에 저장
-        // TODO: JWT 토큰에 DepartmentId가 생기면 user 조회 로직 if문 안으로 넣기
-        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (clickerLevel == null) {
-            stringRedisTemplate.opsForValue().set(RedisKey.USER_CLICKER.of(userId), String.valueOf(user.getClickerId()));
-            clickerLevel = String.valueOf(user.getClickerId());
+        // 회원은 레벨 캐시가 없거나, 토큰에 학과 ID가 없을 때(SCRUM-81 배포 전 발급)만 DB에서 읽는다
+        if (clickerLevel == null || departmentId == null) {
+            User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            // 레디스에 정보가 없으면 레디스에 저장
+            if (clickerLevel == null) {
+                stringRedisTemplate.opsForValue().set(RedisKey.USER_CLICKER.of(userId), String.valueOf(user.getClickerId()));
+                clickerLevel = String.valueOf(user.getClickerId());
+            }
+            if (departmentId == null) {
+                departmentId = user.getDepartmentId();
+            }
         }
 
         Clicker clicker = clickerService.getClickerById(Long.valueOf(clickerLevel));
@@ -92,8 +107,6 @@ public class ClickService {
                 RedisKey.CLICKS_UNIV_SECOND.of(universityId, nowSec - 1)
         );
 
-        // TODO: JWT 토큰 클레임에 departmentId 추가 시 수정
-        Long departmentId = user.getDepartmentId();
         List<String> r = stringRedisTemplate.execute(
                 APPLY_CLICK,
                 keys,

@@ -26,7 +26,7 @@ class JwtProviderTest {
     private static final String SECRET = "test-secret-key-for-jwt-provider-0123456789";
     private static final String OTHER_SECRET = "another-secret-key-for-jwt-provider-9876543";
     private static final Instant NOW = Instant.parse("2026-11-12T00:00:00Z");
-    private static final AuthUser USER = new AuthUser(3_000_000_000L, 7L, Role.ADMIN);
+    private static final AuthUser USER = new AuthUser(3_000_000_000L, 7L, 34L, Role.ADMIN);
 
     private static JwtProperties properties(String secret) {
         return new JwtProperties(secret, Duration.ofMinutes(60), Duration.ofDays(30));
@@ -48,6 +48,16 @@ class JwtProviderTest {
             AuthUser parsed = provider.parseAccessToken(provider.createAccessToken(USER));
 
             assertThat(parsed).isEqualTo(USER);
+        }
+
+        @Test
+        @DisplayName("학과 claim이 없는 토큰(SCRUM-81 배포 전 발급)은 departmentId가 null이고 거절하지 않는다")
+        void tokenWithoutDepartmentClaim() {
+            var key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+            String legacy = Jwts.builder().subject("1").claim("universityId", 7L).claim("role", "USER")
+                    .expiration(Date.from(NOW.plus(Duration.ofMinutes(10)))).signWith(key).compact();
+
+            assertThat(providerAt(NOW).parseAccessToken(legacy)).isEqualTo(new AuthUser(1L, 7L, null, Role.USER));
         }
 
         @Test
@@ -122,6 +132,8 @@ class JwtProviderTest {
                     .expiration(exp).signWith(key).compact());
             assertInvalid(Jwts.builder().subject("1").claim("universityId", 7L).claim("role", "USER")
                     .signWith(key).compact());
+            assertInvalid(Jwts.builder().subject("1").claim("universityId", 7L).claim("departmentId", "abc")
+                    .claim("role", "USER").expiration(exp).signWith(key).compact());
         }
 
         private void assertInvalid(String token) {

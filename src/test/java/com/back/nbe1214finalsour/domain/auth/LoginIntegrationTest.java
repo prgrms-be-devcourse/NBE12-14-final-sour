@@ -123,7 +123,7 @@ class LoginIntegrationTest {
 
         String accessToken = JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");
         assertThat(jwtProvider.parseAccessToken(accessToken))
-                .isEqualTo(new AuthUser(user.getId(), universityId, Role.USER));
+                .isEqualTo(new AuthUser(user.getId(), universityId, departmentId, Role.USER));
 
         String setCookie = result.getResponse().getHeader("Set-Cookie");
         assertThat(setCookie).startsWith("refreshToken=")

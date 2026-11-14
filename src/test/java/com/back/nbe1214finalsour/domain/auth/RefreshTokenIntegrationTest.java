@@ -114,7 +114,7 @@ class RefreshTokenIntegrationTest {
 
         String accessToken = JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");
         assertThat(jwtProvider.parseAccessToken(accessToken))
-                .isEqualTo(new AuthUser(user.getId(), universityId, Role.USER));
+                .isEqualTo(new AuthUser(user.getId(), universityId, departmentId, Role.USER));
         String newToken = refreshTokenOf(result);
         assertThat(result.getResponse().getHeader("Set-Cookie"))
                 .contains("HttpOnly", "Secure", "SameSite=Strict", "Path=/api/v1/auth", "Max-Age=2592000");
@@ -295,7 +295,7 @@ class RefreshTokenIntegrationTest {
     }
 
     private String accessTokenOf(User target) {
-        return jwtProvider.createAccessToken(new AuthUser(target.getId(), universityId, Role.USER));
+        return jwtProvider.createAccessToken(new AuthUser(target.getId(), universityId, departmentId, Role.USER));
     }
 
     private ResultActions login(String password, String previousToken) throws Exception {

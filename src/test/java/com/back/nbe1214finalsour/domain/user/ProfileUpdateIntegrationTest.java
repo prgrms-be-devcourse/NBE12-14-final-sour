@@ -65,7 +65,7 @@ class ProfileUpdateIntegrationTest {
                 "INSERT INTO department (university_id, name) VALUES (?, '컴퓨터공학과') RETURNING id", Long.class,
                 universityId);
         user = createUser(NICKNAME, "student@" + DOMAIN);
-        accessToken = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, Role.USER));
+        accessToken = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, departmentId, Role.USER));
     }
 
     @AfterEach

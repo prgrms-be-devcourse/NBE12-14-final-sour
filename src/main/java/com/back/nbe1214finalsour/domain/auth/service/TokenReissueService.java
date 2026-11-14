@@ -41,7 +41,7 @@ public class TokenReissueService {
 
         String newRefreshToken = refreshTokenService.issue(userId, null);
         String accessToken = jwtProvider.createAccessToken(
-                new AuthUser(user.getId(), user.getUniversityId(), user.getRole()));
+                new AuthUser(user.getId(), user.getUniversityId(), user.getDepartmentId(), user.getRole()));
         return new ReissueResult(new ReissueResponse(accessToken, jwtProvider.accessTokenExpiresInSeconds()),
                 newRefreshToken, jwtProvider.refreshTokenTtl());
     }

@@ -90,7 +90,7 @@ public class LoginService {
                     "로그인 거부: userId=" + user.getId() + ", status=" + user.getStatus());
         }
 
-        AuthUser authUser = new AuthUser(user.getId(), user.getUniversityId(), user.getRole());
+        AuthUser authUser = new AuthUser(user.getId(), user.getUniversityId(), user.getDepartmentId(), user.getRole());
         LoginResponse response = new LoginResponse(jwtProvider.createAccessToken(authUser),
                 jwtProvider.accessTokenExpiresInSeconds(), LoginUser.from(user));
         return new LoginResult(response, refreshTokenService.issue(user.getId(), previousRefreshToken), jwtProvider.refreshTokenTtl());

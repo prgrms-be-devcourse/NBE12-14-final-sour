@@ -186,7 +186,7 @@ class MyInfoIntegrationTest {
     }
 
     private String tokenOf(long userId) {
-        return jwtProvider.createAccessToken(new AuthUser(userId, universityId, Role.USER));
+        return jwtProvider.createAccessToken(new AuthUser(userId, universityId, departmentId, Role.USER));
     }
 
     private ResultActions me(String accessToken) throws Exception {

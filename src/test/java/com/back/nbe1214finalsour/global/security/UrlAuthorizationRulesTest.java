@@ -94,8 +94,8 @@ class UrlAuthorizationRulesTest {
             new Row(HttpMethod.GET, "/api/v1/universities/12/departments", Auth.PUBLIC),
             new Row(HttpMethod.GET, "/api/v1/map/universities", Auth.PUBLIC));
 
-    private static final AuthUser USER = new AuthUser(42L, 12L, Role.USER);
-    private static final AuthUser ADMIN = new AuthUser(1L, 12L, Role.ADMIN);
+    private static final AuthUser USER = new AuthUser(42L, 12L, 34L, Role.USER);
+    private static final AuthUser ADMIN = new AuthUser(1L, 12L, 34L, Role.ADMIN);
 
     @Autowired
     private MockMvc mockMvc;
