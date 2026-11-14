@@ -174,7 +174,7 @@ class AbuseRankingIntegrationTest {
     }
 
     private ResultActions ranking(String accessToken, int page, int size) throws Exception {
-        return mockMvc.perform(get("/api/v1/clicks/abuse-rankings")
+        return mockMvc.perform(get("/api/v1/admin/abuse-rankings")
                 .param("page", String.valueOf(page))
                 .param("size", String.valueOf(size))
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken));
