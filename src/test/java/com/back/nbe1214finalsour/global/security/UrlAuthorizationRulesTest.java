@@ -27,6 +27,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -99,6 +100,11 @@ class UrlAuthorizationRulesTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
+
     @Autowired
     private JwtProvider jwtProvider;
     @Autowired

@@ -1,5 +1,10 @@
 package com.back.nbe1214finalsour.global.security;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,16 +19,19 @@ import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,6 +59,8 @@ class JwtAuthenticationTest {
 
     private static final AuthUser USER = new AuthUser(42L, 7L, 34L, Role.USER);
     private static final AuthUser ADMIN = new AuthUser(1L, 7L, 34L, Role.ADMIN);
+    private static final String SESSION_ID = "6f1c2b9e-3d4a-4e5f-8a7b-0c1d2e3f4a5b";
+    private static final String OTHER_SESSION_ID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,6 +70,9 @@ class JwtAuthenticationTest {
 
     @Autowired
     private JwtProperties jwtProperties;
+
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
 
     private ResultActions getWithToken(String path, String token) throws Exception {
         return mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
@@ -186,6 +199,70 @@ class JwtAuthenticationTest {
             getWithToken(OPTIONAL_PATH, jwtProvider.createAccessToken(USER, null))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.userId").value(42));
+        }
+    }
+
+    @Nested
+    @DisplayName("세션 확인 (계정당 1기기, SCRUM-86)")
+    class SessionCheck {
+
+        @Test
+        @DisplayName("sid가 Redis 현재 세션과 같으면 통과한다")
+        void currentSession() throws Exception {
+            given(loginSessionStore.find(42L)).willReturn(Optional.of(SESSION_ID));
+
+            getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER, SESSION_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.userId").value(42));
+        }
+
+        @Test
+        @DisplayName("sid가 Redis 현재 세션과 다르면(다른 기기 로그인) 401 AUTH_SESSION_REPLACED")
+        void replacedSession() throws Exception {
+            given(loginSessionStore.find(42L)).willReturn(Optional.of(OTHER_SESSION_ID));
+
+            getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER, SESSION_ID))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("AUTH_SESSION_REPLACED"))
+                    .andExpect(jsonPath("$.message").value("다른 기기에서 로그인해 로그아웃되었습니다. 다시 로그인해주세요."));
+        }
+
+        @Test
+        @DisplayName("Redis에 현재 세션이 없으면(유실·로그아웃) 401 COMMON_EXPIRED_TOKEN: 프론트가 재발급을 시도하게 한다")
+        void missingSession() throws Exception {
+            given(loginSessionStore.find(42L)).willReturn(Optional.empty());
+
+            getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER, SESSION_ID))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("COMMON_EXPIRED_TOKEN"));
+        }
+
+        @Test
+        @DisplayName("sid가 없는 토큰(SCRUM-84 배포 전 발급)은 Redis를 보지 않고 통과한다 (계획 Q3)")
+        void tokenWithoutSessionSkipsLookup() throws Exception {
+            getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER, null))
+                    .andExpect(status().isOk());
+
+            verify(loginSessionStore, never()).find(any());
+        }
+
+        @Test
+        @DisplayName("인증 선택 경로에서는 끊긴 세션도 401이 아니라 익명으로 통과한다")
+        void replacedSessionIsAnonymousOnOptionalPath() throws Exception {
+            given(loginSessionStore.find(42L)).willReturn(Optional.of(OTHER_SESSION_ID));
+
+            getWithToken(OPTIONAL_PATH, jwtProvider.createAccessToken(USER, SESSION_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isEmpty());
+        }
+
+        @Test
+        @DisplayName("Redis 장애는 삼키지 않는다: 인증하지 않고 요청이 실패한다 (계획 Q4)")
+        void redisFailureIsNotSwallowed() {
+            given(loginSessionStore.find(42L)).willThrow(new RedisConnectionFailureException("down"));
+
+            assertThatThrownBy(() -> getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER, SESSION_ID)))
+                    .isInstanceOf(RedisConnectionFailureException.class);
         }
     }
 

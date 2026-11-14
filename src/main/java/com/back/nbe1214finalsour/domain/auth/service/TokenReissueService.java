@@ -1,7 +1,6 @@
 package com.back.nbe1214finalsour.domain.auth.service;
 
 import com.back.nbe1214finalsour.domain.auth.dto.ReissueResponse;
-import com.back.nbe1214finalsour.domain.auth.repository.LoginSessionStore;
 import com.back.nbe1214finalsour.domain.auth.service.RefreshTokenService.ConsumedToken;
 import com.back.nbe1214finalsour.domain.auth.service.RefreshTokenService.IssuedSession;
 import com.back.nbe1214finalsour.domain.user.entity.User;
@@ -10,6 +9,7 @@ import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.security.AuthUser;
+import com.back.nbe1214finalsour.global.security.LoginSessionStore;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package com.back.nbe1214finalsour.domain.auth.repository;
+package com.back.nbe1214finalsour.global.security;
 
 import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProperties;
