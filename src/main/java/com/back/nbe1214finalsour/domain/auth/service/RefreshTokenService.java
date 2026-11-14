@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -89,12 +90,24 @@ public class RefreshTokenService {
         return new ConsumedToken(refreshToken.getUserId(), refreshToken.getSessionId());
     }
 
-    /** 로그아웃: 이 회원의 토큰이면 지운다. 없거나 다른 회원의 토큰이면 아무것도 하지 않는다 */
+    /**
+     * 로그아웃: 이 회원의 토큰이면 지운다. 없거나 다른 회원의 토큰이면 아무것도 하지 않는다.
+     *
+     * @return 지운 행의 세션 ID. 지운 행이 없거나 배포 전 행(세션 없음)이면 빈 값
+     */
     @Transactional
-    public void revoke(String token, Long userId) {
-        if (token != null && !token.isBlank()) {
-            refreshTokenRepository.deleteByTokenAndUserId(hash(token), userId);
+    public Optional<UUID> revoke(String token, Long userId) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
         }
+        String tokenHash = hash(token);
+        Optional<UUID> sessionId = refreshTokenRepository.findByToken(tokenHash)
+                .filter(found -> found.getUserId().equals(userId))
+                .map(RefreshToken::getSessionId);
+        if (refreshTokenRepository.deleteByTokenAndUserId(tokenHash, userId) == 0) {
+            return Optional.empty();
+        }
+        return sessionId;
     }
 
     /** 비밀번호 변경·탈퇴: 이 회원의 모든 기기를 로그아웃시킨다 (추가 명세 §3-1). 이미 발급한 access 토큰은 만료까지 남는다 */
