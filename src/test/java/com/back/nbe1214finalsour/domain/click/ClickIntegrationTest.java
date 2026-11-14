@@ -24,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -97,7 +98,8 @@ class ClickIntegrationTest {
                 RedisKey.USER_STATUS.of(user.getId()),
                 RedisKey.USER_CLICKER.of(user.getId()),
                 RedisKey.USER_EFFECT.of(user.getId()),
-                RedisKey.RATELIMIT_ACTION.of(user.getId())));
+                RedisKey.RATELIMIT_ACTION.of(user.getId()),
+                RedisKey.RATELIMIT_CLICK.of(user.getId())));
 
         long nowSec = Instant.now().getEpochSecond();
         redis.delete(LongStream.rangeClosed(nowSec - 8, nowSec + 2)
@@ -211,6 +213,31 @@ class ClickIntegrationTest {
         // 한도에 걸린 요청의 점수는 반영되지 않는다
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
                 .isEqualTo(12.0);
+    }
+
+    @Test
+    @DisplayName("1분 동안 clickCount 합계가 900을 넘으면 429 CLICK_COUNT_EXCEEDED, 점수는 반영되지 않는다")
+    void rejectsWhenClickCountExceedsLimitWithinWindow() throws Exception {
+        // 요청 한도(10초 12회 × 최대 20클릭) 안에서는 900을 채울 수 없으므로 합계를 미리 넣어 둔다
+        redis.opsForValue().set(RedisKey.RATELIMIT_CLICK.of(user.getId()), "890", Duration.ofSeconds(60));
+
+        click("sub-1", 10).andExpect(status().isOk());
+
+        click("sub-2", 1)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("CLICK_COUNT_EXCEEDED"));
+
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
+                .isEqualTo(10.0);
+    }
+
+    @Test
+    @DisplayName("첫 클릭에서 클릭 수 한도 키에 clickCount와 60초 만료를 건다")
+    void firstClickSetsClickCountWithTtl() throws Exception {
+        click("sub-1", 7).andExpect(status().isOk());
+
+        assertThat(redis.opsForValue().get(RedisKey.RATELIMIT_CLICK.of(user.getId()))).isEqualTo("7");
+        assertThat(redis.getExpire(RedisKey.RATELIMIT_CLICK.of(user.getId()))).isBetween(1L, 60L);
     }
 
     @Test

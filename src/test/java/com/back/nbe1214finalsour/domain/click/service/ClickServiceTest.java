@@ -60,6 +60,8 @@ class ClickServiceTest {
     @Mock
     private ActionRateLimiter actionRateLimiter;
     @Mock
+    private ClickCountLimiter clickCountLimiter;
+    @Mock
     private ClickerService clickerService;
     @Mock
     private UserRepository userRepository;
@@ -101,6 +103,7 @@ class ClickServiceTest {
         // 상태 검사가 중복 검사보다 먼저다
         verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any(Duration.class));
         verify(actionRateLimiter, never()).check(anyLong());
+        verify(clickCountLimiter, never()).check(anyLong(), anyInt());
         verify(stringRedisTemplate, never()).execute(any(), anyList(), any());
     }
 
@@ -117,6 +120,7 @@ class ClickServiceTest {
 
         verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any(Duration.class));
         verify(actionRateLimiter, never()).check(anyLong());
+        verify(clickCountLimiter, never()).check(anyLong(), anyInt());
     }
 
     // --- 1단계: 중복 제출 ---
@@ -136,6 +140,7 @@ class ClickServiceTest {
 
         // 중복 검사가 한도 검사보다 먼저다
         verify(actionRateLimiter, never()).check(anyLong());
+        verify(clickCountLimiter, never()).check(anyLong(), anyInt());
         verify(userRepository, never()).findById(anyLong());
         verify(stringRedisTemplate, never()).execute(any(), anyList(), any());
     }
@@ -174,7 +179,40 @@ class ClickServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CLICK_TOO_FREQUENT);
 
+        // 요청 한도에 걸린 요청은 클릭 수 합계에 더하지 않는다
+        verify(clickCountLimiter, never()).check(anyLong(), anyInt());
         verify(stringRedisTemplate, never()).execute(any(), anyList(), any());
+    }
+
+    @Test
+    @DisplayName("요청 한도를 통과하면 clickCount를 그대로 클릭 수 한도에 넘긴다")
+    void click_passesClickCountToClickCountLimiter() {
+        givenHappyPathBeforeScript();
+        given(stringRedisTemplate.<List>execute(any(), anyList(), any(), any(), any(), any(), any()))
+                .willReturn(SCRIPT_RESULT);
+
+        clickService.click(USER_ID, UNIVERSITY_ID, request(7));
+
+        verify(clickCountLimiter).check(USER_ID, 7);
+    }
+
+    @Test
+    @DisplayName("클릭 수 한도 초과 예외는 그대로 전파되고 점수 반영은 하지 않는다")
+    void click_clickCountExceeded() {
+        given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get("user:1:status")).willReturn("ACTIVE");
+        given(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(true);
+        willThrow(new BusinessException(ErrorCode.CLICK_COUNT_EXCEEDED))
+                .given(clickCountLimiter).check(USER_ID, 3);
+
+        assertThatThrownBy(() -> clickService.click(USER_ID, UNIVERSITY_ID, request(3)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLICK_COUNT_EXCEEDED);
+
+        verify(actionRateLimiter).check(USER_ID);
+        verify(userRepository, never()).findById(anyLong());
+        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any(), any(), any());
     }
 
     // --- 3단계: 클리커 레벨 캐시 ---
