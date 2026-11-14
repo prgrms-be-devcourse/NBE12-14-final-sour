@@ -11,6 +11,7 @@ import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -29,6 +30,7 @@ public class ItemPurchaseService {
 
 
     // 아이템 구매
+    @Transactional
     public void purchase(Long userId, Long universityId, Long itemId) {
 
         // 캐시에서 아이템 목록
