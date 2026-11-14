@@ -4,6 +4,7 @@ import com.back.nbe1214finalsour.domain.contribution.ContributionWallet;
 import com.back.nbe1214finalsour.domain.item.entity.Item;
 import com.back.nbe1214finalsour.domain.item.entity.ItemType;
 import com.back.nbe1214finalsour.domain.item.entity.PayType;
+import com.back.nbe1214finalsour.domain.item.event.PotionPurchasedEvent;
 import com.back.nbe1214finalsour.domain.userItem.entity.UserItem;
 import com.back.nbe1214finalsour.domain.userItem.repository.UserItemRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
@@ -16,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -41,6 +43,9 @@ public class ItemPurchaseServiceTest {
 
     @Mock
     private UserItemRepository userItemRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private static final Instant NOW = Instant.parse("2026-11-14T03:00:00Z");
 
@@ -149,5 +154,28 @@ public class ItemPurchaseServiceTest {
         assertThat(saved.getPrice()).isEqualTo(1000L);
         assertThat(saved.getExpiredAt()).isAtSameInstantAs(NOW.plusSeconds(3600).atOffset(ZoneOffset.UTC));
         assertThat(saved.getLogoImageUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("물약을 사면 배율과 만료 시각을 담은 효과 적용 이벤트를 발행한다")
+    void purchase_publishesPotionPurchasedEvent() {
+        // given: 2번 물약(4배, 1000, 3600초), 기여도 충분
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
+        given(this.contributionWallet.tryDeduct(USER_ID, UNIVERSITY_ID, 1000L))
+                .willReturn(OptionalLong.of(1500L));
+
+        // when
+        this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 2L);
+
+        // then: 리스너가 Redis(user:{userId}:effect)에 쓸 내용을 담아 발행
+        ArgumentCaptor<PotionPurchasedEvent> captor = ArgumentCaptor.forClass(PotionPurchasedEvent.class);
+        verify(this.eventPublisher).publishEvent(captor.capture());
+
+        PotionPurchasedEvent event = captor.getValue();
+        assertThat(event.userId()).isEqualTo(USER_ID);
+        assertThat(event.itemId()).isEqualTo(2L);
+        assertThat(event.multiplier()).isEqualTo(4.0);
+        assertThat(event.expiredAt()).isAtSameInstantAs(NOW.plusSeconds(3600).atOffset(ZoneOffset.UTC));
     }
 }
