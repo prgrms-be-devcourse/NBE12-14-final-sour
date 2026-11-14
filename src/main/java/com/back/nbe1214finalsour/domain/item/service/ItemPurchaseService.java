@@ -50,7 +50,13 @@ public class ItemPurchaseService {
 
             // 구매 이력 저장
             UserItem userItem = UserItem.ofPotion(userId, item, OffsetDateTime.now(this.clock));
-            this.userItemRepository.save(userItem);
+            try {
+                this.userItemRepository.save(userItem);
+            } catch (RuntimeException e) {
+                // Redis 차감은 DB 롤백으로 돌아오지 않으므로 직접 되돌린 뒤 원래 예외를 그대로 던진다
+                this.contributionWallet.restore(userId, universityId, item.getPrice());
+                throw e;
+            }
 
             // Redis user:{userId}:effect에 효과 적용
             this.eventPublisher.publishEvent(
