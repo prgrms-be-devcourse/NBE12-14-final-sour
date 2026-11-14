@@ -2,6 +2,7 @@ package com.back.nbe1214finalsour.domain.item.service;
 
 import com.back.nbe1214finalsour.domain.contribution.ContributionWallet;
 import com.back.nbe1214finalsour.domain.item.entity.Item;
+import com.back.nbe1214finalsour.domain.item.entity.PayType;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +29,12 @@ public class ItemPurchaseService {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.ITEM_NOT_FOUND));    // 아이템이 리스트에 없으면 404
 
-        // Redis의 기여도 차감 시도
-        this.contributionWallet.tryDeduct(userId, universityId, item.getPrice())
-                .orElseThrow(() -> new BusinessException(ErrorCode.ITEM_NOT_ENOUGH_SCORE)); // 잔여 기여도가 부족하다면 차감없이 400
-
+        // 기여도 아이템일 때
+        if (item.getPayType() == PayType.CONTRIBUTION) {
+            // Redis의 기여도 차감 시도
+            this.contributionWallet.tryDeduct(userId, universityId, item.getPrice())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ITEM_NOT_ENOUGH_SCORE)); // 잔여 기여도가 부족하다면 차감없이 400
+        }
     }
 
 }
