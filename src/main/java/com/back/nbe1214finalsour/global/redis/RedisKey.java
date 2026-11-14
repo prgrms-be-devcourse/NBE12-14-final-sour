@@ -52,6 +52,8 @@ public enum RedisKey {
     // 요청 한도 (RateLimit)
     /** 행동 요청 한도. INCR */
     RATELIMIT_ACTION("ratelimit:action:%s", Structure.STRING, ValueFormat.PLAIN),
+    /** 클릭 수 한도. of(userId), INCRBY */
+    RATELIMIT_CLICK("ratelimit:click:%s", Structure.STRING, ValueFormat.PLAIN),
     /** 방명록 한도. SET NX + TTL */
     RATELIMIT_GUESTBOOK("ratelimit:guestbook:%s", Structure.STRING, ValueFormat.PLAIN),
     /** 채팅 한도. SET NX + TTL */
