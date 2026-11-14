@@ -19,6 +19,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -45,6 +46,9 @@ public class ItemPurchaseServiceTest {
 
     @Mock
     private UserItemRepository userItemRepository;
+
+    @Mock
+    private CreditWallet creditWallet;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -203,4 +207,33 @@ public class ItemPurchaseServiceTest {
                 .publishEvent(any(PotionPurchasedEvent.class));
     }
 
+    @Test
+    @DisplayName("물약 구매 결과로 구매 이력 ID·아이템·가격·만료 시각·차감 후 기여도·현재 크레딧을 반환")
+    void purchase_returnsResult() {
+        // given: 2번 물약(4배, 1000, 3600초), 차감 후 기여도 1500, 크레딧 1100
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
+        given(this.contributionWallet.tryDeduct(USER_ID, UNIVERSITY_ID, 1000L))
+                .willReturn(OptionalLong.of(1500L));
+        // IDENTITY 저장 시 DB가 같은 객체에 id를 채워 주는 것을 흉내
+        given(this.userItemRepository.save(any()))
+                .willAnswer(invocation -> {
+                    UserItem userItem = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(userItem, "id", 5530L);
+                    return userItem;
+                });
+        given(this.creditWallet.findBalance(USER_ID))
+                .willReturn(1100L);
+
+        // when
+        ItemPurchaseResult result = this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 2L);
+
+        // then: 명세 응답(201)의 재료
+        assertThat(result.userItemId()).isEqualTo(5530L);
+        assertThat(result.item()).isSameAs(POTIONS.get(1));
+        assertThat(result.price()).isEqualTo(1000L);
+        assertThat(result.expiredAt()).isAtSameInstantAs(NOW.plusSeconds(3600).atOffset(ZoneOffset.UTC));
+        assertThat(result.myContribScore()).isEqualTo(1500L);
+        assertThat(result.myCreditBalance()).isEqualTo(1100L);
+    }
 }
