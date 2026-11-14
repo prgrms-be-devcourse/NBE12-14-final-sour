@@ -3,11 +3,15 @@ package com.back.nbe1214finalsour.domain.item.service;
 import com.back.nbe1214finalsour.domain.contribution.ContributionWallet;
 import com.back.nbe1214finalsour.domain.item.entity.Item;
 import com.back.nbe1214finalsour.domain.item.entity.PayType;
+import com.back.nbe1214finalsour.domain.userItem.entity.UserItem;
+import com.back.nbe1214finalsour.domain.userItem.repository.UserItemRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Service
@@ -16,6 +20,10 @@ public class ItemPurchaseService {
 
     private final ItemService itemService;
     private final ContributionWallet contributionWallet;
+    private final UserItemRepository userItemRepository;
+
+    private final Clock clock;
+
 
     // 아이템 구매
     public void purchase(Long userId, Long universityId, Long itemId) {
@@ -34,6 +42,8 @@ public class ItemPurchaseService {
             // Redis의 기여도 차감 시도
             this.contributionWallet.tryDeduct(userId, universityId, item.getPrice())
                     .orElseThrow(() -> new BusinessException(ErrorCode.ITEM_NOT_ENOUGH_SCORE)); // 잔여 기여도가 부족하다면 차감없이 400
+
+            this.userItemRepository.save(UserItem.ofPotion(userId, item, OffsetDateTime.now(this.clock)));
         }
     }
 
