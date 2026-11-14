@@ -37,6 +37,10 @@ public class ItemControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
+
     @MockitoBean
     private ItemService itemService;
 

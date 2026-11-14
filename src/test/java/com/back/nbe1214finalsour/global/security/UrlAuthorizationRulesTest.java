@@ -27,6 +27,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -99,6 +100,11 @@ class UrlAuthorizationRulesTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
+
     @Autowired
     private JwtProvider jwtProvider;
     @Autowired
@@ -144,7 +150,7 @@ class UrlAuthorizationRulesTest {
     @MethodSource("spec")
     @DisplayName("유효한 토큰이면 모든 API를 호출할 수 있고 로그인 회원이 채워진다 (선택 API의 내 정보 포함)")
     void validTokenCanCallEveryApi(Row row) throws Exception {
-        perform(row, jwtProvider.createAccessToken(USER))
+        perform(row, jwtProvider.createAccessToken(USER, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(42));
     }
@@ -174,10 +180,10 @@ class UrlAuthorizationRulesTest {
     void adminApis() throws Exception {
         Row admin = new Row(HttpMethod.GET, "/api/v1/admin/users", Auth.REQUIRED);
         perform(admin, null).andExpect(status().isUnauthorized());
-        perform(admin, jwtProvider.createAccessToken(USER))
+        perform(admin, jwtProvider.createAccessToken(USER, null))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("COMMON_FORBIDDEN"));
-        perform(admin, jwtProvider.createAccessToken(ADMIN)).andExpect(status().isOk());
+        perform(admin, jwtProvider.createAccessToken(ADMIN, null)).andExpect(status().isOk());
     }
 
     @ParameterizedTest(name = "{0}")

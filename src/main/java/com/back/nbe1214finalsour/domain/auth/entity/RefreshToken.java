@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,14 +37,20 @@ public class RefreshToken extends BaseTimeEntity {
     @Column(name = "expired_at", nullable = false)
     private OffsetDateTime expiredAt;
 
+    /** 이 토큰을 발급한 로그인 세션 ({@code V6}). 배포 전에 만든 행은 {@code null} */
+    @Column(name = "session_id")
+    private UUID sessionId;
+
     /**
      * @param tokenHash 원문의 SHA-256 소문자 hex (원문을 넣지 않는다)
+     * @param sessionId 로그인 세션 ID (로그인·재발급 모두 넣는다)
      */
-    public static RefreshToken issue(Long userId, String tokenHash, OffsetDateTime expiredAt) {
+    public static RefreshToken issue(Long userId, String tokenHash, OffsetDateTime expiredAt, UUID sessionId) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.userId = userId;
         refreshToken.token = tokenHash;
         refreshToken.expiredAt = expiredAt;
+        refreshToken.sessionId = sessionId;
         return refreshToken;
     }
 }

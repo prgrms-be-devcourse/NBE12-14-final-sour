@@ -32,6 +32,7 @@ import com.back.nbe1214finalsour.global.security.ApiAuthenticationEntryPoint;
 import com.back.nbe1214finalsour.global.security.ApiResponseWriter;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.CorsConfig;
+import com.back.nbe1214finalsour.global.security.LoginSessionStore;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.SecurityConfig;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
@@ -68,6 +69,10 @@ class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
 
     @MockitoBean
     private UserService userService;
@@ -177,7 +182,7 @@ class UserControllerTest {
     }
 
     private ResultActions updateProfile(String body) throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER), null);
         return mockMvc.perform(patch("/api/v1/users/me")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -337,7 +342,7 @@ class UserControllerTest {
     }
 
     private ResultActions withdraw(String body) throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER), null);
         return mockMvc.perform(post("/api/v1/users/me/withdrawal")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -349,7 +354,7 @@ class UserControllerTest {
     }
 
     private ResultActions changePassword(String body) throws Exception {
-        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER));
+        String accessToken = jwtProvider.createAccessToken(new AuthUser(1024L, 12L, 34L, Role.USER), null);
         return mockMvc.perform(patch("/api/v1/users/me/password")
                 .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)

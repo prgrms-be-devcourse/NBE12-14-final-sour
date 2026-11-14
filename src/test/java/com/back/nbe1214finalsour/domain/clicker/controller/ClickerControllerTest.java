@@ -12,6 +12,7 @@ import com.back.nbe1214finalsour.global.security.ApiAuthenticationEntryPoint;
 import com.back.nbe1214finalsour.global.security.ApiResponseWriter;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.CorsConfig;
+import com.back.nbe1214finalsour.global.security.LoginSessionStore;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.SecurityConfig;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
@@ -51,6 +52,10 @@ public class ClickerControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
 
     @Autowired
     private JwtProvider jwtProvider;
@@ -93,7 +98,7 @@ public class ClickerControllerTest {
 
         // when & then
         mockMvc.perform(post("/api/v1/clickers/upgrade")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(USER)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(USER, null)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.level").value(2))
@@ -121,7 +126,7 @@ public class ClickerControllerTest {
                 .willThrow(new BusinessException(ErrorCode.CLICKER_NOT_ENOUGH_SCORE));
 
         mockMvc.perform(post("/api/v1/clickers/upgrade")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(USER)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(USER, null)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("CLICKER_NOT_ENOUGH_SCORE"));
     }

@@ -42,6 +42,8 @@ public class JwtProvider {
     private static final String CLAIM_UNIVERSITY_ID = "universityId";
     private static final String CLAIM_DEPARTMENT_ID = "departmentId";
     private static final String CLAIM_ROLE = "role";
+    /** 로그인 세션 ID (계정당 1기기, SCRUM-84). 없으면 배포 전 토큰으로 본다 */
+    private static final String CLAIM_SESSION_ID = "sid";
     private static final int REFRESH_TOKEN_BYTES = 32;
 
     private final SecretKey key;
@@ -69,13 +71,18 @@ public class JwtProvider {
                 .build();
     }
 
-    public String createAccessToken(AuthUser user) {
+    /**
+     * @param sessionId 로그인 세션 ID. 로그인·재발급은 항상 넣는다. {@code null}이면 {@code sid} claim을 넣지 않는다
+     *                  (배포 전 토큰을 재현하는 테스트용)
+     */
+    public String createAccessToken(AuthUser user, String sessionId) {
         Instant now = clock.instant();
         return Jwts.builder()
                 .subject(String.valueOf(user.userId()))
                 .claim(CLAIM_UNIVERSITY_ID, user.universityId())
                 .claim(CLAIM_DEPARTMENT_ID, user.departmentId())
                 .claim(CLAIM_ROLE, user.role().name())
+                .claim(CLAIM_SESSION_ID, sessionId)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(accessTokenTtl)))
                 .signWith(key, Jwts.SIG.HS256)
@@ -86,6 +93,10 @@ public class JwtProvider {
      * @throws BusinessException 만료면 {@code COMMON_EXPIRED_TOKEN}, 그 밖의 오류면 {@code COMMON_INVALID_TOKEN}
      */
     public AuthUser parseAccessToken(String token) {
+        return parseAccessTokenPayload(token).user();
+    }
+
+    public AccessTokenPayload parseAccessTokenPayload(String token) {
         Claims claims;
         try {
             claims = parser.parseSignedClaims(token).getPayload();
@@ -94,7 +105,7 @@ public class JwtProvider {
         } catch (JwtException | IllegalArgumentException e) {
             throw invalid(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
-        return toAuthUser(claims);
+        return new AccessTokenPayload(toAuthUser(claims), toSessionId(claims));
     }
 
     public long accessTokenExpiresInSeconds() {
@@ -128,6 +139,19 @@ public class JwtProvider {
         } catch (JwtException | IllegalArgumentException e) {
             // NumberFormatException(sub가 숫자가 아님), 알 수 없는 role, claim 타입 불일치
             throw invalid("claim 오류: " + e.getMessage());
+        }
+    }
+
+    /** {@code sid}는 선택 claim이다. 있으면 비어 있지 않은 문자열이어야 한다 */
+    private static String toSessionId(Claims claims) {
+        try {
+            String sessionId = claims.get(CLAIM_SESSION_ID, String.class);
+            if (sessionId != null && sessionId.isBlank()) {
+                throw invalid("빈 sid claim");
+            }
+            return sessionId;
+        } catch (JwtException e) {
+            throw invalid("sid claim 오류: " + e.getMessage());
         }
     }
 
