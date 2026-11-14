@@ -213,7 +213,7 @@ class ClickServiceTest {
     @DisplayName("클릭 수 한도 초과 예외는 그대로 전파되고 점수 반영은 하지 않는다")
     void click_clickCountExceeded() {
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get("user:1:status")).willReturn("ACTIVE");
+        given(userStatusCache.find(USER_ID)).willReturn(Optional.of(UserStatus.ACTIVE));
         given(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(true);
         willThrow(new BusinessException(ErrorCode.CLICK_COUNT_EXCEEDED))
                 .given(clickCountLimiter).check(USER_ID, 3);
