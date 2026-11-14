@@ -9,13 +9,19 @@ import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
@@ -30,6 +36,14 @@ public class ItemPurchaseServiceTest {
 
     @Mock
     private ContributionWallet contributionWallet;
+
+    @Mock
+    private UserItemRepository userItemRepository;
+
+    private static final Instant NOW = Instant.parse("2026-11-14T03:00:00Z");
+
+    @Spy
+    private Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     @InjectMocks
     private ItemPurchaseService itemPurchaseService;
@@ -109,4 +123,28 @@ public class ItemPurchaseServiceTest {
                 .tryDeduct(anyLong(), anyLong(), anyLong());
     }
 
+
+    @Test
+    @DisplayName("기여도로 아이템 구매 시 구매 이력을 저장")
+    void purchase_saveUserItem() {
+        // given
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
+        given(this.contributionWallet.tryDeduct(USER_ID, UNIVERSITY_ID, 1000L))
+                .willReturn(OptionalLong.of(1500L));
+
+        // when
+        this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 2L);
+
+        // then
+        ArgumentCaptor<UserItem> captor = ArgumentCaptor.forClass(UserItem.class);
+        verify(this.userItemRepository).save(captor.capture());
+
+        UserItem saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo(USER_ID);
+        assertThat(saved.getItemId()).isEqualTo(2L);
+        assertThat(saved.getPrice()).isEqualTo(1000L);
+        assertThat(saved.getExpiredAt()).isAtSameInstantAs(NOW.plusSeconds(3600).atOffset(ZoneOffset.UTC));
+        assertThat(saved.getLogoImageUrl()).isNull();
+    }
 }
