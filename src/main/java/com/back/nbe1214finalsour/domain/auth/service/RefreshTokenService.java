@@ -52,26 +52,20 @@ public class RefreshTokenService {
     }
 
     /**
-     * 새 refresh 토큰을 저장하고 원문을 돌려준다.
-     *
-     * @param previousToken 이 요청에 실려 온 이전 refresh 토큰 원문 (없으면 {@code null}). 이 브라우저에서 곧 덮어써지므로,
-     *                      다른 회원의 토큰이어도 지운다 (SCRUM-72 A)
+     * 재발급: 같은 세션의 새 refresh 토큰을 저장하고 원문을 돌려준다. 이 회원의 만료된 행도 지운다 (SCRUM-72 C).
      */
     @Transactional
-    public String issue(Long userId, String previousToken) {
+    public String continueSession(Long userId, UUID sessionId) {
         OffsetDateTime now = OffsetDateTime.now(clock);
-        if (previousToken != null && !previousToken.isBlank()) {
-            refreshTokenRepository.deleteByToken(hash(previousToken));
-        }
         refreshTokenRepository.deleteExpiredByUserId(userId, now);
 
         String token = jwtProvider.generateRefreshToken();
-        refreshTokenRepository.save(RefreshToken.issue(userId, hash(token), now.plus(jwtProvider.refreshTokenTtl()), null));
+        refreshTokenRepository.save(RefreshToken.issue(userId, hash(token), now.plus(jwtProvider.refreshTokenTtl()), sessionId));
         return token;
     }
 
     /**
-     * 재발급에 쓸 토큰을 소비한다: 행을 지우고 회원 ID를 돌려준다 (Rotation). 만료된 행도 지운 뒤 거부한다 (SCRUM-72 C).
+     * 재발급에 쓸 토큰을 소비한다: 행을 지우고 회원 ID와 세션 ID를 돌려준다 (Rotation). 만료된 행도 지운 뒤 거부한다 (SCRUM-72 C).
      *
      * <p>행을 지운 채로 예외를 던지므로 {@link BusinessException}에는 롤백하지 않는다. 같은 트랜잭션에 참여한 호출자도
      * 같은 설정이어야 한다 (안쪽에서 롤백 표시가 되면 바깥 커밋이 실패한다).
@@ -79,7 +73,7 @@ public class RefreshTokenService {
      * @throws BusinessException 401 {@code AUTH_INVALID_REFRESH_TOKEN}: 없음, 이미 사용됨, 만료
      */
     @Transactional(noRollbackFor = BusinessException.class)
-    public Long consume(String token) {
+    public ConsumedToken consume(String token) {
         if (token == null || token.isBlank()) {
             throw invalid("refresh 토큰 쿠키 없음");
         }
@@ -92,7 +86,7 @@ public class RefreshTokenService {
         if (!refreshToken.getExpiredAt().isAfter(OffsetDateTime.now(clock))) {
             throw invalid("만료된 refresh 토큰: userId=" + refreshToken.getUserId());
         }
-        return refreshToken.getUserId();
+        return new ConsumedToken(refreshToken.getUserId(), refreshToken.getSessionId());
     }
 
     /** 로그아웃: 이 회원의 토큰이면 지운다. 없거나 다른 회원의 토큰이면 아무것도 하지 않는다 */
@@ -121,6 +115,10 @@ public class RefreshTokenService {
 
     static BusinessException invalid(String detail) {
         return new BusinessException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN, detail);
+    }
+
+    /** @param sessionId 이 토큰을 발급한 세션. 배포 전 행이면 {@code null} */
+    public record ConsumedToken(Long userId, UUID sessionId) {
     }
 
     /**
