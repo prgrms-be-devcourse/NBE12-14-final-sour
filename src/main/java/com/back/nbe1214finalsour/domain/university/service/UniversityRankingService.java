@@ -68,4 +68,120 @@ public class UniversityRankingService {
         return redisHandler.getRankRange(RedisKey.RANK_USER.of(universityId), start, count);
     }
 
+    // Redis에서 학교 순위 목록을 구간별로 조회
+    public List<RedisHandler.RankEntry> getUniversitiesRange(long start, long count) {
+        return redisHandler.getRankRange(
+                RedisKey.RANK_UNIV.of(),
+                start,
+                count
+        );
+    }
+
+    // Redis 랭킹에 등록된 전체 학교 수 조회
+    public long getUniversityCount() {
+        Long count = redisTemplate.opsForZSet()
+                .zCard(RedisKey.RANK_UNIV.of());
+
+        return count != null ? count : 0L;
+    }
+
+    // 1. 특정 학교의 학과 랭킹을 페이지 단위로 조회
+    public List<RedisHandler.RankEntry> getDepartmentsRange(
+            Long universityId, long start, long count
+    ) {
+        String key = RedisKey.RANK_DEPT.of(universityId);
+
+        return redisHandler.getRankRange(key, start, count);
+    }
+
+    // 2. 특정 학교의 Redis 랭킹에 등록된 학과 수 조회
+    public long getDepartmentCount(Long universityId) {
+        String key = RedisKey.RANK_DEPT.of(universityId);
+
+        Long count = redisTemplate.opsForZSet().zCard(key);
+
+        return count != null ? count : 0L;
+    }
+
+    // 3. 특정 학과의 점수 조회
+    public OptionalDouble getDepartmentScore(
+            Long universityId, Long departmentId
+    ) {
+        String key = RedisKey.RANK_DEPT.of(universityId);
+
+        return redisHandler.getRankScore(key, departmentId);
+    }
+
+    // 4. 특정 학과의 공동 순위 계산
+    public OptionalLong getDepartmentRank(
+            Long universityId, Long departmentId
+    ) {
+        String key = RedisKey.RANK_DEPT.of(universityId);
+
+        var score = redisHandler.getRankScore(key, departmentId);
+
+        if (score.isEmpty()) {
+            return OptionalLong.empty();
+        }
+
+        Long higherCount = redisTemplate.opsForZSet().count(
+                key,
+                Math.nextUp(score.getAsDouble()),
+                Double.POSITIVE_INFINITY
+        );
+
+        if (higherCount == null) {
+            return OptionalLong.empty();
+        }
+
+        return OptionalLong.of(higherCount + 1);
+    }
+
+    // 1. 특정 학교의 개인 랭킹 등록 인원 수 조회
+    public long getContributorCount(Long universityId) {
+        String key = RedisKey.RANK_USER.of(universityId);
+
+        Long count = redisTemplate.opsForZSet().zCard(key);
+
+        return count != null ? count : 0L;
+    }
+
+    // Redis 내 원래 사용자 위치 (0-based, 동점에서도 정렬 위치는 고유)
+    public OptionalLong getContributorPosition(Long universityId, Long userId) {
+        return redisHandler.getRankPosition(RedisKey.RANK_USER.of(universityId), userId);
+    }
+
+    // 2. 특정 사용자의 기여도 점수 조회
+    public OptionalDouble getContributorScore(
+            Long universityId, Long userId
+    ) {
+        String key = RedisKey.RANK_USER.of(universityId);
+
+        return redisHandler.getRankScore(key, userId);
+    }
+
+    // 3. 특정 사용자의 공동 순위 계산
+    public OptionalLong getContributorRank(
+            Long universityId, Long userId
+    ) {
+        String key = RedisKey.RANK_USER.of(universityId);
+
+        var score = redisHandler.getRankScore(key, userId);
+
+        if (score.isEmpty()) {
+            return OptionalLong.empty();
+        }
+
+        Long higherCount = redisTemplate.opsForZSet().count(
+                key,
+                Math.nextUp(score.getAsDouble()),
+                Double.POSITIVE_INFINITY
+        );
+
+        if (higherCount == null) {
+            return OptionalLong.empty();
+        }
+
+        return OptionalLong.of(higherCount + 1);
+    }
 }
