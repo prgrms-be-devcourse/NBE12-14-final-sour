@@ -39,7 +39,8 @@ public class ItemPurchaseServiceTest {
 
     private static final List<Item> POTIONS = List.of(
             new Item(1L, "2배 물약", "1시간 동안 클릭 점수 2배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 500L, 3600),
-            new Item(2L, "4배 물약", "1시간 동안 클릭 점수 4배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 1000L, 3600)
+            new Item(2L, "4배 물약", "1시간 동안 클릭 점수 4배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 1000L, 3600),
+            new Item(3L, "학교 로고 변경권", "우리 학교 로고 변경", ItemType.LOGO_UNIVERSITY, PayType.CREDIT, 3900L, null)
     );
 
 
@@ -67,7 +68,7 @@ public class ItemPurchaseServiceTest {
                 .willReturn(POTIONS);
 
         // when & then: 아이템 목록에 없는 아이템 구매 시도 시 404
-        assertThatThrownBy(() -> this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 3L))
+        assertThatThrownBy(() -> this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 3980L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ITEM_NOT_FOUND);
@@ -92,4 +93,20 @@ public class ItemPurchaseServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ITEM_NOT_ENOUGH_SCORE);
     }
+
+    @Test
+    @DisplayName("크레딧 아이템 구매는 기여도를 차감하지 않는다")
+    void purchase_creditItemByContribution() {
+        // given
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
+
+        // when
+        this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 3L);
+
+        // then
+        verify(this.contributionWallet, never())
+                .tryDeduct(anyLong(), anyLong(), anyLong());
+    }
+
 }
