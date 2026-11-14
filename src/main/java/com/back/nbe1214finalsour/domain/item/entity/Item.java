@@ -37,4 +37,7 @@ public class Item {
 
     // 효과 지속시간 (초). 물약만 있고 로고 변경권은 null (영구)
     private Integer duration;
+
+    // 클릭 점수 배율. 물약만 있고 로고 변경권은 null
+    private Double multiplier;
 }
