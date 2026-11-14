@@ -13,6 +13,7 @@ import com.back.nbe1214finalsour.domain.user.dto.MyInfoResponse.DepartmentInfo;
 import com.back.nbe1214finalsour.domain.user.dto.MyInfoResponse.UniversityInfo;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
+import com.back.nbe1214finalsour.domain.user.event.UserStatusChangedEvent;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.domain.user.repository.UserScoreCache;
 import com.back.nbe1214finalsour.domain.user.validation.ProfileImageUrlPolicy;
@@ -22,6 +23,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     private final Clock clock;
     private final ProfileImageUrlPolicy profileImageUrlPolicy;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 탈퇴하지 않은 회원 중에 대소문자를 무시하고 같은 닉네임이 없으면 사용할 수 있다 */
     public boolean isNicknameAvailable(String nickname) {
@@ -94,6 +97,7 @@ public class UserService {
     /**
      * 회원 탈퇴 (추가 명세 §3-1). 비밀번호를 확인한 뒤 soft delete 하고 refresh 토큰을 모두 지운다.
      * 정지·차단 회원은 탈퇴할 수 없다 (탈퇴 후 재가입으로 정지를 피하는 것 방지). 확인 순서는 로그인과 같다: 비밀번호 → 상태.
+     * 커밋 뒤 클릭용 상태 캐시도 {@code WITHDRAWN}으로 바꾼다 ({@code UserStatusCacheSyncListener}).
      *
      * @throws BusinessException 400 {@code USER_INVALID_PASSWORD}: 비밀번호 불일치.
      *                           403 {@code USER_SUSPENDED}: 정지·차단.
@@ -109,6 +113,8 @@ public class UserService {
         }
         user.withdraw(OffsetDateTime.now(clock));
         refreshTokenService.revokeAll(userId);
+        // 커밋 뒤 클릭용 상태 캐시를 WITHDRAWN으로 덮는다. 남은 access 토큰의 클릭을 막는다 (#47)
+        eventPublisher.publishEvent(new UserStatusChangedEvent(userId, UserStatus.WITHDRAWN));
     }
 
     private void verifyPassword(User user, String rawPassword) {

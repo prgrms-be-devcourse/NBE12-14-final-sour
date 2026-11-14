@@ -17,7 +17,10 @@ public enum RedisKey {
     AUTH_LOGIN_LOCK("auth:login:lock:%s", Structure.STRING, ValueFormat.PLAIN),
 
     // 회원 (User)
-    /** 회원 상태. ACTIVE / SUSPENDED / BANNED */
+    /**
+     * 회원 상태 캐시. ACTIVE / SUSPENDED / BANNED / WITHDRAWN. 원본은 DB {@code users.status}, TTL은 {@code jwt.access-token-ttl}.
+     * 읽기·쓰기는 {@code UserStatusCache}만 한다. 상태를 바꾸는 코드는 커밋 뒤 {@code UserStatusCache.put}을 부른다
+     */
     USER_STATUS("user:%s:status", Structure.STRING, ValueFormat.PLAIN),
     /** 회원 클리커 레벨. INCR로 올릴 수 있어야 한다 */
     USER_CLICKER("user:%s:clicker", Structure.STRING, ValueFormat.PLAIN),

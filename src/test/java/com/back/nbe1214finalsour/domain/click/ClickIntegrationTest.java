@@ -9,6 +9,7 @@ import com.back.nbe1214finalsour.global.redis.RedisHandler;
 import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.Role;
+import com.back.nbe1214finalsour.global.security.jwt.JwtProperties;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
@@ -60,6 +61,8 @@ class ClickIntegrationTest {
     private EmailHasher emailHasher;
     @Autowired
     private JwtProvider jwtProvider;
+    @Autowired
+    private JwtProperties jwtProperties;
     @Autowired
     private ClickerService clickerService;
 
@@ -214,6 +217,43 @@ class ClickIntegrationTest {
     }
 
     @Test
+    @DisplayName("상태 캐시가 ACTIVE로 채워진 뒤 탈퇴하면, 남은 토큰의 클릭은 403 USER_SUSPENDED이고 점수는 오르지 않는다 (#47)")
+    void withdrawnUserIsRejectedEvenAfterStatusWasCached() throws Exception {
+        click("sub-1", 3).andExpect(status().isOk());
+        assertThat(redis.opsForValue().get(RedisKey.USER_STATUS.of(user.getId()))).isEqualTo("ACTIVE");
+
+        withdraw("unused").andExpect(status().isNoContent());
+
+        assertThat(redis.opsForValue().get(RedisKey.USER_STATUS.of(user.getId()))).isEqualTo("WITHDRAWN");
+        click("sub-2", 3)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("USER_SUSPENDED"));
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
+                .isEqualTo(3.0);
+    }
+
+    @Test
+    @DisplayName("탈퇴가 실패하면(비밀번호 불일치) 상태 캐시는 ACTIVE 그대로이고 클릭도 계속 된다")
+    void failedWithdrawalKeepsStatusCache() throws Exception {
+        click("sub-1", 3).andExpect(status().isOk());
+
+        withdraw("wrong-password").andExpect(status().isBadRequest());
+
+        assertThat(redis.opsForValue().get(RedisKey.USER_STATUS.of(user.getId()))).isEqualTo("ACTIVE");
+        click("sub-2", 3).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("클릭이 채운 상태 캐시는 jwt.access-token-ttl 동안만 유지된다 (갱신을 빠뜨려도 DB 값으로 돌아옴)")
+    void statusCacheExpiresWithAccessTokenTtl() throws Exception {
+        click("sub-1", 3).andExpect(status().isOk());
+
+        Long ttlSeconds = redis.getExpire(RedisKey.USER_STATUS.of(user.getId()));
+        long configured = jwtProperties.accessTokenTtl().toSeconds();
+        assertThat(ttlSeconds).isBetween(configured - 10, configured);
+    }
+
+    @Test
     @DisplayName("같은 submissionId로 다시 제출하면 409 CLICK_DUPLICATE_SUBMISSION, 점수는 오르지 않는다")
     void duplicateSubmissionIsRejected() throws Exception {
         click("sub-dup", 3).andExpect(status().isOk());
@@ -328,5 +368,14 @@ class ClickIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"submissionId":"%s","clickCount":%d}""".formatted(submissionId, clickCount)));
+    }
+
+    /** 회원 비밀번호는 {@code {noop}unused}라 "unused"가 맞는 비밀번호다 */
+    private ResultActions withdraw(String password) throws Exception {
+        return mockMvc.perform(post("/api/v1/users/me/withdrawal")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"password":"%s"}""".formatted(password)));
     }
 }

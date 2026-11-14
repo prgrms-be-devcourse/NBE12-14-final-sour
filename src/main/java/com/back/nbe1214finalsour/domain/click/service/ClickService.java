@@ -8,6 +8,7 @@ import com.back.nbe1214finalsour.domain.clicker.service.ClickerService;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
+import com.back.nbe1214finalsour.domain.user.repository.UserStatusCache;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.redis.RedisHandler;
@@ -31,6 +32,7 @@ public class ClickService {
     private final ClickCountLimiter clickCountLimiter;
     private final ClickerService clickerService;
     private final UserRepository userRepository;
+    private final UserStatusCache userStatusCache;
     private final RedisHandler redisHandler;
 
     private static final RedisScript<List> APPLY_CLICK = RedisScript.of(new ClassPathResource("redis/apply-click.lua"), List.class);
@@ -43,14 +45,13 @@ public class ClickService {
         int clickCount = request.clickCount();
         String submissionId = request.submissionId();
 
-        // 회원이 활성화인 경우만 가능
-        String userStatus = stringRedisTemplate.opsForValue().get(RedisKey.USER_STATUS.of(userId));
+        // 회원이 활성화인 경우만 가능. 상태 캐시가 없을 때만 DB에서 읽어 채운다 (탈퇴 등 상태 변경은 캐시를 덮어씀)
+        UserStatus userStatus = userStatusCache.find(userId).orElse(null);
         if (userStatus == null) {
             User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-            userStatus = String.valueOf(user.getStatus());
-            stringRedisTemplate.opsForValue().set(RedisKey.USER_STATUS.of(userId), userStatus);
+            userStatus = userStatusCache.fillIfAbsent(userId, user.getStatus());
         }
-        if (!userStatus.equals("ACTIVE")) {
+        if (userStatus != UserStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.USER_SUSPENDED);
         }
 
