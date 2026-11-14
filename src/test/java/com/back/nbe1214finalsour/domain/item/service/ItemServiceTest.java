@@ -32,8 +32,8 @@ public class ItemServiceTest {
     void getItems(){
         // given
         List<Item> items = List.of(
-                new Item(1L, "2배 클릭", "10분 동안 클릭 점수 2배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 3000L, 600),
-                new Item(2L, "학교 로고 변경권", "우리 학교 로고 변경", ItemType.LOGO_UNIVERSITY, PayType.CREDIT, 3900L, null)
+                new Item(1L, "2배 클릭", "10분 동안 클릭 점수 2배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 3000L, 600, 2.0),
+                new Item(2L, "학교 로고 변경권", "우리 학교 로고 변경", ItemType.LOGO_UNIVERSITY, PayType.CREDIT, 3900L, null,  null)
         );
         given(itemRepository.findAllByOrderByIdAsc()).willReturn(items);
 
@@ -49,7 +49,7 @@ public class ItemServiceTest {
     void getItems_cached() {
         // given
         given(itemRepository.findAllByOrderByIdAsc()).willReturn(List.of(
-                new Item(1L, "2배 클릭", "10분 동안 클릭 점수 2배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 3000L, 600)
+                new Item(1L, "2배 클릭", "10분 동안 클릭 점수 2배", ItemType.MULTIPLIER, PayType.CONTRIBUTION, 3000L, 600, 2.0)
         ));
 
         // when: 목록을 세 번 조회
