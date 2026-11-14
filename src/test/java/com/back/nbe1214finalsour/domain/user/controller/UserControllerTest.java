@@ -32,6 +32,7 @@ import com.back.nbe1214finalsour.global.security.ApiAuthenticationEntryPoint;
 import com.back.nbe1214finalsour.global.security.ApiResponseWriter;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.CorsConfig;
+import com.back.nbe1214finalsour.global.security.LoginSessionStore;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.SecurityConfig;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
@@ -68,6 +69,10 @@ class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
 
     @MockitoBean
     private UserService userService;

@@ -26,7 +26,7 @@ import com.back.nbe1214finalsour.domain.auth.dto.UniversitySummary;
 import com.back.nbe1214finalsour.domain.auth.service.EmailVerificationService;
 import com.back.nbe1214finalsour.domain.auth.service.LoginService;
 import com.back.nbe1214finalsour.domain.auth.service.LoginService.LoginResult;
-import com.back.nbe1214finalsour.domain.auth.service.RefreshTokenService;
+import com.back.nbe1214finalsour.domain.auth.service.LogoutService;
 import com.back.nbe1214finalsour.domain.auth.service.TokenReissueService;
 import com.back.nbe1214finalsour.domain.auth.service.TokenReissueService.ReissueResult;
 import com.back.nbe1214finalsour.domain.auth.service.SignupService;
@@ -38,6 +38,7 @@ import com.back.nbe1214finalsour.global.security.ApiAuthenticationEntryPoint;
 import com.back.nbe1214finalsour.global.security.ApiResponseWriter;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.CorsConfig;
+import com.back.nbe1214finalsour.global.security.LoginSessionStore;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.SecurityConfig;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
@@ -77,6 +78,10 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
+
     @MockitoBean
     private EmailVerificationService emailVerificationService;
 
@@ -90,7 +95,7 @@ class AuthControllerTest {
     private TokenReissueService tokenReissueService;
 
     @MockitoBean
-    private RefreshTokenService refreshTokenService;
+    private LogoutService logoutService;
 
     @Autowired
     private JwtProvider jwtProvider;
@@ -443,7 +448,7 @@ class AuthControllerTest {
                         containsString("HttpOnly"),
                         containsString("SameSite=Strict"))));
 
-        verify(refreshTokenService).revoke("my-refresh", 1024L);
+        verify(logoutService).logout(1024L, "my-refresh");
     }
 
     @Test
@@ -453,7 +458,7 @@ class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON_UNAUTHORIZED"));
 
-        verify(refreshTokenService, never()).revoke(any(), any());
+        verify(logoutService, never()).logout(any(), any());
     }
 
     private static String loginBody(String email, String password) {

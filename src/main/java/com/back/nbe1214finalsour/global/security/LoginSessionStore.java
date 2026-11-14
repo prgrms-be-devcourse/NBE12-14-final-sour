@@ -1,10 +1,12 @@
-package com.back.nbe1214finalsour.domain.auth.repository;
+package com.back.nbe1214finalsour.global.security;
 
 import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProperties;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -17,6 +19,14 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class LoginSessionStore {
 
+    /** 현재 세션이 ARGV[1]일 때만 지운다. KEYS: 세션 키. 반환: 지운 키 수 */
+    private static final RedisScript<Long> DELETE_IF_MATCHES = RedisScript.of("""
+            if redis.call('GET', KEYS[1]) == ARGV[1] then
+                return redis.call('DEL', KEYS[1])
+            end
+            return 0
+            """, Long.class);
+
     private final StringRedisTemplate redis;
     private final JwtProperties jwtProperties;
 
@@ -27,5 +37,18 @@ public class LoginSessionStore {
     /** 현재 세션으로 정하고 TTL을 다시 설정한다 */
     public void put(Long userId, String sessionId) {
         redis.opsForValue().set(RedisKey.AUTH_SESSION.of(userId), sessionId, jwtProperties.refreshTokenTtl());
+    }
+
+    /**
+     * 로그아웃: 현재 세션이 {@code sessionId}일 때만 지운다. 이미 다른 기기에서 로그인했으면 그 세션은 두어야 하므로
+     * 비교와 삭제를 한 번에 한다 (Lua).
+     */
+    public void deleteIfMatches(Long userId, String sessionId) {
+        redis.execute(DELETE_IF_MATCHES, List.of(RedisKey.AUTH_SESSION.of(userId)), sessionId);
+    }
+
+    /** 탈퇴·정지: 어느 세션이든 지운다 */
+    public void delete(Long userId) {
+        redis.delete(RedisKey.AUTH_SESSION.of(userId));
     }
 }

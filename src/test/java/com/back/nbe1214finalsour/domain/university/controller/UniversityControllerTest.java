@@ -8,6 +8,7 @@ import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.exception.GlobalExceptionHandler;
 import com.back.nbe1214finalsour.global.security.*;
+import com.back.nbe1214finalsour.global.security.LoginSessionStore;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +42,10 @@ class UniversityControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** SecurityConfig의 JWT 필터가 쓴다. sid 없는 토큰만 쓰므로 호출되지 않는다 */
+    @MockitoBean
+    private LoginSessionStore loginSessionStore;
 
     @MockitoBean
     private UniversityQueryService universityQueryService;

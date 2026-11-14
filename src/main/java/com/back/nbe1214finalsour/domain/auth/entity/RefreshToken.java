@@ -43,7 +43,7 @@ public class RefreshToken extends BaseTimeEntity {
 
     /**
      * @param tokenHash 원문의 SHA-256 소문자 hex (원문을 넣지 않는다)
-     * @param sessionId 로그인 세션 ID. 세션 없이 발급하던 경로(재발급, SCRUM-85에서 바꿈)는 {@code null}
+     * @param sessionId 로그인 세션 ID (로그인·재발급 모두 넣는다)
      */
     public static RefreshToken issue(Long userId, String tokenHash, OffsetDateTime expiredAt, UUID sessionId) {
         RefreshToken refreshToken = new RefreshToken();

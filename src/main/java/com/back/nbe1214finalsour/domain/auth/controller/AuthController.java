@@ -12,7 +12,7 @@ import com.back.nbe1214finalsour.domain.auth.dto.SignupResponse;
 import com.back.nbe1214finalsour.domain.auth.service.EmailVerificationService;
 import com.back.nbe1214finalsour.domain.auth.service.LoginService;
 import com.back.nbe1214finalsour.domain.auth.service.LoginService.LoginResult;
-import com.back.nbe1214finalsour.domain.auth.service.RefreshTokenService;
+import com.back.nbe1214finalsour.domain.auth.service.LogoutService;
 import com.back.nbe1214finalsour.domain.auth.service.TokenReissueService;
 import com.back.nbe1214finalsour.domain.auth.service.TokenReissueService.ReissueResult;
 import com.back.nbe1214finalsour.domain.auth.service.SignupService;
@@ -41,7 +41,7 @@ public class AuthController {
     private final SignupService signupService;
     private final LoginService loginService;
     private final TokenReissueService tokenReissueService;
-    private final RefreshTokenService refreshTokenService;
+    private final LogoutService logoutService;
 
     @PostMapping("/email/code")
     public ApiResponse<EmailCodeResponse> requestEmailCode(@Valid @RequestBody EmailCodeRequest request) {
@@ -90,7 +90,7 @@ public class AuthController {
     public ResponseEntity<Void> logout(
             @AuthenticationPrincipal AuthUser authUser,
             @CookieValue(name = RefreshTokenCookies.NAME, required = false) String refreshToken) {
-        refreshTokenService.revoke(refreshToken, authUser.userId());
+        logoutService.logout(authUser.userId(), refreshToken);
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, RefreshTokenCookies.expire().toString())
                 .build();

@@ -15,6 +15,7 @@ import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
@@ -24,6 +25,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -120,6 +122,66 @@ class RefreshTokenIntegrationTest {
                 .contains("HttpOnly", "Secure", "SameSite=Strict", "Path=/api/v1/auth", "Max-Age=2592000");
         assertThat(newToken).isNotEqualTo(oldToken);
         assertThat(tokenHashes()).containsExactly(RefreshTokenService.hash(newToken));
+    }
+
+    @Test
+    @DisplayName("재발급은 같은 세션을 이어 간다: 새 access 토큰 sid·새 행 session_id·Redis 현재 세션이 로그인 때와 같다 (SCRUM-85)")
+    void reissueKeepsSession() throws Exception {
+        MvcResult login = login(PASSWORD, null).andExpect(status().isOk()).andReturn();
+        String sessionId = sessionIdOf(login);
+
+        MvcResult result = reissue(refreshTokenOf(login)).andExpect(status().isOk()).andReturn();
+
+        assertThat(sessionIdOf(result)).isEqualTo(sessionId);
+        assertThat(sessionIdsOfRows()).containsExactly(sessionId);
+        assertThat(redis.opsForValue().get(sessionKey())).isEqualTo(sessionId);
+    }
+
+    @Test
+    @DisplayName("다른 기기 로그인으로 바뀐 세션의 행으로 재발급하면 401 AUTH_SESSION_REPLACED, 그 행만 지우고 현재 세션은 그대로 (SCRUM-85)")
+    void replacedSessionCannotReissue() throws Exception {
+        MvcResult current = login(PASSWORD, null).andExpect(status().isOk()).andReturn();
+        // 새 로그인과 동시에 재발급해, 지워지지 않고 남은 이전 세션의 행
+        insertToken(user.getId(), RefreshTokenService.hash("stale-device"), OffsetDateTime.now().plusDays(1),
+                UUID.randomUUID());
+
+        reissue("stale-device")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_SESSION_REPLACED"))
+                .andExpect(header().doesNotExist("Set-Cookie"));
+
+        assertThat(tokenHashes()).containsExactly(RefreshTokenService.hash(refreshTokenOf(current)));
+        assertThat(redis.opsForValue().get(sessionKey())).isEqualTo(sessionIdOf(current));
+    }
+
+    @Test
+    @DisplayName("Redis에 현재 세션이 없으면(유실) 재발급이 행의 세션으로 복구한다 (SCRUM-85)")
+    void reissueRestoresMissingSessionKey() throws Exception {
+        MvcResult login = login(PASSWORD, null).andExpect(status().isOk()).andReturn();
+        redis.delete(sessionKey());
+
+        MvcResult result = reissue(refreshTokenOf(login)).andExpect(status().isOk()).andReturn();
+
+        assertThat(sessionIdOf(result)).isEqualTo(sessionIdOf(login));
+        assertThat(redis.opsForValue().get(sessionKey())).isEqualTo(sessionIdOf(login));
+        assertThat(redis.getExpire(sessionKey())).isPositive();
+    }
+
+    @Test
+    @DisplayName("배포 전 행(session_id 없음)으로 재발급하면 새 세션을 시작하고 그 회원의 다른 행을 지운다. 다른 회원 행은 남긴다 (SCRUM-85)")
+    void legacyRowStartsNewSession() throws Exception {
+        insertToken(user.getId(), RefreshTokenService.hash("legacy-a"), OffsetDateTime.now().plusDays(1));
+        insertToken(user.getId(), RefreshTokenService.hash("legacy-b"), OffsetDateTime.now().plusDays(1));
+        User other = createUser("다른회원", "other@" + DOMAIN);
+        insertToken(other.getId(), "b".repeat(64), OffsetDateTime.now().plusDays(1));
+
+        MvcResult result = reissue("legacy-a").andExpect(status().isOk()).andReturn();
+
+        String sessionId = sessionIdOf(result);
+        assertThat(sessionId).isNotBlank();
+        assertThat(redis.opsForValue().get(sessionKey())).isEqualTo(sessionId);
+        assertThat(tokenHashes()).containsExactlyInAnyOrder(RefreshTokenService.hash(refreshTokenOf(result)), "b".repeat(64));
+        reissue("legacy-b").andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -328,6 +390,25 @@ class RefreshTokenIntegrationTest {
     private void insertToken(Long userId, String tokenHash, OffsetDateTime expiredAt) {
         jdbcTemplate.update("INSERT INTO refresh_token (user_id, token, expired_at) VALUES (?, ?, ?)",
                 userId, tokenHash, expiredAt);
+    }
+
+    private void insertToken(Long userId, String tokenHash, OffsetDateTime expiredAt, UUID sessionId) {
+        jdbcTemplate.update("INSERT INTO refresh_token (user_id, token, expired_at, session_id) VALUES (?, ?, ?, ?)",
+                userId, tokenHash, expiredAt, sessionId);
+    }
+
+    private String sessionIdOf(MvcResult result) throws Exception {
+        String accessToken = JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");
+        return jwtProvider.parseAccessTokenPayload(accessToken).sessionId();
+    }
+
+    private List<String> sessionIdsOfRows() {
+        return jdbcTemplate.queryForList("SELECT session_id::text FROM refresh_token WHERE user_id = ?",
+                String.class, user.getId());
+    }
+
+    private String sessionKey() {
+        return RedisKey.AUTH_SESSION.of(user.getId());
     }
 
     private List<String> tokenHashes() {
