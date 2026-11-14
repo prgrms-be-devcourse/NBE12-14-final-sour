@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -27,6 +28,7 @@ import java.util.OptionalLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -178,4 +180,27 @@ public class ItemPurchaseServiceTest {
         assertThat(event.multiplier()).isEqualTo(4.0);
         assertThat(event.expiredAt()).isAtSameInstantAs(NOW.plusSeconds(3600).atOffset(ZoneOffset.UTC));
     }
+
+    @Test
+    @DisplayName("구매 이력 저장이 실패하면 차감한 기여도를 되돌리고 예외를 다시 던진다")
+    void purchase_restoresContributionWhenSaveFails() {
+        // given: 2번 물약(1000), 차감은 성공했는데 이력 저장에서 DB 예외
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
+        given(this.contributionWallet.tryDeduct(USER_ID, UNIVERSITY_ID, 1000L))
+                .willReturn(OptionalLong.of(1500L));
+        given(this.userItemRepository.save(any()))
+                .willThrow(new DataIntegrityViolationException("user_item 저장 실패"));
+
+        // when & then: 원래 예외가 그대로 나감
+        assertThatThrownBy(() -> this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 2L))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        // then: Redis는 롤백되지 않으므로 차감한 만큼 직접 되돌림
+        verify(this.contributionWallet).restore(USER_ID, UNIVERSITY_ID, 1000L);
+        // 구매가 성립하지 않았으니 효과 적용 이벤트도 없음
+        verify(this.eventPublisher, never())
+                .publishEvent(any(PotionPurchasedEvent.class));
+    }
+
 }
