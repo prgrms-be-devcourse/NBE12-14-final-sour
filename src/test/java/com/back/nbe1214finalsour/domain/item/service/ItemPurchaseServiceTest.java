@@ -140,6 +140,7 @@ public class ItemPurchaseServiceTest {
 
         // then
         ArgumentCaptor<UserItem> captor = ArgumentCaptor.forClass(UserItem.class);
+        verify(this.contributionWallet).tryDeduct(USER_ID, UNIVERSITY_ID, 1000L);
         verify(this.userItemRepository).save(captor.capture());
 
         UserItem saved = captor.getValue();
