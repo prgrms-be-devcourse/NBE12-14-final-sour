@@ -29,6 +29,7 @@ public class ClickService {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ActionRateLimiter actionRateLimiter;
+    private final ClickCountLimiter clickCountLimiter;
     private final ClickerService clickerService;
     private final UserRepository userRepository;
     private final UserStatusCache userStatusCache;
@@ -62,8 +63,9 @@ public class ClickService {
             throw new BusinessException(ErrorCode.CLICK_DUPLICATE_SUBMISSION);
         }
 
-        // 2. 횟수·간격 검증 (클릭·공격·지원 모두 합쳐서 10초에 12회 요청이 왔는가?)
+        // 2. 횟수·간격 검증 (클릭·공격·지원 모두 합쳐서 10초에 12회 요청이 왔는가?) + (1분 동안의 클릿 횟수가 900번 이하인가?)
         actionRateLimiter.check(userId);
+        clickCountLimiter.check(userId, clickCount);
 
         // 3. 인정 점수
         int score = clickCount;
