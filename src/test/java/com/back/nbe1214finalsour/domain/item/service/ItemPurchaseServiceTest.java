@@ -4,6 +4,8 @@ import com.back.nbe1214finalsour.domain.contribution.ContributionWallet;
 import com.back.nbe1214finalsour.domain.item.entity.Item;
 import com.back.nbe1214finalsour.domain.item.entity.ItemType;
 import com.back.nbe1214finalsour.domain.item.entity.PayType;
+import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +16,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,5 +59,21 @@ public class ItemPurchaseServiceTest {
         verify(this.contributionWallet).tryDeduct(USER_ID, UNIVERSITY_ID, 1000L);
     }
 
+    @Test
+    @DisplayName("기여도로 존재하지 않는 아이템 구매 시 ITEM_NOT_FOUND 반환")
+    void purchase_ItemNotFound() {
+        // given
+        given(this.itemService.getItems())
+                .willReturn(POTIONS);
 
+        // when & then: 아이템 목록에 없는 아이템 구매 시도 시 404
+        assertThatThrownBy(() -> this.itemPurchaseService.purchase(USER_ID, UNIVERSITY_ID, 3L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ITEM_NOT_FOUND);
+
+        // then: 차감은 시도하지 않음
+        verify(this.contributionWallet, never())
+                .tryDeduct(anyLong(), anyLong(), anyLong());
+    }
 }
