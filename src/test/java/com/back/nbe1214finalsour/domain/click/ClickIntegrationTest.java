@@ -85,7 +85,7 @@ class ClickIntegrationTest {
                 universityId);
         user = userRepository.saveAndFlush(User.create(universityId, departmentId, "클릭왕", EMAIL,
                 emailHasher.hash(EMAIL), "{noop}unused", OffsetDateTime.now()));
-        token = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, departmentId, Role.USER));
+        token = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, departmentId, Role.USER), null);
     }
 
     @AfterEach
@@ -146,8 +146,7 @@ class ClickIntegrationTest {
         otherDepartmentId = jdbcTemplate.queryForObject(
                 "INSERT INTO department (university_id, name) VALUES (?, '전자공학과') RETURNING id", Long.class,
                 universityId);
-        String tokenWithOtherDepartment = jwtProvider.createAccessToken(
-                new AuthUser(user.getId(), universityId, otherDepartmentId, Role.USER));
+        String tokenWithOtherDepartment = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, otherDepartmentId, Role.USER), null);
         // 첫 클릭은 레벨 캐시를 채우려고 회원을 읽으므로, 캐시가 있는 상태에서 확인한다
         redis.opsForValue().set(RedisKey.USER_CLICKER.of(user.getId()), "1");
 
@@ -165,7 +164,7 @@ class ClickIntegrationTest {
     @Test
     @DisplayName("학과 claim이 없는 토큰(배포 전 발급)이면 DB의 학과 ID로 반영한다")
     void tokenWithoutDepartmentFallsBackToDb() throws Exception {
-        String legacyToken = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, null, Role.USER));
+        String legacyToken = jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, null, Role.USER), null);
         redis.opsForValue().set(RedisKey.USER_CLICKER.of(user.getId()), "1");
 
         click(legacyToken, "sub-1", 3)

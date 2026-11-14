@@ -90,7 +90,7 @@ class JwtAuthenticationTest {
         @Test
         @DisplayName("@AuthenticationPrincipal AuthUser에 claim 값이 들어간다")
         void injectsAuthUser() throws Exception {
-            getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER))
+            getWithToken("/api/test/jwt/me", jwtProvider.createAccessToken(USER, null))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.userId").value(42))
                     .andExpect(jsonPath("$.data.universityId").value(7))
@@ -100,14 +100,14 @@ class JwtAuthenticationTest {
         @Test
         @DisplayName("role이 ADMIN이면 hasRole('ADMIN')을 통과한다")
         void adminRole() throws Exception {
-            getWithToken("/api/test/jwt/admin", jwtProvider.createAccessToken(ADMIN))
+            getWithToken("/api/test/jwt/admin", jwtProvider.createAccessToken(ADMIN, null))
                     .andExpect(status().isOk());
         }
 
         @Test
         @DisplayName("role이 USER면 관리자 API에서 403 COMMON_FORBIDDEN")
         void userRoleForbidden() throws Exception {
-            getWithToken("/api/test/jwt/admin", jwtProvider.createAccessToken(USER))
+            getWithToken("/api/test/jwt/admin", jwtProvider.createAccessToken(USER, null))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value("COMMON_FORBIDDEN"));
         }
@@ -183,7 +183,7 @@ class JwtAuthenticationTest {
         @Test
         @DisplayName("유효한 토큰이면 AuthUser가 채워진다")
         void valid() throws Exception {
-            getWithToken(OPTIONAL_PATH, jwtProvider.createAccessToken(USER))
+            getWithToken(OPTIONAL_PATH, jwtProvider.createAccessToken(USER, null))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.userId").value(42));
         }

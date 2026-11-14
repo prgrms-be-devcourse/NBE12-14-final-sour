@@ -143,7 +143,7 @@ class AbuseRankingIntegrationTest {
     @DisplayName("일반 회원은 403 COMMON_FORBIDDEN")
     void forbidsNonAdmin() throws Exception {
         String userToken = jwtProvider.createAccessToken(
-                new AuthUser(user.getId(), universityId, user.getDepartmentId(), Role.USER));
+                new AuthUser(user.getId(), universityId, user.getDepartmentId(), Role.USER), null);
 
         ranking(userToken, 0, 20)
                 .andExpect(status().isForbidden())
@@ -170,7 +170,7 @@ class AbuseRankingIntegrationTest {
     }
 
     private String adminToken() {
-        return jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, user.getDepartmentId(), Role.ADMIN));
+        return jwtProvider.createAccessToken(new AuthUser(user.getId(), universityId, user.getDepartmentId(), Role.ADMIN), null);
     }
 
     private ResultActions ranking(String accessToken, int page, int size) throws Exception {

@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  * refresh 토큰 행을 발급·소비·폐기한다. 원문은 호출한 쪽이 쿠키로만 보내고, DB에는 원문의 SHA-256 hex만 저장한다
  * (API 명세서 재발급 "쿠키 값의 SHA-256으로 REFRESH_TOKEN을 찾아", DDL {@code ck_refresh_token_token}).
  *
- * <p>기기마다 로그인할 수 있도록 회원당 여러 행을 둔다. 쓰이지 않는 행은 SCRUM-72 방식으로 줄인다:
- * 로그인 때 그 브라우저의 이전 토큰(A)과 그 회원의 만료된 행(B)을 지우고, 재발급 때 만료된 행을 지운다(C).
+ * <p>계정당 1기기 (SCRUM-83): 로그인하면 새 세션을 시작하면서 그 회원의 행을 모두 지운다. 그 브라우저의 이전 토큰은
+ * 다른 회원의 것이어도 지운다 (SCRUM-72 A). 재발급 때는 그 회원의 만료된 행을 지운다 (SCRUM-72 C).
  */
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,26 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtProvider jwtProvider;
     private final Clock clock;
+
+    /**
+     * 로그인: 새 세션 ID를 만들고, 이 회원의 다른 기기 행을 모두 지운 뒤 그 세션의 refresh 토큰을 저장한다.
+     * Redis의 현재 세션은 호출한 쪽({@code LoginService})이 커밋 뒤 바꾼다.
+     *
+     * @param previousToken 이 요청에 실려 온 이전 refresh 토큰 원문 (없으면 {@code null}). 다른 회원의 토큰이어도 지운다 (SCRUM-72 A)
+     */
+    @Transactional
+    public IssuedSession startSession(Long userId, String previousToken) {
+        if (previousToken != null && !previousToken.isBlank()) {
+            refreshTokenRepository.deleteByToken(hash(previousToken));
+        }
+        refreshTokenRepository.deleteAllByUserId(userId);
+
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtProvider.generateRefreshToken();
+        refreshTokenRepository.save(RefreshToken.issue(userId, hash(token),
+                OffsetDateTime.now(clock).plus(jwtProvider.refreshTokenTtl()), sessionId));
+        return new IssuedSession(token, sessionId.toString());
+    }
 
     /**
      * 새 refresh 토큰을 저장하고 원문을 돌려준다.
@@ -45,7 +66,7 @@ public class RefreshTokenService {
         refreshTokenRepository.deleteExpiredByUserId(userId, now);
 
         String token = jwtProvider.generateRefreshToken();
-        refreshTokenRepository.save(RefreshToken.issue(userId, hash(token), now.plus(jwtProvider.refreshTokenTtl())));
+        refreshTokenRepository.save(RefreshToken.issue(userId, hash(token), now.plus(jwtProvider.refreshTokenTtl()), null));
         return token;
     }
 
@@ -100,5 +121,18 @@ public class RefreshTokenService {
 
     static BusinessException invalid(String detail) {
         return new BusinessException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN, detail);
+    }
+
+    /**
+     * @param refreshToken refresh 토큰 원문. 쿠키로만 보낸다
+     * @param sessionId    새 로그인 세션 ID (access 토큰 {@code sid} claim)
+     */
+    public record IssuedSession(String refreshToken, String sessionId) {
+
+        /** 토큰이 로그에 남지 않도록 가린다 */
+        @Override
+        public String toString() {
+            return "IssuedSession[sessionId=" + sessionId + ", refreshToken=****]";
+        }
     }
 }
