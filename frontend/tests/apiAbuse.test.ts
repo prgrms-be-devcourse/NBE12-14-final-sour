@@ -57,7 +57,7 @@ test('클릭 복구의 Java 계약 센서: 검증 경로·204·토큰 필드·�
   const request = readFileSync(new URL('abuse/dto/AbuseVerificationRequest.java', root), 'utf8');
   assert.match(request, /@Nullable @Size\(max = 2048,[^\n]*String turnstileToken\)/, fix);
   const guard = readFileSync(new URL('click/service/ClickActionGuard.java', root), 'utf8');
-  const ordered = ['abuseVerificationService.requireNotFlagged(userId)', 'checkDuplicate(userId, submissionId)', 'actionRateLimiter.check(userId)', 'clickCountLimiter.check(userId, clickCount)', 'return loadBaseScore(userId, clickCount)'];
+  const ordered = ['abuseVerificationService.requireNotFlagged(userId)', 'checkDuplicate(userId, submissionId, claim)', 'actionRateLimiter.check(userId)', 'clickCountLimiter.check(userId, clickCount)', 'return loadBaseScore(userId, clickCount)'];
   const offsets = ordered.map((part) => guard.indexOf(part));
   assert.ok(offsets.every((offset, index) => offset >= 0 && (index === 0 || offset > offsets[index - 1])), fix);
 });

@@ -627,9 +627,31 @@ test('받은 연합은 대결 번호로 찾아 확인 뒤 수락하고, 진행 �
   assert.match(field(card, '시작') ?? '', /\(KST\)$/);
   assert.match(field(card, '종료 예정') ?? '', /\(KST\)$/);
   assert.equal(field(card, '남은 시간'), '3시간 0분');
-  within(card).getByText('진행 중 점수는 대결이 끝나면 정산돼 표시돼요.');
+  within(card).getByText('대결 점수를 확인할 수 없어요.');
   assertAbsent(within(card).queryByRole('button', { name: '수락' }));
   await waitFor(() => assert.ok(f.details().length > before, '수락 뒤 연합 상세(대결 중)를 다시 읽는다'));
+});
+
+test('대결 준비, 진행 점수 0점, 정산 대기, 집계 오류를 구분한다', async () => {
+  const running = { status: 'IN_PROGRESS' as const, startedAt: '2026-11-19T12:00:00+09:00', endedAt: '2026-11-19T15:00:00+09:00' };
+  let current = matchOf(50, { ...running, score: { state: 'PREPARING', aScore: null, bScore: null } });
+  mount({ mine: () => ok(alliance(7)), store: fakeStorage({ 'sour.alliance.match.v1:5': '50' }), match: () => ok(current) });
+  const card = await matchCard();
+  await within(card).findByText('대결 점수를 준비하고 있어요.');
+  assert.equal(field(card, '진행 점수'), undefined);
+  const refresh = () => fireEvent.click(within(card).getByRole('button', { name: '새로고침' }));
+  current = { ...current, score: { state: 'LIVE', aScore: 0, bScore: 5 } };
+  refresh();
+  await waitFor(() => assert.equal(field(card, '진행 점수'), '0 : 5'));
+  current = { ...current, score: { state: 'SETTLEMENT_PENDING', aScore: 0, bScore: 5 } };
+  refresh();
+  await within(card).findByText('점수는 확정됐고 보상 정산을 기다리고 있어요.');
+  assert.equal(field(card, '마감 점수'), '0 : 5');
+  assertAbsent(within(card).queryByTestId('match-result'));
+  current = { ...current, score: { state: 'UNAVAILABLE', aScore: null, bScore: null } };
+  refresh();
+  await within(card).findByText('대결 점수를 확인할 수 없어요.');
+  assert.equal(field(card, '마감 점수'), undefined);
 });
 
 test('예약 신청 수락은 즉시 시작한다고 안내하지 않고, 수락 뒤 예약 카드에는 행동 버튼이 없다', async () => {

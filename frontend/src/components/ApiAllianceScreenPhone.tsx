@@ -471,6 +471,9 @@ function MatchCard({ userId, matchId, alliance, now, history = false, onMissing,
   useEffect(() => { if (missing) onMissing(); }, [missing]);
   const match = query.data;
   const side = match ? (match.allianceAId === allianceId ? 'A' : match.allianceBId === allianceId ? 'B' : null) : null;
+  const score = match?.score;
+  const hasUnsettledScore = (score?.state === 'LIVE' || score?.state === 'SETTLEMENT_PENDING')
+    && Number.isSafeInteger(score.aScore) && Number.isSafeInteger(score.bScore);
 
   return (
     <article aria-label={`대결 #${matchId}`} data-testid="match-card" aria-busy={query.isFetching} className={`${BOX} text-xs`}>
@@ -501,7 +504,11 @@ function MatchCard({ userId, matchId, alliance, now, history = false, onMissing,
             </>}
             {match.startedAt && <><dt>시작</dt><dd>{kst(match.startedAt)}</dd></>}
             {match.endedAt && <><dt>{match.status === 'FINISHED' ? '종료' : '종료 예정'}</dt><dd>{kst(match.endedAt)}</dd></>}
-            {match.status === 'IN_PROGRESS' && match.endedAt && <><dt>남은 시간</dt><dd>{timeLeft(match.endedAt, now()) ?? '곧 정산돼요'}</dd></>}
+            {match.status === 'IN_PROGRESS' && match.endedAt && <><dt>남은 시간</dt><dd>{timeLeft(match.endedAt, now()) ?? '마감 시각이 지났어요'}</dd></>}
+            {match.status === 'IN_PROGRESS' && hasUnsettledScore && <>
+              <dt>{score.state === 'LIVE' ? '진행 점수' : '마감 점수'}</dt>
+              <dd>{score.aScore.toLocaleString()} : {score.bScore.toLocaleString()}</dd>
+            </>}
             {match.status === 'FINISHED' && <>
               <dt>점수</dt><dd>{match.aScore.toLocaleString()} : {match.bScore.toLocaleString()}</dd>
               <dt>결과</dt><dd data-testid="match-result">
@@ -512,7 +519,12 @@ function MatchCard({ userId, matchId, alliance, now, history = false, onMissing,
             </>}
           </dl>
           {match.status === 'SCHEDULED' && <p>예약을 수락했어요. 시작 여부는 서버가 결정하며 15초마다 다시 확인해요. 수락한 예약은 취소할 수 없어요.</p>}
-          {match.status === 'IN_PROGRESS' && <p>진행 중 점수는 대결이 끝나면 정산돼 표시돼요.</p>}
+          <p role="status">{match.status === 'IN_PROGRESS' && (
+            score?.state === 'PREPARING' ? '대결 점수를 준비하고 있어요.'
+              : score?.state === 'FINALIZING' ? '대결 점수를 확정하고 있어요.'
+              : hasUnsettledScore ? (score.state === 'SETTLEMENT_PENDING' ? '점수는 확정됐고 보상 정산을 기다리고 있어요.' : '')
+              : '대결 점수를 확인할 수 없어요.'
+          )}</p>
           {match.status === 'CANCELED' && <p>신청 취소, 거절, 수락 마감 경과 또는 예약 시작 조건 불충족으로 끝난 대결이에요.</p>}
           {side === null && <p>우리 연합(#{allianceId})의 대결이 아니에요. 보기만 할 수 있어요.</p>}
           {!history && match.status === 'REQUESTED' && side && <MatchActions key={match.id} userId={userId} match={match} side={side} />}

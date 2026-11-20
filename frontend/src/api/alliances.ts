@@ -42,6 +42,9 @@ export interface AllianceApplication {
 }
 
 export type AllianceMatchStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELED';
+export type MatchScore =
+  | { state: 'PREPARING' | 'FINALIZING' | 'UNAVAILABLE'; aScore: null; bScore: null }
+  | { state: 'LIVE' | 'SETTLEMENT_PENDING' | 'FINAL'; aScore: number; bScore: number };
 
 /**
  * AllianceMatchResponse. A requested, B received. `aScore`/`bScore` stay 0 in the database until settlement writes the
@@ -61,6 +64,8 @@ export interface AllianceMatch {
   endedAt: string | null;
   aScore: number;
   bScore: number;
+  /** Read-only detail field; older servers and mutation responses may omit it. */
+  score?: MatchScore | null;
 }
 
 export const MATCH_LIMITS = { minHours: 1, maxHours: 24, defaultHours: 6 } as const;
