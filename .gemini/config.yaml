@@ -1,7 +1,7 @@
 code_review:
   disable: false                      # true면 자동 리뷰를 끔
   comment_severity_threshold: MEDIUM
-  max_review_comments: -1
+  max_review_comments: 3
   pull_request_opened:                # PR이 열릴 때 자동으로 할 일
     help: false                       # 사용법 안내 코멘트
     summary: true                     # 요약 코멘트
