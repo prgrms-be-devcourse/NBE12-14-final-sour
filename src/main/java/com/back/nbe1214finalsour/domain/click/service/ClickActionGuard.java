@@ -31,11 +31,15 @@ public class ClickActionGuard {
     private final UserClickerLevelCache userClickerLevelCache;
 
     public long verifyAndGetBaseScore(Long userId, String submissionId, int clickCount) {
+        return verifyAndGetBaseScore(userId, submissionId, clickCount, submissionId);
+    }
+
+    long verifyAndGetBaseScore(Long userId, String submissionId, int clickCount, String claim) {
         try {
             checkActive(userId);
             // 어뷰징 의심 표시가 있으면 봇 확인 전까지 막는다 (SCRUM-118). 중복 제출 확인보다 앞이라 막힌 요청은 submissionId를 쓰지 않는다
             abuseVerificationService.requireNotFlagged(userId);
-            checkDuplicate(userId, submissionId);
+            checkDuplicate(userId, submissionId, claim);
             actionRateLimiter.check(userId);
             clickCountLimiter.check(userId, clickCount);
         } catch (BusinessException e) {
@@ -73,9 +77,9 @@ public class ClickActionGuard {
         return true;
     }
 
-    private void checkDuplicate(Long userId, String submissionId) {
+    private void checkDuplicate(Long userId, String submissionId, String claim) {
         if (Boolean.FALSE.equals(stringRedisTemplate.opsForValue()
-                .setIfAbsent(RedisKey.SUBMIT_DEDUPE.of(userId, submissionId), submissionId, Duration.ofSeconds(10L)))) {
+                .setIfAbsent(RedisKey.SUBMIT_DEDUPE.of(userId, submissionId), claim, Duration.ofSeconds(10L)))) {
             throw new BusinessException(ErrorCode.CLICK_DUPLICATE_SUBMISSION);
         }
     }

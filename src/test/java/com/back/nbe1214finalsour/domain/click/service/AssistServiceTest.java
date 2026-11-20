@@ -54,7 +54,8 @@ class AssistServiceTest {
 
     @BeforeEach
     void setUp() {
-        assistService = new AssistService(clickActionGuard, stringRedisTemplate, redisHandler, universityCache, allianceAllyChecker);
+        assistService = new AssistService(clickActionGuard, stringRedisTemplate, redisHandler, universityCache, allianceAllyChecker,
+                Optional.empty());
     }
 
     private AssistRequest request(Long target, int clickCount) {

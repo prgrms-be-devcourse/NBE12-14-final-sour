@@ -99,6 +99,7 @@ public enum ErrorCode {
     MATCH_INVALID_SCHEDULE(HttpStatus.BAD_REQUEST, "MATCH_INVALID_SCHEDULE", "예약 시각은 미래이며 연합 만료 전 대결이 끝나야 합니다."),
     MATCH_SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "MATCH_SCHEDULE_CONFLICT", "이미 예약된 대결이 있는 연합입니다."),
     MATCH_INSUFFICIENT_TIME(HttpStatus.CONFLICT, "MATCH_INSUFFICIENT_TIME", "연합 만료 전 대결을 끝낼 시간이 부족합니다."),
+    MATCH_SCORE_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SCORE_NOT_READY", "점수가 반영되지 않았습니다. 잠시 후 같은 제출로 다시 시도해 주세요."),
     GUEST_ALREADY_LIKED(HttpStatus.CONFLICT, "GUEST_ALREADY_LIKED", "이미 좋아요를 눌렀습니다."),
     GUEST_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "GUEST_LIKE_NOT_FOUND", "좋아요를 누른 기록이 없습니다."),
     GUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "GUEST_NOT_FOUND", "방명록을 찾을 수 없습니다."),

@@ -23,6 +23,7 @@ public class AllianceMatchService {
     private final AllianceUniversityRepository allianceUniversityRepository;
     private final AllianceMatchRepository allianceMatchRepository;
     private final UserRepository userRepository;
+    private final AllianceMatchScoreRouting scoreRouting;
 
     @Value("${alliance.scoring.enabled:false}")
     private boolean scoringEnabled;
@@ -101,6 +102,8 @@ public class AllianceMatchService {
             match.schedule(now);
             return match;
         }
+        now = lockScoreStartAndRefreshTime(membersA, membersB, now);
+        validateRequested(match, now);
         if (now.plusHours(match.getDurationHours()).isAfter(
                 earlier(pair[0].getExpiredAt(), pair[1].getExpiredAt()))) {
             throw new BusinessException(ErrorCode.MATCH_INSUFFICIENT_TIME);
@@ -137,7 +140,20 @@ public class AllianceMatchService {
             match.cancelScheduled();
             return;
         }
+        now = lockScoreStartAndRefreshTime(membersA, membersB, now);
+        if (now.plusHours(match.getDurationHours()).isAfter(earlier(pair[0].getExpiredAt(), pair[1].getExpiredAt()))) {
+            match.cancelScheduled();
+            return;
+        }
         startMatch(match, pair, now, membersA, membersB);
+    }
+
+    private OffsetDateTime lockScoreStartAndRefreshTime(List<AllianceUniversity> a, List<AllianceUniversity> b,
+                                                       OffsetDateTime now) {
+        if (!scoringEnabled) return now;
+        scoreRouting.lockForStart(List.of(a.get(0).getUniversityId(), a.get(1).getUniversityId(),
+                b.get(0).getUniversityId(), b.get(1).getUniversityId()));
+        return OffsetDateTime.now();
     }
 
     private void startMatch(AllianceMatch match, Alliance[] pair, OffsetDateTime now,

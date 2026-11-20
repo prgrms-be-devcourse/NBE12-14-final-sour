@@ -97,7 +97,7 @@ class ClickServiceTest {
                 actionRateLimiter, clickCountLimiter, clickerService, abuseVerificationService,
                 userClickerLevelCache);
         clickService = new ClickService(stringRedisTemplate, userRepository, redisHandler, clickActionGuard,
-                libraryBonusChecker);
+                libraryBonusChecker, Optional.empty());
     }
 
     private ClickRequest request(int clickCount) {

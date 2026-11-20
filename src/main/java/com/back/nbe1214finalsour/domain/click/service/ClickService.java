@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class ClickService {
     private final RedisHandler redisHandler;
     private final ClickActionGuard clickActionGuard;
     private final LibraryBonusChecker libraryBonusChecker;
+    private final Optional<MatchScoredAction> matchScoring;
 
     private static final RedisScript<List> APPLY_CLICK = RedisScript.of(new ClassPathResource("redis/apply-click.lua"), List.class);
     private static final BigDecimal LIBRARY_MULTIPLIER = new BigDecimal("1.2");
@@ -38,12 +40,19 @@ public class ClickService {
      * @param departmentId 토큰의 학과 ID. {@code null}이면(학과 claim을 넣기 전에 발급된 토큰) DB 값을 쓴다
      */
     public ClickResponse click(Long userId, Long universityId, Long departmentId, ClickRequest request) {
+        if (matchScoring.isPresent()) {
+            return matchScoring.orElseThrow().apply(userId, universityId, request.submissionId(), request.clickCount(),
+                    (base, attempt) -> applyClick(userId, universityId, departmentId, request, base, attempt));
+        }
+        long base = clickActionGuard.verifyAndGetBaseScore(userId, request.submissionId(), request.clickCount());
+        return applyClick(userId, universityId, departmentId, request, base, null);
+    }
+
+    private ClickResponse applyClick(Long userId, Long universityId, Long departmentId, ClickRequest request,
+                                     long score, MatchScoredAction.Attempt attempt) {
         int clickCount = request.clickCount();
-        String submissionId = request.submissionId();
         Double lat = request.latitude();
         Double lng = request.longitude();
-
-        long score = clickActionGuard.verifyAndGetBaseScore(userId, submissionId, clickCount);
 
         if (departmentId == null) {
             departmentId = userRepository.findById(userId)
@@ -76,15 +85,10 @@ public class ClickService {
                 RedisKey.CLICKS_UNIV_SECOND.of(universityId, nowSec - 1)
         );
 
-        List<String> r = stringRedisTemplate.execute(
-                APPLY_CLICK,
-                keys,
-                String.valueOf(universityId),
-                String.valueOf(departmentId),
-                String.valueOf(userId),
-                String.valueOf(score),
-                String.valueOf(clickCount)
-        );
+        String[] args = {universityId.toString(), departmentId.toString(), userId.toString(),
+                Long.toString(score), Integer.toString(clickCount)};
+        List<String> r = attempt == null ? stringRedisTemplate.execute(APPLY_CLICK, keys, (Object[]) args)
+                : matchScoring.orElseThrow().execute(true, attempt, keys, args);
         ClickApplyResponse clickApplyResponse = new ClickApplyResponse(
                 Long.valueOf(r.get(0)),
                 Long.valueOf(r.get(1)),

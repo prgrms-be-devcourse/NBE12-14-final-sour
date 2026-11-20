@@ -12,6 +12,7 @@ import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchService;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchScoringScheduler;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
+import com.back.nbe1214finalsour.domain.university.repository.UniversityCache;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
@@ -22,6 +23,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.MediaType;
+import com.back.nbe1214finalsour.global.redis.RedisKey;
+import com.back.nbe1214finalsour.global.security.AuthUser;
+import com.back.nbe1214finalsour.global.security.Role;
+import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,6 +44,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 실제 PostgreSQL의 서로 다른 트랜잭션/커넥션에서 동시에 실행한다. */
 @IntegrationTest
@@ -70,6 +80,9 @@ class AllianceMatchConcurrencyIntegrationTest {
 
     @Autowired StringRedisTemplate redis;
     @Autowired AllianceMatchScoringScheduler scoringScheduler;
+    @Autowired JwtProvider jwt;
+    @Autowired MockMvc mvc;
+    @Autowired UniversityCache universityCache;
     private final List<String> scoreKeys = new ArrayList<>();
 
     private final List<Long> allianceIds = new ArrayList<>();
@@ -134,6 +147,49 @@ class AllianceMatchConcurrencyIntegrationTest {
         redis.delete(key);
         scoringScheduler.prepareStartedMatches();
         assertThat(redis.hasKey(key)).isFalse();
+    }
+
+    @Test
+    void realClickAndAssistRejectBeforePreparationThenScoreOnceForTheReceivingSchool() throws Exception {
+        Group a = createFullAlliance();
+        Group b = createFullAlliance();
+        universityCache.load();
+        Member player = a.first();
+        String school = player.universityId().toString();
+        String receiver = a.second().universityId().toString();
+        String submission = "score-click";
+        scoreKeys.add(RedisKey.SUBMIT_DEDUPE.of(player.userId(), submission));
+        scoreKeys.add(RedisKey.SUBMIT_DEDUPE.of(player.userId(), "score-assist"));
+        scoreKeys.add(RedisKey.RANK_USER.of(school));
+        scoreKeys.add(RedisKey.RANK_DEPT.of(school));
+        Long id = matchService.requestMatch(player.userId(), a.allianceId(), b.allianceId(), 6).getId();
+        matchService.acceptMatch(b.first().userId(), id);
+        String scoreKey = RedisKey.MATCH_SCORE.of(id);
+        scoreKeys.add(scoreKey);
+        String token = jwt.createAccessToken(new AuthUser(player.userId(), player.universityId(),
+                userRepository.findById(player.userId()).orElseThrow().getDepartmentId(), Role.USER), null);
+        var click = post("/api/v1/clicks").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                         {"submissionId":"score-click","clickCount":10}
+                         """);
+        mvc.perform(click).andExpect(status().isServiceUnavailable());
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), school)).isNull();
+
+        scoringScheduler.prepareStartedMatches();
+        mvc.perform(click).andExpect(status().isOk()).andExpect(jsonPath("$.data.earnedScore").value(10));
+        mvc.perform(post("/api/v1/assists").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                           {"submissionId":"score-assist","clickCount":10,"targetUniversityId":%s}
+                           """.formatted(receiver)))
+                .andExpect(status().isOk());
+        mvc.perform(click).andExpect(status().isConflict());
+        assertThat(redis.opsForHash().multiGet(scoreKey, List.of("aUniversity1Contribution", "aUniversity2Contribution")))
+                .containsExactly("10", "3");
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), school)).isEqualTo(10.0);
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), receiver)).isEqualTo(3.0);
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(school), player.userId().toString())).isEqualTo(20.0);
+        assertThat(redis.getExpire(RedisKey.SUBMIT_DEDUPE.of(player.userId(), submission))).isGreaterThan(10);
     }
 
     @Test
@@ -265,9 +321,21 @@ class AllianceMatchConcurrencyIntegrationTest {
         }
         for (Long id : allianceIds) jdbc.update("DELETE FROM alliance_university WHERE alliance_id = ?", id);
         for (Long id : allianceIds) jdbc.update("DELETE FROM alliance WHERE id = ?", id);
-        for (Long id : userIds) jdbc.update("DELETE FROM users WHERE id = ?", id);
-        for (Long id : departmentIds) jdbc.update("DELETE FROM department WHERE id = ?", id);
-        for (Long id : universityIds) jdbc.update("DELETE FROM university WHERE id = ?", id);
+        for (Long id : userIds) {
+            redis.delete(List.of(RedisKey.USER_STATUS.of(id), RedisKey.USER_CLICKER.of(id),
+                    RedisKey.RATELIMIT_ACTION.of(id), RedisKey.RATELIMIT_CLICK.of(id)));
+            redis.opsForSet().remove(RedisKey.DIRTY_USER.of(), id.toString());
+            jdbc.update("DELETE FROM users WHERE id = ?", id);
+        }
+        for (Long id : departmentIds) {
+            redis.opsForSet().remove(RedisKey.DIRTY_DEPT.of(), id.toString());
+            jdbc.update("DELETE FROM department WHERE id = ?", id);
+        }
+        for (Long id : universityIds) {
+            redis.opsForSet().remove(RedisKey.DIRTY_UNIV.of(), id.toString());
+            redis.opsForZSet().remove(RedisKey.RANK_UNIV.of(), id.toString());
+            jdbc.update("DELETE FROM university WHERE id = ?", id);
+        }
     }
 
     @Test

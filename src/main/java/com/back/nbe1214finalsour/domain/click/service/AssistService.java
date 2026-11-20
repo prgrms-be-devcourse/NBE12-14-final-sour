@@ -11,6 +11,7 @@ import com.back.nbe1214finalsour.global.redis.RedisKey;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Service;
  * 연합 학교 지원 (추가 명세 §3-3, 결정 7, SCRUM-187).
  *
  * <p>대상 학교 +⌊base × 0.3⌋, 내 기여도 +⌊base × 아이템 배율⌋ (base = clickCount × clickPower). 내 학교·학과 점수는
- * 그대로다. 도서관 보너스는 내 학교 도서관 위치 보너스라 적용하지 않는다. 대결 점수는 클릭도 아직 쌓는 곳이 없어 반영하지 않는다.
+ * 그대로다. 도서관 보너스는 내 학교 도서관 위치 보너스라 적용하지 않는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,7 @@ public class AssistService {
     private final RedisHandler redisHandler;
     private final UniversityCache universityCache;
     private final AllianceAllyChecker allianceAllyChecker;
+    private final Optional<MatchScoredAction> matchScoring;
 
     public AssistResponse assist(Long userId, Long universityId, AssistRequest request) {
         int clickCount = request.clickCount();
@@ -50,22 +52,29 @@ public class AssistService {
                     "동맹 아님 userId=" + userId + ", target=" + targetUniversityId);
         }
 
+        if (matchScoring.isPresent()) {
+            return matchScoring.orElseThrow().apply(userId, targetUniversityId, request.submissionId(), clickCount,
+                    (base, attempt) -> applyAssist(userId, universityId, targetUniversityId, targetName,
+                            clickCount, base, attempt));
+        }
         long base = clickActionGuard.verifyAndGetBaseScore(userId, request.submissionId(), clickCount);
+        return applyAssist(userId, universityId, targetUniversityId, targetName, clickCount, base, null);
+    }
+
+    private AssistResponse applyAssist(Long userId, Long universityId, Long targetUniversityId, String targetName,
+                                       int clickCount, long base, MatchScoredAction.Attempt attempt) {
         long assistScore = base * 3 / 10;
         BigDecimal itemMultiplier = BigDecimal.valueOf(redisHandler.getHash(RedisKey.USER_EFFECT.of(userId), "multiplier", Double.class)
                 .orElse(1.0));
         long contribScore = itemMultiplier.multiply(BigDecimal.valueOf(base))
                 .setScale(0, RoundingMode.FLOOR).longValueExact();
 
-        List<String> r = stringRedisTemplate.execute(
-                APPLY_ASSIST,
-                List.of(RedisKey.RANK_UNIV.of(), RedisKey.RANK_USER.of(universityId),
-                        RedisKey.DIRTY_UNIV.of(), RedisKey.DIRTY_USER.of()),
-                String.valueOf(targetUniversityId),
-                String.valueOf(assistScore),
-                String.valueOf(userId),
-                String.valueOf(contribScore)
-        );
+        List<String> keys = List.of(RedisKey.RANK_UNIV.of(), RedisKey.RANK_USER.of(universityId),
+                RedisKey.DIRTY_UNIV.of(), RedisKey.DIRTY_USER.of());
+        String[] args = {targetUniversityId.toString(), Long.toString(assistScore), userId.toString(),
+                Long.toString(contribScore)};
+        List<String> r = attempt == null ? stringRedisTemplate.execute(APPLY_ASSIST, keys, (Object[]) args)
+                : matchScoring.orElseThrow().execute(false, attempt, keys, args);
         return new AssistResponse(
                 (long) clickCount,
                 assistScore,
