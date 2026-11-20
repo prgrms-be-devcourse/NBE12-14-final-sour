@@ -117,8 +117,10 @@ public enum RedisKey {
     UNIV_MATCH("univ:%s:match", Structure.STRING, ValueFormat.PLAIN),
 
     // 대결·연합 (Match, Alliance)
-    /** 대결 점수. field: A, B */
+    /** 진행 점수 원장: 실제 기간, 참가 학교 순서, 학교별 기여도 */
     MATCH_SCORE("match:%s:score", Structure.HASH, ValueFormat.PLAIN),
+    /** 기존 정산 소비자가 읽는 마감 점수 스냅샷 */
+    MATCH_FINAL_SNAPSHOT("match:%s:settlement:snapshot", Structure.HASH, ValueFormat.PLAIN),
     /** 연합 점수. field: universityId → 점수 */
     ALLIANCE_SCORE("alliance:%s:score", Structure.HASH, ValueFormat.PLAIN),
 

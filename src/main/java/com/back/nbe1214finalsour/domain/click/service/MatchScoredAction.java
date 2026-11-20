@@ -54,7 +54,10 @@ public class MatchScoredAction {
         List<String> allKeys = new ArrayList<>(keys);
         allKeys.add(attempt.key());
         Route route = attempt.route();
-        if (route != null) allKeys.add(RedisKey.MATCH_SCORE.of(route.matchId()));
+        if (route != null) {
+            allKeys.add(RedisKey.MATCH_SCORE.of(route.matchId()));
+            allKeys.add(RedisKey.MATCH_FINAL_SNAPSHOT.of(route.matchId()));
+        }
         List<String> allArgs = new ArrayList<>(List.of(args));
         allArgs.add(attempt.claim());
         if (route != null) {
@@ -64,7 +67,7 @@ public class MatchScoredAction {
             allArgs.addAll(route.roster());
         }
         @SuppressWarnings("unchecked")
-        List<String> result = redis.execute(click ? CLICK : ASSIST, allKeys, allArgs.toArray(String[]::new));
+        List<String> result = redis.execute(click ? CLICK : ASSIST, allKeys, allArgs.toArray());
         if (result == null || result.isEmpty()) throw new BusinessException(ErrorCode.COMMON_INTERNAL_ERROR);
         return switch (result.getFirst()) {
             case "DUPLICATE" -> throw new BusinessException(ErrorCode.CLICK_DUPLICATE_SUBMISSION);

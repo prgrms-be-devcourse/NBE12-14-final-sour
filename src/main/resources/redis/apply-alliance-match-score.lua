@@ -4,6 +4,7 @@ local nArgs = isClick and 5 or 4
 local claimKey = KEYS[nKeys + 1]
 local claim = ARGV[nArgs + 1]
 local matchKey = KEYS[nKeys + 2]
+local finalKey = KEYS[nKeys + 3]
 local maxExact = 9007199254740991
 
 local function kind(key)
@@ -46,7 +47,10 @@ if matchKey then
     local finish = tonumber(ARGV[nArgs + 3])
     if now < start then return rejected('NOT_READY') end
     if now < finish then
-        if ARGV[nArgs + 4] ~= '1' or kind(matchKey) ~= 'hash' then return rejected('NOT_READY') end
+        -- If the clock steps backwards after finalization, never reopen the frozen result.
+        if ARGV[nArgs + 4] ~= '1' or kind(matchKey) ~= 'hash' or kind(finalKey) ~= 'none' then
+            return rejected('NOT_READY')
+        end
         local window = redis.call('HMGET', matchKey, 'startedAt', 'endedAt')
         if window[1] ~= ARGV[nArgs + 2] or window[2] ~= ARGV[nArgs + 3] then return rejected('NOT_READY') end
         local schools = {'aUniversity1', 'aUniversity2', 'bUniversity1', 'bUniversity2'}

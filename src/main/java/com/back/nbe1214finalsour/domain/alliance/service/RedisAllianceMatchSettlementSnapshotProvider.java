@@ -1,5 +1,6 @@
 package com.back.nbe1214finalsour.domain.alliance.service;
 
+import com.back.nbe1214finalsour.global.redis.RedisKey;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -37,7 +38,7 @@ public class RedisAllianceMatchSettlementSnapshotProvider
         if (matchId == null || matchId <= 0) {
             throw new IllegalArgumentException("올바른 대결 ID가 필요합니다.");
         }
-        String key = "match:" + matchId + ":settlement:snapshot";
+        String key = RedisKey.MATCH_FINAL_SNAPSHOT.of(matchId);
         Map<Object, Object> fields = redisTemplate.opsForHash().entries(key);
 
         if (fields == null || !"1".equals(fields.get("finalized"))) {

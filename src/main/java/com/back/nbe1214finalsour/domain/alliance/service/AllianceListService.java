@@ -1,6 +1,7 @@
 package com.back.nbe1214finalsour.domain.alliance.service;
 
 import com.back.nbe1214finalsour.domain.alliance.dto.AllianceLists.*;
+import com.back.nbe1214finalsour.domain.alliance.dto.AllianceMatchResponse;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceMatch;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceMatchStatus;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceStatus;
@@ -26,6 +27,7 @@ public class AllianceListService {
     private final AllianceListReader reader;
     private final AllianceQueryService alliances;
     private final AllianceMatchService matches;
+    private final AllianceMatchScoreLedger scores;
     private final Clock clock;
 
     public Page<Summary> directory(@Nullable Long school, Scope scope, @Nullable AllianceStatus status,
@@ -54,7 +56,7 @@ public class AllianceListService {
         return reader.matches(allianceId, direction, status, cursor, size);
     }
 
-    public AllianceMatch match(long matchId, @Nullable Long school) {
+    public AllianceMatchResponse match(long matchId, @Nullable Long school) {
         AllianceMatch match = matches.getMatch(matchId);
         if (match.getDeletedAt() != null) throw new BusinessException(ErrorCode.MATCH_NOT_FOUND);
         boolean historical = match.getStatus() == AllianceMatchStatus.FINISHED;
@@ -63,7 +65,7 @@ public class AllianceListService {
                 && !reader.canRead(match.getAllianceBId(), school, now, historical)) {
             throw new BusinessException(ErrorCode.ALLY_NOT_MEMBER);
         }
-        return match;
+        return new AllianceMatchResponse(match, scores.read(match, now));
     }
 
     private void requireAccess(long allianceId, @Nullable Long school, boolean historical) {

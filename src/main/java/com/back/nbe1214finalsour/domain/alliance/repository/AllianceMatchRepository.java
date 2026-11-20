@@ -87,6 +87,14 @@ public interface AllianceMatchRepository extends JpaRepository<AllianceMatch, Lo
         """, nativeQuery = true)
     List<Long> findMatchesAwaitingScorePreparation(@Param("now") OffsetDateTime now);
 
+    @Query(value = """
+        SELECT id FROM alliance_match
+        WHERE score_state = 'READY' AND status = 'IN_PROGRESS' AND deleted_at IS NULL
+          AND ended_at <= :now AND id > :afterId
+        ORDER BY id LIMIT 100
+        """, nativeQuery = true)
+    List<Long> findMatchesAwaitingScoreFinalization(@Param("now") OffsetDateTime now, @Param("afterId") long afterId);
+
     // 종료 시각이 지난 진행 중 대결만 조회한다.
     // 한 번에 최대 100건씩 처리해 긴 트랜잭션을 방지한다.
     @Query(value = """

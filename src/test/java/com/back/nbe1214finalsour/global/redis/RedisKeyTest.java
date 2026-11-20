@@ -168,6 +168,7 @@ class RedisKeyTest {
                 "UNIV_MATCH|univ:%s:match|STRING|PLAIN",
                 // 대결·연합 (Match, Alliance)
                 "MATCH_SCORE|match:%s:score|HASH|PLAIN",
+                "MATCH_FINAL_SNAPSHOT|match:%s:settlement:snapshot|HASH|PLAIN",
                 "ALLIANCE_SCORE|alliance:%s:score|HASH|PLAIN",
                 // 캐시 (Cache)
                 "CACHE_UNIV_MEMBER_COUNT|cache:univ:%s:member-count|STRING|PLAIN",

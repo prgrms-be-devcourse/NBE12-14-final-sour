@@ -70,6 +70,6 @@ public class AllianceListController {
 
     @GetMapping("/matches/{matchId}")
     public ApiResponse<AllianceMatchResponse> match(@AuthenticationPrincipal AuthUser user, @PathVariable @Positive long matchId) {
-        return ApiResponse.ok(new AllianceMatchResponse(lists.match(matchId, user.universityId())));
+        return ApiResponse.ok(lists.match(matchId, user.universityId()));
     }
 }

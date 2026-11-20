@@ -11,6 +11,9 @@ import com.back.nbe1214finalsour.domain.alliance.repository.AllianceMatchReposit
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchService;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchScoringScheduler;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchSettlementSnapshotProvider;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchSettlementPreparationService;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchSettlementOrchestrator;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
 import com.back.nbe1214finalsour.domain.university.repository.UniversityCache;
 import com.back.nbe1214finalsour.domain.user.entity.User;
@@ -44,6 +47,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -51,7 +55,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** 실제 PostgreSQL의 서로 다른 트랜잭션/커넥션에서 동시에 실행한다. */
 @IntegrationTest
 @TestPropertySource(properties = {
-        "alliance.scoring.enabled=true", "alliance.scoring.prepare-delay=PT1H"
+        "alliance.scoring.enabled=true", "alliance.scoring.prepare-delay=PT1H", "alliance.scoring.finalize-delay=PT1H",
+        "alliance.settlement.snapshot.redis.enabled=true"
 })
 class AllianceMatchConcurrencyIntegrationTest {
 
@@ -80,6 +85,9 @@ class AllianceMatchConcurrencyIntegrationTest {
 
     @Autowired StringRedisTemplate redis;
     @Autowired AllianceMatchScoringScheduler scoringScheduler;
+    @Autowired AllianceMatchSettlementSnapshotProvider snapshots;
+    @Autowired AllianceMatchSettlementPreparationService settlementPreparation;
+    @Autowired AllianceMatchSettlementOrchestrator settlement;
     @Autowired JwtProvider jwt;
     @Autowired MockMvc mvc;
     @Autowired UniversityCache universityCache;
@@ -147,6 +155,11 @@ class AllianceMatchConcurrencyIntegrationTest {
         redis.delete(key);
         scoringScheduler.prepareStartedMatches();
         assertThat(redis.hasKey(key)).isFalse();
+        closeWindow(id, key, false);
+        scoringScheduler.finalizeDueMatches();
+        assertThat(redis.hasKey(RedisKey.MATCH_FINAL_SNAPSHOT.of(id))).isFalse();
+        assertThat(settlementRepository.existsById(id)).isFalse();
+        assertThat(matchStatus(id)).isEqualTo("IN_PROGRESS");
     }
 
     @Test
@@ -168,6 +181,8 @@ class AllianceMatchConcurrencyIntegrationTest {
         scoreKeys.add(scoreKey);
         String token = jwt.createAccessToken(new AuthUser(player.userId(), player.universityId(),
                 userRepository.findById(player.userId()).orElseThrow().getDepartmentId(), Role.USER), null);
+        var detail = get("/api/v1/alliances/matches/{id}", id).header("Authorization", "Bearer " + token);
+        mvc.perform(detail).andExpect(status().isOk()).andExpect(jsonPath("$.data.score.state").value("PREPARING"));
         var click = post("/api/v1/clicks").header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -177,6 +192,8 @@ class AllianceMatchConcurrencyIntegrationTest {
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), school)).isNull();
 
         scoringScheduler.prepareStartedMatches();
+        mvc.perform(detail).andExpect(status().isOk()).andExpect(jsonPath("$.data.score.state").value("LIVE"))
+                .andExpect(jsonPath("$.data.score.aScore").value(0)).andExpect(jsonPath("$.data.score.bScore").value(0));
         mvc.perform(click).andExpect(status().isOk()).andExpect(jsonPath("$.data.earnedScore").value(10));
         mvc.perform(post("/api/v1/assists").header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -190,6 +207,38 @@ class AllianceMatchConcurrencyIntegrationTest {
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), receiver)).isEqualTo(3.0);
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(school), player.userId().toString())).isEqualTo(20.0);
         assertThat(redis.getExpire(RedisKey.SUBMIT_DEDUPE.of(player.userId(), submission))).isGreaterThan(10);
+
+        closeWindow(id, scoreKey, true);
+        scoreKeys.add(RedisKey.MATCH_FINAL_SNAPSHOT.of(id));
+        mvc.perform(detail).andExpect(status().isOk()).andExpect(jsonPath("$.data.score.state").value("FINALIZING"));
+        mvc.perform(click).andExpect(status().isConflict());
+        scoringScheduler.finalizeDueMatches();
+        var snapshot = snapshots.loadFinalSnapshot(id);
+        assertThat(snapshot.aScore()).isEqualTo(13);
+        assertThat(snapshot.bScore()).isZero();
+        mvc.perform(detail).andExpect(status().isOk()).andExpect(jsonPath("$.data.score.state").value("SETTLEMENT_PENDING"))
+                .andExpect(jsonPath("$.data.score.aScore").value(13));
+        scoringScheduler.finalizeDueMatches();
+        assertThat(snapshots.loadFinalSnapshot(id)).isEqualTo(snapshot);
+        settlementPreparation.prepare(id, snapshot);
+        settlement.settleAndComplete(id);
+        settlement.settleAndComplete(id);
+        assertThat(matchStatus(id)).isEqualTo("FINISHED");
+        assertThat(matchRepository.findById(id).orElseThrow().getWinnerAllianceId()).isEqualTo(a.allianceId());
+        mvc.perform(detail).andExpect(status().isOk()).andExpect(jsonPath("$.data.score.state").value("FINAL"))
+                .andExpect(jsonPath("$.data.score.bScore").value(0));
+    }
+
+    private void closeWindow(long id, String key, boolean ledgerExists) {
+        // Move the whole window so the test does not wait six hours.
+        OffsetDateTime closed = OffsetDateTime.now().minusSeconds(1).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        OffsetDateTime opened = closed.minusHours(6);
+        jdbc.update("UPDATE alliance_match SET started_at = ?, ended_at = ? WHERE id = ?", opened, closed, id);
+        if (ledgerExists) redis.opsForHash().putAll(key, java.util.Map.of("startedAt", epochMicros(opened), "endedAt", epochMicros(closed)));
+    }
+
+    private static String epochMicros(OffsetDateTime time) {
+        return Long.toString(time.toEpochSecond() * 1_000_000L + time.getNano() / 1_000);
     }
 
     @Test
