@@ -8,6 +8,7 @@ import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
@@ -22,6 +23,9 @@ public class AllianceMatchService {
     private final AllianceUniversityRepository allianceUniversityRepository;
     private final AllianceMatchRepository allianceMatchRepository;
     private final UserRepository userRepository;
+
+    @Value("${alliance.scoring.enabled:false}")
+    private boolean scoringEnabled;
 
     @Transactional
     public AllianceMatch requestMatch(Long userId, Long allianceAId,
@@ -136,11 +140,12 @@ public class AllianceMatchService {
         startMatch(match, pair, now, membersA, membersB);
     }
 
-    private static void startMatch(AllianceMatch match, Alliance[] pair, OffsetDateTime now,
-                                   List<AllianceUniversity> membersA, List<AllianceUniversity> membersB) {
+    private void startMatch(AllianceMatch match, Alliance[] pair, OffsetDateTime now,
+                            List<AllianceUniversity> membersA, List<AllianceUniversity> membersB) {
         // 이미 승인 소속 행 ID 오름차순으로 읽었으므로 정산의 첫 번째/두 번째 학교가 고정된다.
         match.startWithRoster(now, membersA.get(0).getUniversityId(), membersA.get(1).getUniversityId(),
                 membersB.get(0).getUniversityId(), membersB.get(1).getUniversityId());
+        if (scoringEnabled) match.queueScorePreparation();
         pair[0].startMatch(now);
         pair[1].startMatch(now);
     }

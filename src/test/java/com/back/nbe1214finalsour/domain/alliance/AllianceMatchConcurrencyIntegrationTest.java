@@ -10,6 +10,7 @@ import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceMatchRepository;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchService;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceMatchScoringScheduler;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,6 +40,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** 실제 PostgreSQL의 서로 다른 트랜잭션/커넥션에서 동시에 실행한다. */
 @IntegrationTest
+@TestPropertySource(properties = {
+        "alliance.scoring.enabled=true", "alliance.scoring.prepare-delay=PT1H"
+})
 class AllianceMatchConcurrencyIntegrationTest {
 
     @Autowired
@@ -61,6 +67,10 @@ class AllianceMatchConcurrencyIntegrationTest {
     AllianceRepository allianceRepository;
     @Autowired
     TransactionTemplate transactionTemplate;
+
+    @Autowired StringRedisTemplate redis;
+    @Autowired AllianceMatchScoringScheduler scoringScheduler;
+    private final List<String> scoreKeys = new ArrayList<>();
 
     private final List<Long> allianceIds = new ArrayList<>();
     private final List<Long> userIds = new ArrayList<>();
@@ -99,6 +109,31 @@ class AllianceMatchConcurrencyIntegrationTest {
         assertThat(matchStatus(requested.getId())).isEqualTo("IN_PROGRESS");
         assertThat(allianceStatus(a.allianceId())).isEqualTo("IN_MATCH");
         assertThat(allianceStatus(b.allianceId())).isEqualTo("IN_MATCH");
+    }
+
+    @Test
+    void committedStartPreparesRosterOnceAndNeverRecreatesLostScores() {
+        Group a = createFullAlliance();
+        Group b = createFullAlliance();
+        Long id = matchService.requestMatch(a.first.userId(), a.allianceId(), b.allianceId(), 6).getId();
+        String key = "match:" + id + ":score";
+        scoreKeys.add(key);
+        scoringScheduler.prepareStartedMatches();
+        assertThat(redis.hasKey(key)).isFalse();
+
+        matchService.acceptMatch(b.first.userId(), id);
+        scoringScheduler.prepareStartedMatches();
+        assertThat(redis.opsForHash().multiGet(key, List.of("aUniversity1Id", "aUniversity2Id", "bUniversity1Id", "bUniversity2Id")))
+                .containsExactly(a.first.universityId().toString(), a.second.universityId().toString(),
+                        b.first.universityId().toString(), b.second.universityId().toString());
+        assertThat(redis.opsForHash().get(key, "aUniversity1Contribution")).isEqualTo("0");
+
+        redis.opsForHash().put(key, "aUniversity1Contribution", "17");
+        scoringScheduler.prepareStartedMatches();
+        assertThat(redis.opsForHash().get(key, "aUniversity1Contribution")).isEqualTo("17");
+        redis.delete(key);
+        scoringScheduler.prepareStartedMatches();
+        assertThat(redis.hasKey(key)).isFalse();
     }
 
     @Test
@@ -222,6 +257,7 @@ class AllianceMatchConcurrencyIntegrationTest {
 
     @AfterEach
     void cleanUp() {
+        if (!scoreKeys.isEmpty()) redis.delete(scoreKeys);
         // FK 제약 때문에 대결 -> 가입 -> 연합 -> 회원 -> 학과 -> 대학 순서로 정리한다.
         for (Long id : allianceIds) {
             jdbc.update("DELETE FROM alliance_match_settlement WHERE match_id IN (SELECT id FROM alliance_match WHERE alliance_a_id = ? OR alliance_b_id = ?)", id, id);

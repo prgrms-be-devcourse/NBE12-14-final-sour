@@ -36,6 +36,20 @@ public class AllianceMatch extends BaseTimeEntity {
     @Column(name = "b_university_2_id")
     private Long bUniversity2Id;
 
+    public enum ScoreState { PENDING, READY }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "score_state", length = 8)
+    private ScoreState scoreState;
+
+    public void queueScorePreparation() {
+        scoreState = ScoreState.PENDING;
+    }
+
+    public void markScoreReady() {
+        scoreState = ScoreState.READY;
+    }
+
     @Column(name = "winner_alliance_id")
     private Long winnerAllianceId;
 
