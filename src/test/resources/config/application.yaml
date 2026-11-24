@@ -1,0 +1,23 @@
+# 테스트 전용 설정. classpath:/config/는 메인 application.yaml을 가리지 않고 그 위에 덧씌워진다.
+# 실제 값은 환경 변수로 넣는다. 여기 값을 배포에 쓰지 않는다.
+jwt:
+  secret: test-only-jwt-secret-not-for-production-0123456789
+# 테스트 컨텍스트 캐시 통계 (새로 띄운 수 missCount, 재사용 수 hitCount).
+# 테스트가 느려졌을 때 컨텍스트가 몇 개 뜨는지 확인하는 용도. 테스트 리포트의 표준 출력에만 남는다
+logging:
+  level:
+    org.springframework.test.context.cache: DEBUG
+email-crypto:
+  # Base64("test-only-email-encryption-key!!"), 32바이트
+  encryption-key: dGVzdC1vbmx5LWVtYWlsLWVuY3J5cHRpb24ta2V5ISE=
+  # Base64("test-only-email-hash-key-not-for-prod"), 37바이트
+  hash-key: dGVzdC1vbmx5LWVtYWlsLWhhc2gta2V5LW5vdC1mb3ItcHJvZA==
+
+# 점수 1분 배치 스케줄링 끄기
+scheduling:
+  enabled: false
+
+# 개발자 공용 계정 끄기. 셸이나 .env에 DEV_ACCOUNT_PASSWORD가 있어도 테스트 DB에 계정을 만들지 않는다.
+# 생성 로직은 DevAccountInitializerIntegrationTest가 설정을 직접 넣어 확인한다
+dev-account:
+  enabled: false

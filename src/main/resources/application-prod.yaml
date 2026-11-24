@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: NBE12-14-final-sour
+  config:
+    import: optional:file:.env[.properties]
+  jackson:
+    # API 명세서 §1: 시각은 KST 오프셋을 포함한 ISO-8601로 응답한다 (예: 2026-11-11T14:30:00+09:00)
+    time-zone: Asia/Seoul
+  data:
+    redis:
+      host: ${REDIS_URL}
+      port: 6379
+  cloud:
+    aws:
+      s3:
+        # 실제 S3는 기본 방식(버킷 이름을 도메인에 넣음)을 쓴다
+        path-style-access-enabled: false
+
+jwt:
+  # HS256 서명 키, UTF-8로 32바이트 이상 (예: openssl rand -base64 48). 저장소에 커밋하지 않는다
+  secret: ${JWT_SECRET}
+  access-token-ttl: 60m
+  refresh-token-ttl: 30d
+
+cors:
+  # 쉼표로 구분한 origin 목록. 기본값은 로컬 프론트 개발 서버 (frontend/package.json의 vite --port=3000)
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+
+file:
+  # 운영 로고 버킷. 기본값이 없어서 환경 변수가 빠지면 앱이 시작하지 않는다 (엉뚱한 버킷에 올리는 것보다 낫다)
+  logo-bucket: ${FILE_LOGO_BUCKET}
+  # 로고 이미지 주소의 앞부분. CloudFront가 /custom-logo/* 를 로고 버킷으로 보내므로 기본은 공개 주소와 같다
+  logo-public-base-url: ${FILE_LOGO_PUBLIC_BASE_URL:${file.public-base-url}}
+
+# 개발자 공용 계정 (SCRUM-237). 운영은 기본으로 꺼져 있고, 권한 기본값은 USER다.
+# 켜려면 배포 시크릿으로 DEV_ACCOUNT_ENABLED=true와 DEV_ACCOUNT_PASSWORD를 넣는다
+dev-account:
+  enabled: ${DEV_ACCOUNT_ENABLED:false}
+  role: ${DEV_ACCOUNT_ROLE:USER}
+
+# 운영에서는 API 문서를 열지 않는다 (SecurityConfig가 경로를 열어 두므로 여기서 끈다)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

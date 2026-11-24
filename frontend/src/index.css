@@ -1,0 +1,1016 @@
+@import "tailwindcss";
+
+/* Maplestory Font (Light 400, Bold 700/800/900) */
+@font-face {
+  font-family: 'Maplestory';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFLight.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maplestory';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFBold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maplestory';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFBold.woff') format('woff');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Maplestory';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFBold.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --pixel-font: 'Maplestory', 'Galmuri11', 'Press Start 2P', sans-serif;
+  }
+  
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  img, canvas, svg, .pixel-art {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+}
+
+.font-pixel {
+  font-family: 'Maplestory', 'Galmuri11', 'Press Start 2P', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-maple {
+  font-family: 'Maplestory', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-press-start {
+  font-family: 'Press Start 2P', 'Maplestory', 'Galmuri11', monospace;
+}
+
+/* 16-bit Cozy Farming-Sim Palette Colors:
+   Sky Blue: #60a5fa / #38bdf8
+   Fresh Grass: #38a134 / #48bb3c / #237820
+   Warm Wood: #8b5327 / #613615 / #381e09
+   Cream Parchment: #fdf6e2 / #faecc7 / #ebd7a3
+   Sunflower Yellow: #facc15 / #eab308
+   Soft Coral: #fb7185 / #e11d48
+   Dark Outline: #261608
+*/
+
+/* Retro RPG Dialog Box: Chunky rectangular panel with thick dark outline, 2px inner white border, and hard 1-step shadow */
+.rpg-box {
+  background-color: #fdf5df;
+  border: 3px solid #261608;
+  box-shadow: 
+    inset 0 0 0 2px #ffffff,
+    inset 0 0 0 4px #edd9b0,
+    3px 3px 0px 0px #261608;
+}
+
+.rpg-box-wood {
+  background-color: #8b5327;
+  border: 3px solid #261608;
+  box-shadow: 
+    inset 0 0 0 2px #b87842,
+    inset 0 0 0 4px #5a3012,
+    3px 3px 0px 0px #261608;
+  color: #fffbeb;
+}
+
+.rpg-box-grass {
+  background-color: #3ca834;
+  border: 3px solid #261608;
+  box-shadow: 
+    inset 0 0 0 2px #6ee755,
+    inset 0 0 0 4px #23721e,
+    3px 3px 0px 0px #261608;
+  color: #ffffff;
+}
+
+.rpg-box-sky {
+  background-color: #4da6ff;
+  border: 3px solid #261608;
+  box-shadow: 
+    inset 0 0 0 2px #a3d4ff,
+    inset 0 0 0 4px #267ecc,
+    3px 3px 0px 0px #261608;
+  color: #ffffff;
+}
+
+/* Pressable Wooden / Parchment Pixel Plaques */
+.pixel-plaque {
+  border: 3px solid #261608;
+  box-shadow: 
+    inset 0 0 0 2px #ffffff,
+    3px 3px 0px 0px #261608;
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+  user-select: none;
+}
+
+.pixel-plaque:active {
+  transform: translate(2px, 2px);
+  box-shadow: 
+    inset 0 0 0 2px #ffffff,
+    1px 1px 0px 0px #261608;
+}
+
+.plaque-wood {
+  background-color: #9c5c2d;
+  color: #fef3c7;
+  box-shadow: 
+    inset 0 0 0 2px #cf8852,
+    inset 0 0 0 4px #5e3212,
+    3px 3px 0px 0px #261608;
+}
+
+.plaque-wood:active {
+  transform: translate(2px, 2px);
+  box-shadow: 
+    inset 0 0 0 2px #cf8852,
+    inset 0 0 0 4px #5e3212,
+    1px 1px 0px 0px #261608;
+}
+
+.plaque-parchment {
+  background-color: #faecc7;
+  color: #261608;
+  box-shadow: 
+    inset 0 0 0 2px #ffffff,
+    inset 0 0 0 4px #e5cca1,
+    3px 3px 0px 0px #261608;
+}
+
+.plaque-yellow {
+  background-color: #facc15;
+  color: #261608;
+  box-shadow: 
+    inset 0 0 0 2px #fef08a,
+    inset 0 0 0 4px #ca8a04,
+    3px 3px 0px 0px #261608;
+}
+
+.plaque-coral {
+  background-color: #fb7185;
+  color: #ffffff;
+  box-shadow: 
+    inset 0 0 0 2px #fecdd3,
+    inset 0 0 0 4px #be123c,
+    3px 3px 0px 0px #261608;
+}
+
+.plaque-green {
+  background-color: #22c55e;
+  color: #ffffff;
+  box-shadow: 
+    inset 0 0 0 2px #86efac,
+    inset 0 0 0 4px #15803d,
+    3px 3px 0px 0px #261608;
+}
+
+.plaque-green:active {
+  transform: translate(2px, 2px);
+  box-shadow: 
+    inset 0 0 0 2px #86efac,
+    inset 0 0 0 4px #15803d,
+    1px 1px 0px 0px #261608;
+}
+
+/* Pixel Dither Background patterns (no gradients) */
+.dither-wood {
+  background-color: #8b5327;
+  background-image: 
+    radial-gradient(#6c3e1b 1px, transparent 1px),
+    radial-gradient(#a36433 1px, transparent 1px);
+  background-size: 4px 4px;
+  background-position: 0 0, 2px 2px;
+}
+
+.dither-parchment {
+  background-color: #fdf5df;
+  background-image: 
+    radial-gradient(#eeddb6 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+/* Speech bubble with hard 1-step shadow and pixel outline */
+.rpg-speech-bubble {
+  position: relative;
+  background-color: #ffffff;
+  border: 3px solid #261608;
+  box-shadow: 
+    inset 0 0 0 2px #fef9c3,
+    3px 3px 0px 0px #261608;
+}
+
+.rpg-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid #ffffff;
+  z-index: 2;
+}
+
+.rpg-speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #261608;
+  z-index: 1;
+}
+
+/* 임시 목업 캠퍼스 광원: 상위 요소의 opacity가 설정 상한을 적용한다. */
+@keyframes campus-sun-sway {
+  0%, 100% { transform: translateX(-2%); }
+ 50% { transform: translateX(2%); }
+}
+@keyframes campus-window-twinkle {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+.campus-sun-sway { animation: campus-sun-sway 18s ease-in-out infinite; }
+.campus-window-twinkle { animation: campus-window-twinkle 4s ease-in-out infinite; }
+/* Lv.10 code-drawn effects in CampusScene (plan 4-5). */
+@keyframes campus-firework {
+  0% { opacity: 0; transform: scale(0.2); }
+  15% { opacity: 1; }
+  60% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+@keyframes campus-festival-glow { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.36; } }
+.campus-firework { animation: campus-firework 2.8s ease-out infinite; opacity: 0; }
+.campus-festival-glow { animation: campus-festival-glow 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .campus-sun-sway, .campus-window-twinkle, .campus-festival-glow { animation: none; }
+  .campus-firework { animation: none; opacity: 0.85; }
+}
+
+/* 타 사용자 목업 클릭: 점수 효과와 다른 원형 빛. */
+.other-click-particle { display: flex; align-items: center; gap: 2px; }
+.other-click-orb { display: block; width: 9px; height: 9px; border-radius: 50%; background: currentColor; border: 1px solid white; box-shadow: 0 0 7px currentColor; }
+.other-click-weight { color: white; background: #26334b; font-size: 9px; line-height: 1; padding: 1px 2px; border-radius: 3px; }
+@keyframes other-click-rise {
+  0% { opacity: 0; transform: translateY(4px) scale(0.7); }
+  20% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-16px) scale(0.8); }
+}
+.other-click-animate { animation-name: other-click-rise; animation-timing-function: ease-out; animation-fill-mode: forwards; }
+@media (prefers-reduced-motion: reduce) { .other-click-animate { animation: none; } }
+
+/* Animations */
+@keyframes float-number {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -10px);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--drift, 0px)), -32px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--drift, 0px) * 1.4), -48px);
+  }
+}
+
+.animate-float-number {
+  animation: float-number 0.85s steps(8, end) forwards;
+}
+
+@keyframes hand-tap-step {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-4px, 4px);
+  }
+}
+
+.animate-hand-tap {
+  animation: hand-tap-step 0.9s steps(3, end) infinite;
+}
+
+@keyframes pixel-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0.3;
+  }
+}
+
+.animate-pixel-blink {
+  animation: pixel-blink 1s steps(1) infinite;
+}
+
+@keyframes logo-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-logo-bounce {
+  animation: logo-bounce 1.4s steps(4, end) infinite;
+}
+
+/* Onboarding title (docs/261110-0837-onboarding_title_screen_plan.md): school badges flow in one loop.
+   The list is drawn twice and every badge carries its own right margin, so -50% lands exactly on the copy. */
+.school-belt-track { animation: school-belt 120s linear infinite; }
+@keyframes school-belt { to { transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-logo-bounce, .school-belt-track { animation: none; }
+}
+
+/* Map layers (T7, docs/261110-1005-mockup_remaining_tasks_plan.md §10-1; src/components/MapArt.tsx).
+   Sea: two glint frames and a dark one, in steps, while the glints creep east 3px every 2s.
+   Clouds: each row crosses the map west to east at its own speed and re-enters from the west. */
+.map-sea-glint { animation: map-sea-glint 2.4s steps(1, end) infinite, map-sea-flow 32s steps(16, end) infinite; }
+.map-sea-glint-late { animation-delay: -1.6s, -16s; }
+@keyframes map-sea-glint { 0% { opacity: 1; } 33.333%, 100% { opacity: 0; } }
+@keyframes map-sea-flow { from { background-position: 0 0; } to { background-position: 48px 0; } }
+.map-cloud-drift { animation-name: map-cloud-drift; animation-timing-function: linear; animation-iteration-count: infinite; will-change: transform; }
+@keyframes map-cloud-drift { from { transform: translateX(var(--drift-from)); } to { transform: translateX(var(--drift-to)); } }
+@media (prefers-reduced-motion: reduce) {
+  .map-sea-glint, .map-cloud-drift { animation: none; }
+}
+
+@keyframes cloud-drift {
+  0% {
+    transform: translateX(-10%);
+  }
+  50% {
+    transform: translateX(10%);
+  }
+  100% {
+    transform: translateX(-10%);
+  }
+}
+
+.animate-cloud-drift {
+  animation: cloud-drift 12s linear infinite;
+}
+
+
+
+/* T2 (docs/261110-1005-mockup_remaining_tasks_plan.md §5): on a phone, service screens fill the visible
+   viewport. 100dvh follows the browser toolbars, so the bottom nav stays above them; 100vh is the fallback.
+   --shell-offset accounts for the bars above the shell (App). The safe-area insets need viewport-fit=cover
+   (index.html). Landscape keeps a minimum height and scrolls the page (M6 approval). */
+.phone-shell-full {
+  height: calc(100vh - var(--shell-offset, 0px));
+  height: calc(100dvh - var(--shell-offset, 0px));
+  min-height: 480px;
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.device-full-with-profile {
+  --profile-height: calc(3rem + env(safe-area-inset-top));
+  --shell-offset: var(--profile-height);
+}
+.device-full-with-profile > .game-top-bar {
+  min-block-size: var(--profile-height);
+  margin-block-end: 0;
+  padding-block-start: env(safe-area-inset-top);
+  padding-inline: max(.5rem, env(safe-area-inset-left)) max(.5rem, env(safe-area-inset-right));
+}
+
+/* SCRUM-206: shared service chrome and the campus workspace. Panels scroll independently. */
+.game-backdrop {
+  min-block-size: 100dvh;
+  padding: .75rem clamp(.75rem, 1.5%, 1.25rem);
+  background: radial-gradient(ellipse at 50% 0, #f8f0ce, transparent 70%),
+    repeating-linear-gradient(135deg, #dbe8d3 0 16px, #d5e3cd 16px 32px);
+}
+.guest-entry {
+  font-family: var(--font-pixel);
+  color: #261608;
+  padding-block: max(.75rem, env(safe-area-inset-top)) max(.75rem, env(safe-area-inset-bottom));
+  padding-inline: max(.75rem, env(safe-area-inset-left)) max(.75rem, env(safe-area-inset-right));
+}
+.guest-landing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+  inline-size: 100%;
+  max-inline-size: 74rem;
+  margin-inline: auto;
+}
+.guest-hero { min-inline-size: 0; background: #fffbeb; }
+.guest-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: .875rem;
+  padding: clamp(1rem, 5%, 2rem);
+}
+.guest-hero-art { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.guest-actions { display: flex; flex-wrap: wrap; gap: .75rem; inline-size: 100%; }
+.guest-actions button { flex: 1 1 8rem; min-block-size: 3rem; padding: .5rem 1rem; font-weight: 900; cursor: pointer; }
+.guest-actions .plaque-green { background-color: #166534; }
+.guest-support { min-block-size: 44px; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.guest-entry :focus-visible { outline: 2px solid #49331d; outline-offset: 3px; }
+.guest-step { display: grid; gap: .5rem; max-inline-size: 28rem; margin-inline: auto; --shell-offset: 5rem; }
+.guest-step > button { justify-self: start; }
+.guest-step > .phone-shell-full { border: 2px solid #49331d; }
+.guest-restore { display: grid; place-items: center; }
+.guest-rankings { min-inline-size: 0; padding: clamp(.75rem, 3%, 1.25rem); background: #fffbeb; }
+.guest-rankings h2 { font-size: 1.25rem; font-weight: 900; }
+.guest-rankings-caption { margin-block-start: .25rem; color: #65431f; font-size: .875rem; }
+.guest-rankings-status:not(:empty), .guest-rankings-error { margin-block-start: .625rem; }
+.guest-rankings-error { color: #792e17; }
+.guest-rankings-error button { margin-block-start: .5rem; }
+.guest-rankings table { inline-size: 100%; margin-block-start: .75rem; font-size: .875rem; }
+.guest-rankings :is(th, td) { overflow-wrap: anywhere; padding: .5rem .25rem; border-block-end: 1px solid #d5bd8d; text-align: start; }
+.guest-rankings thead { background: #f7e9be; }
+.guest-rankings tbody th { font-weight: 700; }
+.guest-rankings tr > :is(:first-child, :last-child) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.guest-rankings tr > :last-child { text-align: end; }
+@media (min-width: 64rem) {
+  .guest-landing { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+  .guest-hero-art { aspect-ratio: 2 / 1; }
+}
+.game-width { inline-size: 100%; max-inline-size: 90rem; margin-inline: auto; }
+.game-top-bar {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-block-size: 3rem;
+  margin-block-end: .75rem;
+  padding-inline: .75rem;
+  border: 2px solid #49331d;
+  background: #fdf5df;
+  box-shadow: 3px 3px #49331d;
+}
+.game-brand { display: flex; align-items: center; gap: .5rem; cursor: pointer; min-block-size: 44px; }
+.game-wordmark { display: grid; place-items: center; inline-size: 1.75rem; aspect-ratio: 1; background: #facc15; border: 2px solid #49331d; font-weight: 900; }
+.game-profile { position: relative; font-size: .875rem; }
+.game-profile-name { display: inline-block; vertical-align: middle; max-inline-size: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-profile-actions {
+  position: absolute;
+  inset-block-start: calc(100% + .25rem);
+  inset-inline-end: 0;
+  inline-size: 14rem;
+  padding: .25rem;
+  border: 2px solid #49331d;
+  background: #fffbeb;
+  box-shadow: 3px 3px #49331d;
+}
+.game-profile-actions button { display: block; inline-size: 100%; min-block-size: 44px; padding-inline: .5rem; text-align: start; cursor: pointer; }
+.game-profile-actions button:disabled { cursor: wait; }
+.game-profile-actions button:hover:not(:disabled) { background: #fde9aa; }
+.game-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: .75rem;
+  --game-workspace-available-height: calc(100dvh - 5.25rem);
+  block-size: max(30rem, var(--game-workspace-available-height));
+}
+.game-workspace-side, .game-workspace-center {
+  min-inline-size: 0;
+  min-block-size: 0;
+  border: 2px solid #49331d;
+  background: #fdf5df;
+  box-shadow: 3px 3px #49331d;
+}
+.game-workspace-side {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.game-workspace-side > h2 { padding-block-end: .5rem; border-block-end: 1px solid #bd9e65; font-weight: 900; }
+.game-school-summary { overflow-wrap: anywhere; }
+.game-school-summary > p { color: #65401f; }
+.game-school-summary h2 { font-weight: 900; }
+.game-school-summary dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .125rem .5rem; margin-block-start: .25rem; }
+.game-school-summary dd { text-align: end; font-weight: 700; }
+.game-panel-tabs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1.2fr); gap: .375rem; padding: .25rem; }
+.game-panel-content:focus-visible { outline: 2px solid #49331d; outline-offset: 2px; }
+.game-panel-content { flex: 1; min-block-size: 16rem; min-inline-size: 0; overflow: auto; overscroll-behavior: contain; border: 1px solid #bd9e65; }
+.game-panel-content [data-phone-shell='embedded'] { overflow: hidden; }
+.game-map-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .375rem; padding: .5rem; background: #fff4d1; border-block-end: 1px solid #bd9e65; }
+.game-map-preview button { min-block-size: 2.75rem; }
+.game-map-preview button[aria-disabled='true'] { color: #5c4631; cursor: not-allowed; }
+.game-map-visit-notice { grid-column: 1 / -1; color: #672b14; }
+.game-map-preview-search-notice { grid-column: 1 / -1; min-block-size: 1.45em; color: #8b5327; line-height: 1.45; }
+.game-map-list { padding: .5rem; background: #fdf5df; }
+.game-map-row { display: flex; align-items: center; gap: .5rem; width: 100%; min-height: 2.75rem; }
+.game-map-row[aria-pressed='true'] { background: #fde9aa; border-color: #8b5327; }
+.game-workspace-action {
+  min-block-size: 44px;
+  padding: .25rem .625rem;
+  color: #49331d;
+  border: 1px solid #8b5327;
+  background: #faecc7;
+  font-size: .875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.game-workspace-action:hover, .game-workspace-action[aria-current='page'] { background: #fde9aa; }
+.game-center-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-block-start: .5rem; }
+
+/* Use the resolved 3-column mode, not the viewport alone: the compact and demo views can be forced on PC. */
+[data-desktop-game] {
+  --desktop-text-small: .8125rem;
+  --desktop-text: .9375rem;
+  --desktop-title: 1.125rem;
+  font-family: var(--pixel-font);
+  font-size: var(--desktop-text);
+}
+@supports (font-size: 1cqi) {
+  [data-desktop-game] {
+    --desktop-text-small: clamp(.8125rem, .6875rem + .9cqi, .9375rem);
+    --desktop-text: clamp(.9375rem, .8125rem + .9cqi, 1.0625rem);
+    --desktop-title: clamp(1.125rem, .875rem + 1.8cqi, 1.375rem);
+  }
+  [data-desktop-game] :is(.game-top-bar, .game-workspace-side, .game-workspace-center) { container-type: inline-size; }
+}
+[data-desktop-game] :is(.font-press-start, .font-mono) { font-family: var(--pixel-font); font-variant-numeric: tabular-nums; }
+[data-desktop-game] :is(.game-workspace-side > h2, .game-school-summary h2, .game-campus-hud h1) { font-size: var(--desktop-title); line-height: 1.25; }
+[data-desktop-game] :is(.game-workspace-action, .game-school-summary, .game-map-list, .game-map-preview, .game-profile-actions, .game-brand, .game-campus-score) { font-size: var(--desktop-text); }
+[data-desktop-game] :is(.game-map-preview p, .game-brand-caption, .game-school-summary > p, .game-map-list small, [data-testid='map-search-box'] input, .game-campus-score-label) {
+  font-size: var(--desktop-text-small);
+  line-height: 1.45;
+}
+[data-desktop-game] [data-testid='map-search-box']:focus-within { outline: 2px solid #49331d; outline-offset: 2px; }
+[data-desktop-game] .game-map-search-status { font-size: var(--desktop-text-small); line-height: 1.2; }
+
+/* SCRUM-224: PC my-campus corner scaling — proportional to frame width with height-aware caps;
+   interactive buttons stand out clearly above the calmer top info labels. Visited/mobile/demo stay unchanged. */
+[data-desktop-game] [data-campus-stage][data-my-campus] {
+  --campus-label-size: .75rem;
+  --campus-btn-title: .9375rem;
+  --campus-btn-meta: .75rem;
+  --campus-board-w: 4rem;
+  --campus-board-h: 2.75rem;
+}
+@supports (font-size: 1cqb) {
+  [data-desktop-game] [data-campus-stage][data-my-campus] {
+    container-type: size;
+    --campus-label-size: clamp(.6875rem, min(.5rem + .7cqi, 2.8cqb), .875rem);
+    --campus-btn-title: clamp(.875rem, min(.625rem + 1.1cqi, 3.8cqb), 1.125rem);
+    --campus-btn-meta: clamp(.75rem, min(.5625rem + .85cqi, 3.2cqb), .9375rem);
+    --campus-board-w: clamp(3.75rem, min(10.5cqi, 15cqb), 5.25rem);
+    --campus-board-h: clamp(2.625rem, min(7.3cqi, 10.5cqb), 3.625rem);
+  }
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-label {
+  top: .75rem;
+  font-size: var(--campus-label-size);
+  line-height: 1.25;
+  padding: .25rem .5rem;
+  gap: .375rem;
+  max-inline-size: calc(50% - 1.25rem);
+  box-shadow: 2px 2px 0 #261608;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-label-level { left: .75rem; }
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-label-feature { right: .75rem; }
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-label-dot { width: .5rem; height: .5rem; }
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-label-text {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-btn {
+  bottom: .75rem;
+  right: .75rem;
+  min-inline-size: clamp(6.25rem, 18cqi, 9rem);
+  min-block-size: clamp(3.5rem, min(11cqi, 16cqb), 4.75rem);
+  padding: clamp(.375rem, 1.2cqb, .625rem) clamp(.625rem, 1.5cqi, .9375rem);
+  gap: .25rem;
+  box-shadow: 3px 3px 0 #261608;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-btn:focus-visible,
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-title {
+  font-size: var(--campus-btn-title);
+  gap: .3125rem;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-title svg {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-value-wrap {
+  padding: .125rem .375rem;
+  gap: .3125rem;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-dot { width: .4375rem; height: .4375rem; }
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-sign-value {
+  font-size: var(--campus-btn-meta);
+  font-weight: 700;
+  padding-block: .0625rem;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-btn {
+  bottom: .75rem;
+  left: .75rem;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-tags {
+  gap: .25rem;
+  margin-bottom: .25rem;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-tag {
+  font-size: var(--campus-btn-title);
+  line-height: 1.15;
+  padding: .125rem .4375rem;
+  border-width: 2px;
+  box-shadow: 2px 2px 0 #261608;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-badge {
+  font-size: var(--campus-btn-meta);
+  line-height: 1.15;
+  padding: .125rem .375rem;
+  border-width: 2px;
+  box-shadow: 2px 2px 0 #261608;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-sparkle {
+  width: clamp(1rem, 2.2cqi, 1.375rem);
+  height: clamp(1rem, 2.2cqi, 1.375rem);
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-board {
+  width: var(--campus-board-w);
+  height: var(--campus-board-h);
+  padding: .1875rem;
+  box-shadow: 3px 3px 0 #261608;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-note {
+  width: 30%;
+  height: 58%;
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-legs { padding-inline: 18%; }
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-guestbook-leg {
+  width: .375rem;
+  height: clamp(.625rem, 1.8cqb, .875rem);
+}
+[data-desktop-game] [data-campus-stage][data-my-campus] .game-campus-hand-label {
+  font-size: clamp(.75rem, .625rem + .6cqi, .875rem);
+  padding: .125rem .4375rem;
+  bottom: -1.375rem;
+}
+
+/* Detailed stats clicker breakdown: compact single line on mobile/demo, one item per line with bold numbers on PC. */
+.game-clicker-details { display: flex; flex-wrap: wrap; align-items: baseline; }
+.game-clicker-stat-num { font-weight: inherit; }
+[data-desktop-game] .game-clicker-details {
+  flex-direction: column;
+  gap: .1875rem;
+  font-size: var(--desktop-text-small);
+  line-height: 1.4;
+}
+[data-desktop-game] .game-clicker-sep { display: none; }
+[data-desktop-game] .game-clicker-stat { color: #261608; }
+[data-desktop-game] .game-clicker-stat-num { font-weight: 900; font-variant-numeric: tabular-nums; }
+[data-desktop-game] .game-clicker-note { color: #65401f; }
+
+/* Keep self rank onscreen even when the other columns hit the workspace's minimum height. */
+[data-desktop-game] .game-workspace-side:has(> .game-panel-content > .game-panel-ranking) {
+  max-block-size: var(--game-workspace-available-height);
+}
+[data-desktop-game] .game-panel-content:has(> .game-panel-ranking) {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+/* The podium and rows share one scroll area; status notices can still scroll in the outer panel. */
+[data-desktop-game] .game-panel-content:has(> .game-panel-ranking > .game-ranking-scroll) { overflow: clip; }
+[data-desktop-game] .game-panel-ranking { flex: 1; min-block-size: 0; padding: .5rem; }
+[data-desktop-game] .game-panel-ranking > :not(.game-ranking-scroll) { flex-shrink: 0; }
+[data-desktop-game] .game-ranking-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: .375rem;
+  min-block-size: 0;
+  padding: .25rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+[data-desktop-game] .game-ranking-scroll:focus-visible { outline: 2px solid #49331d; outline-offset: -2px; }
+[data-desktop-game] .game-ranking-list { flex: none; max-height: none; overflow: visible; padding: 0; }
+[data-desktop-game] .game-ranking-self { margin-block-start: 0; flex-wrap: wrap; gap: .25rem; }
+[data-desktop-game] .game-ranking-self-meta { max-inline-size: 100%; }
+[data-desktop-game] .game-ranking-self-rank { inline-size: auto; min-inline-size: 1.25rem; }
+[data-desktop-game] .game-ranking-self-badge { font-size: .625rem; white-space: nowrap; }
+[data-desktop-game] .game-ranking-self-score { margin-inline-start: auto; }
+
+/* The map itself keeps its sea background; only the workspace shell behind short lists changes. */
+[data-desktop-game] .game-map-frame[data-phone-shell='embedded'] { background: #fdf5df; }
+[data-desktop-game] .game-map-regions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(1.75rem, auto));
+  align-items: stretch;
+  overflow: visible;
+  margin-block-start: 0;
+  /* Keep the plaque's 3px shadow and the 4px focus ring inside the scroll body. */
+  padding: .375rem;
+}
+/* From the existing DOM order: 전체 spans both rows; the next six flow left to right. */
+[data-desktop-game] .game-map-regions > button:first-child { grid-area: 1 / 1 / span 2 / span 1; }
+[data-desktop-game] .game-map-regions > button {
+  min-inline-size: 0;
+  padding-inline: .125rem;
+  font-size: .6875rem;
+}
+[data-desktop-game] .game-map-regions > button:focus-visible {
+  z-index: 1;
+  outline: 2px solid #49331d;
+  outline-offset: 2px;
+}
+
+/* PC-only overlay: marker controls stay in CSS pixels, separate from the scaled map art. */
+.game-map-pins {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+  /* Fixed clearance for two caption lines; read by the marker placer, not sized from the active caption. */
+  padding-block-end: 3rem;
+}
+.game-map-pin {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+.game-map-pin[data-top-rank] { inline-size: 2rem; block-size: 2rem; }
+.game-map-pin-medal {
+  position: absolute;
+  inset: auto 0 0 auto;
+  min-inline-size: .875rem;
+  background: #261608;
+  color: #facc15;
+  font-size: .75rem;
+  line-height: 1.15;
+  text-align: center;
+}
+.game-map-pin-logo {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 2px solid #261608;
+  box-shadow: 2px 2px #261608;
+  color: #fff;
+  font-weight: 900;
+}
+.game-map-pin[aria-pressed='true'] .game-map-pin-logo { border-color: #facc15; }
+.game-map-pin:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.game-map-pin-name, .game-map-pin-rank {
+  border: 1px solid #261608;
+  box-shadow: 1px 1px #261608;
+  padding: .125rem .25rem;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  background: #fdf5df;
+  color: #261608;
+}
+.game-map-pin-name, .game-map-pin-rank { position: absolute; inline-size: max-content; white-space: nowrap; }
+.game-map-pin-name[data-priority='true'] { background: #fef08a; }
+.game-map-pin-rank { display: flex; align-items: center; gap: .1875rem; padding: 0 .1875rem; letter-spacing: -.02em; background: #261608; color: #fff4cf; border-color: #facc15; }
+.game-map-pin-rank strong { color: #facc15; }
+.game-map-pin-lines { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; stroke: #261608; stroke-width: 1.5; }
+.game-map-pin-caption {
+  position: absolute;
+  inset: auto .5rem .375rem;
+  margin-inline: auto;
+  inline-size: fit-content;
+  max-inline-size: min(14rem, calc(100% - 1rem));
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  padding: .25rem .5rem;
+  border: 2px solid #261608;
+  box-shadow: 2px 2px #261608;
+  background: #fdf5df;
+  color: #261608;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+/* Leave the lower-left national region control (Jeju) uncovered, without moving its map point. */
+[data-testid='map-area'][data-region='전체'] .game-map-pin-caption {
+  margin-inline-end: 0;
+  max-inline-size: min(14rem, 60%);
+}
+.game-map-pin-caption span { min-inline-size: 0; }
+.game-map-pin-caption svg { flex: none; color: #b45309; }
+@keyframes map-hint-pulse {
+  50% { opacity: .72; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .game-map-pin-caption[data-revealed='false'] { animation: map-hint-pulse 2s ease-in-out 2; }
+}
+
+/* Keep shelf cards on the same outer edges as the altar, including while selected. */
+[data-desktop-game] .game-shelf-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-inline-size: 0;
+}
+[data-desktop-game] .game-shelf-card[data-selected] {
+  scale: none;
+  border-color: #261608;
+  box-shadow: inset 0 0 0 2px #facc15, 2px 2px #261608;
+}
+[data-desktop-game] .game-shelf-selected { right: auto; inset-inline-end: .375rem; }
+[data-desktop-game] .game-shelf-card-body { display: flex; align-items: flex-start; gap: .5rem; }
+[data-desktop-game] .game-shelf-card-copy { display: block; flex: 1; min-inline-size: 0; }
+[data-desktop-game] :is(.game-shelf-card-name, .game-shelf-card-description) {
+  display: block;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  white-space: normal;
+  line-height: 1.3;
+}
+[data-desktop-game] .game-shelf-card-name { font-size: .875rem; }
+[data-desktop-game] .game-shelf-card-description { margin: .125rem 0 0; font-size: .75rem; }
+[data-desktop-game] .game-shelf-api-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border: 2px solid #261608;
+  background: #fef08a;
+  box-shadow: 2px 2px #261608;
+}
+[data-desktop-game] .game-shelf-api-details {
+  display: block;
+  margin-block-start: .5rem;
+  padding-block-start: .375rem;
+  border-block-start: 1px solid #eeddb6;
+  overflow-wrap: anywhere;
+}
+
+/* Match the mobile plaques' depth without changing compact buttons or general-purpose form actions. */
+.game-nav-icon { display: none; }
+[data-desktop-game] .game-nav-control {
+  --nav-face: #824921;
+  --nav-text: #fff4cf;
+  --nav-light: #ba7944;
+  --nav-edge: #562d13;
+  --nav-depth: 3px;
+  --nav-ink: #261608;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25em;
+  min-inline-size: 0;
+  min-block-size: max(44px, 2.75rem);
+  padding: .375rem .4375rem;
+  border: 2px solid var(--nav-ink);
+  background: var(--nav-face);
+  color: var(--nav-text);
+  box-shadow: inset 0 0 0 1px var(--nav-light), inset 0 0 0 3px var(--nav-edge), var(--nav-depth) var(--nav-depth) var(--nav-ink);
+  line-height: 1.25;
+}
+[data-desktop-game] .game-panel-tabs .game-nav-control {
+  gap: .1875em;
+  padding-inline: .1875rem;
+  font-size: var(--desktop-text-small);
+}
+[data-desktop-game] .game-nav-icon { display: block; flex: none; inline-size: 1em; block-size: 1em; }
+[data-desktop-game] .game-nav-label { min-inline-size: 0; word-break: keep-all; overflow-wrap: anywhere; }
+[data-desktop-game] .game-nav-control:is([aria-current='page'], [aria-selected='true']) {
+  --nav-face: #facc15;
+  --nav-text: #261608;
+  --nav-light: #fff1a8;
+  --nav-edge: #9d6309;
+}
+[data-desktop-game] .game-nav-control:where(:not(:disabled, [aria-disabled='true'])):hover { filter: brightness(1.1); }
+[data-desktop-game] .game-nav-control:where(:not(:disabled, [aria-disabled='true'])):active { --nav-depth: 1px; }
+[data-desktop-game] .game-nav-control:focus-visible { outline: 2px solid #49331d; outline-offset: 2px; z-index: 1; }
+[data-desktop-game] .game-nav-control:is(:disabled, [aria-disabled='true']) {
+  --nav-face: #f0dfb9;
+  --nav-text: #5c4631;
+  --nav-light: #fff4d1;
+  --nav-edge: #d1b37c;
+  --nav-depth: 1px;
+  color: var(--nav-text);
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-desktop-game] .game-nav-control:where(:not(:disabled, [aria-disabled='true'])):active { transform: translate(2px, 2px); }
+}
+
+/* M6: keep portrait mock frames scrollable on the page, but fit service modals to
+   the actual viewport (including short landscape windows). No orientation lock. */
+.bottom-sheet-dialog {
+  position: fixed;
+  inset: auto 0 8px;
+  margin: 0 auto;
+  padding: 0;
+  border: 2px solid #261608;
+  width: min(390px, calc(100% - 16px));
+  max-width: none;
+  height: min(634px, calc(100vh - 16px));
+  height: min(634px, calc(100dvh - 16px));
+  max-height: none;
+  overflow: hidden;
+  background: #fdf5df;
+  color: #261608;
+}
+.bottom-sheet-dialog[open] { display: flex; flex-direction: column; }
+.bottom-sheet-dialog::backdrop { background: rgb(26 15 5 / 75%); }
+/* API purchase modal: native focus containment/Escape; no root scroll locking or manual focus trap. */
+.item-purchase-dialog { width: min(24rem, calc(100% - 2rem)); max-height: 90dvh; margin: auto; overflow: auto; }
+.item-purchase-dialog:modal { overscroll-behavior: contain; }
+.item-purchase-dialog::backdrop { background: rgb(26 15 5 / 75%); overflow: hidden; overscroll-behavior: contain; }
+/* At extremely short heights, allow the whole sheet body to scroll too. */
+.bottom-sheet-dialog > div > div { min-height: 240px; }
+
+/* 긴 텍스트 왕복 표시(MarqueeText): 넘칠 때만 양 끝 페이드 + 좌우 왕복. */
+.marquee-box { display: block; min-width: 0; overflow: hidden; white-space: nowrap; }
+.marquee-track { display: inline-block; }
+.marquee-label { display: inline-block; }
+.marquee-box[data-overflowing='true'] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--marquee-fade), #000 calc(100% - var(--marquee-fade)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--marquee-fade), #000 calc(100% - var(--marquee-fade)), transparent 100%);
+}
+.marquee-box[data-overflowing='true'] .marquee-track {
+  padding-inline: var(--marquee-fade);
+  animation: marquee-pingpong var(--marquee-duration) ease-in-out infinite alternate;
+}
+/* 양 끝에서 각각 15%씩 멈춤. alternate로 왕복하므로 끝마다 30% 머문다(MarqueeText HOLD_RATIO). */
+@keyframes marquee-pingpong {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--marquee-distance)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-box[data-overflowing='true'] { -webkit-mask-image: none; mask-image: none; }
+  .marquee-box[data-overflowing='true'] .marquee-track { display: block; padding-inline: 0; animation: none; overflow: hidden; text-overflow: ellipsis; }
+  .marquee-box[data-overflowing='true'] .marquee-label { display: inline; }
+}
+
+/* 터치 영역 44px (사용자 지시 2026-11-09, docs/261109-1357-school_values_touch44_plan.md §3).
+ * 서비스 화면에서 보이는 모양은 그대로 두고, 조작 요소마다 보이지 않는 ::after로 최소 44×44px를 받는다.
+ * base 층에 두어 요소의 위치 유틸리티(absolute 등)가 이긴다. 입력란은 가상 요소를 쓸 수 없어 높이를 키운다.
+ * 제외: data-no-touch44(지도 마커·군집, [시연] 버튼). 센서: tests/e2e/touch-targets.mjs */
+@layer base {
+  [data-touch-area='44'] :is(button, a[href], [role='button'], [role='tab'], label:has(> input[type='checkbox'])):not([data-no-touch44], [data-no-touch44] *) {
+    position: relative;
+  }
+  [data-touch-area='44'] :is(button, a[href], [role='button'], [role='tab'], label:has(> input[type='checkbox'])):not([data-no-touch44], [data-no-touch44] *)::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  [data-touch-area='44'] :is(input:not([type='checkbox'], [type='radio'], [type='hidden']), select, textarea):not([data-no-touch44], [data-no-touch44] *) {
+    min-height: 44px;
+  }
+}

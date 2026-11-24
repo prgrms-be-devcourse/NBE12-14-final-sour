@@ -1,0 +1,913 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>4차 프로젝트 기획서(261111)</title><meta name="data-notion-page-icon" content="📜"/><link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%9C%3C%2Ftext%3E%3C%2Fsvg%3E"/><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+	/* Paint a complete callout box on every PDF page fragment. */
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
+/* For default-background callouts, render the border outline. */
+.callout.block-color-default_background {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+/*
+ * Toggles and callouts hold arbitrary content, so they can easily be taller
+ * than a page. They must stay breakable: avoiding breaks inside them makes
+ * Chromium push the whole block onto the next page, which leaves the previous
+ * page mostly empty before every long toggle.
+ */
+details,
+aside {
+	margin: 1.25em 0;
+}
+
+/* Keep a toggle's title on the same page as the start of its content. */
+summary {
+	page-break-after: avoid;
+	break-after: avoid;
+}
+
+/*
+ * Toggle headings render as <h1/h2/h3 style="display:inline-block"> inside
+ * <summary>. Without this reset, the heading's margin-top pushes it below the
+ * ::marker (▼), so the triangle and the title appear on separate lines.
+ */
+summary h1,
+summary h2,
+summary h3,
+summary h4 {
+	margin-top: 0;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+
+	table.collection-content {
+		width: 100%;
+		table-layout: fixed;
+	}
+
+	table.collection-content th,
+	table.collection-content td {
+		overflow-wrap: anywhere;
+	}
+
+	table.collection-content td > .user,
+	table.collection-content td > time {
+		white-space: pre-wrap;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content-wrapper {
+	overflow-x: auto;
+}
+
+@media only print {
+	.collection-content-wrapper {
+		overflow-x: visible;
+	}
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	gap: 46px;
+}
+
+.column {
+	min-width: 0;
+	overflow: hidden;
+}
+
+.column > *:first-child {
+	margin-top: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding-inline: 0.125rem;
+	padding-block: 0.375rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+table {
+	border-collapse: collapse;
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol.numbered-list.numbered-list-digits-2 {
+	padding-inline-start: 2em;
+}
+
+ol.numbered-list.numbered-list-digits-3plus {
+	padding-inline-start: 2.4em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+/*
+ * Render emoji icons using a ::before pseudo-element to keep the glyph
+ * out of the DOM textContent traversal. This avoids double-rendering icons
+ * in callouts and page titles.
+ * NOTE(slim/html-export-pseudo-icons): I can't tagref this because it will
+ * flag as a duplicate tag after codegen.
+ */
+.icon[data-emoji]::before {
+	content: attr(data-emoji);
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	margin-right: 0.4em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.tab {
+	margin: 1.25em 0;
+	padding-inline: 1rem;
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style><style>@import url('https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex-swap.min.css')</style></head><body><article id="e46f6180-cb55-8274-b381-818c201eb02c" class="page sans" data-notion-page-icon="📜"><header><div class="page-header-icon undefined"><span class="icon" data-emoji="📜"></span></div><h1 class="page-title" dir="auto">4차 프로젝트 기획서(261111)</h1><p class="page-description" dir="auto"></p></header><div class="page-body"><p id="415f6180-cb55-8035-a012-e31cdcaf9122" class="" dir="auto">
+</p><h2 id="db9f6180-cb55-83e6-9263-016fbbed81b1" class="" dir="auto">제출팀 정보</h2><hr id="775f6180-cb55-8217-9041-01478c4c98d4" dir="auto"/><table id="c71f6180-cb55-823b-b990-811ef40e55d7" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="056f6180-cb55-8308-92e4-81cb8af04b65" dir="ltr"><th id="`HIN" class="simple-table-header-color simple-table-header">항목</th><th id="sIju" class="simple-table-header-color simple-table-header" style="width:200.5625px">내용</th></tr></thead><tbody><tr id="3f1f6180-cb55-8293-b0b7-012ff9826f0a" dir="ltr"><td id="`HIN" class="">팀 번호 / 명</td><td id="sIju" class="" style="width:200.5625px">01 / 시큼이들</td></tr><tr id="583f6180-cb55-830d-a5af-81aac0427ca6" dir="ltr"><td id="`HIN" class="">데브코스 기수/회차</td><td id="sIju" class="" style="width:200.5625px">백엔드 12기 14회차</td></tr></tbody></table><p id="866f6180-cb55-8234-b8b2-81acf59deeb2" class="" dir="auto">
+</p><h2 id="9fff6180-cb55-83f9-8f61-01101f60dfef" class="" dir="auto">1. 서비스 개요</h2><hr id="855f6180-cb55-82e6-b39a-818c9ff0ca34" dir="auto"/><h3 id="ae8f6180-cb55-83ae-a9b9-0124f9f4fae9" class="" dir="auto">1-1. 서비스명 - 대대대</h3><script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerPolicy="no-referrer"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerPolicy="no-referrer"/><pre id="558f6180-cb55-8338-834f-81d045c6781f" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">서비스명: 대대대
+작명 이유: 대학교 대 대학교의 줄임말, 클릭 연타 느낌의 대대대</code></pre><h3 id="451f6180-cb55-830b-a250-0181fac12956" class="" dir="auto">1-2. 한 줄 소개 (30자 이내)</h3><pre id="94cf6180-cb55-82df-894d-014e4e4f4148" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">본인 학교를 키워 옆 학교랑 싸우기</code></pre><h3 id="2ddf6180-cb55-82d8-940d-01e00ebd2449" class="" dir="auto">1-3. 엘리베이터 피치 (3~5문장)</h3><pre id="b8cf6180-cb55-8255-93de-81c83cb6f153" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">&quot;대대대&quot;는 학교 이메일로 소속을 인증한 대학생이, 클릭 횟수를 통해 자신의 학교 점수를 쌓고, 다른 학교와 순위를 겨루는 대학 대항 클릭 게임입니다. 사용자는 공강이나 쉬는 시간에 짧게 참여 가능하고, 자신의 기여가 학교 점수와 순위에 반영되는 과정을 확인할 수 있습니다. 클라이언트가 일정 주기마다 클릭 수를 모아 보내면, 서버가 유효성을 검증한 뒤 점수에 반영합니다. 학교 구성원의 가벼운 협동과 학교 간의 경쟁을 연결하되, 부정한 점수 누적을 줄여 신뢰할 수 있는 경쟁 경험을 제공하는 것이 목표입니다.</code></pre><p id="2b2f6180-cb55-837d-bccb-0154be98adc5" class="" dir="auto">
+</p><h2 id="5aef6180-cb55-83f1-92ab-01cdb2f57128" class="" dir="auto">2. 문제 정의 (Why)</h2><hr id="85df6180-cb55-8249-bf7e-81bb15109699" dir="auto"/><h3 id="c20f6180-cb55-8292-9561-018bcdfb579d" class="" dir="auto">2-1. 어떤 문제를 해결하려는 것인가?</h3><pre id="642f6180-cb55-82c8-99c8-0174f5070ef2" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">대학생들의 학업 스트레스와 진로에 대한 부담으로 정신건강 문제가 악화됩니다.
+
+이러한 스트레스를 해소하기 위한 방법으로 대표적인 방법으로는 영화 감상을 포함한 취미 생활, 음주, 운동, 친구와의 상담, 온라인 게임입니다.
+(관련 기사 - 대학생들 ‘행복지수’보다 ‘스트레스지수’ 더 높다…스트레스 원인 1위 ‘취업’)
+
+저희는 스트레스라는 문제를 해결하기 위해 게임이라는 방안을 정했습니다.</code></pre><h3 id="6cdf6180-cb55-8375-a9ed-815888d7d967" class="" dir="auto">2-2. 이 문제가 왜 중요한가? (또는 왜 풀고 싶은가?)</h3><pre id="e45f6180-cb55-83e8-b92f-8122a67ddb83" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. 대학생들의 학업 스트레스와 진로 불확실성으로 인한 정신건강 문제 악화
+    - 관련 기사 - [[더에듀] 50% 넘는 대학생, 정신 건강 이상…대교협, ‘조사·지원 법제화’ 추진하나](https://www.te.co.kr/news/article.html?no=26966)
+    
+2. 게임의 정서적 효과에 대해서 스트레스 감소(77%), 불안 완화(64%), 외로움 감소(64%) 등
+    - 관련 기사 - [[조선비즈]전 세계 게이머 77% &quot;게임이 스트레스 완화에 도움…창의력도 향상&quot;](https://biz.chosun.com/it-science/ict/2025/10/16/FZAJQNTXWJD7PE6CYHPZR7UVIE)
+    
+3. 소속감과 학교 정체성의 결핍
+    - 코로나 이후 학번이나 비대면 수업 경험이 있는 세대는 학교에 대한 애착이 약하고, 축제 같은 이벤트 말고는 학교에 대한 소속감을 느끼는 경우가 드뭄.
+    - 관련 기사 - [[르포]캠퍼스는 &#x27;활짝&#x27; 총학은 문조차 못 연 대학…&#x27;학생자치 실종&#x27;](https://nocutnews.co.kr/news/5725665)
+    
+4. 같은 학교 사람과 가볍게 연결될 계기의 부족
+    - 관련 기사 - [[한경] 귀찮아서 인간관계 안 맺는 대학생들···폐부되는 동아리 늘고 있다](https://magazine.hankyung.com/job-joy/article/202311225684d)
+    - 관련 기사 - [[이슈플러스] “회식 대신 단기 모임” 커뮤니티에 몰린 2030…온라인플랫폼도 서비스 강화](https://www.etnews.com/20260410000171)
+    
+5. 짧은 시간에 할 수 있는 가벼운 놀거리
+    - 관련 기사 - [[연합뉴스] 국민 60% &quot;게임 즐겨&quot;…게임유저 90% 이상이 모바일게임 이용](https://www.yna.co.kr/view/AKR20241216060600005?utm_source=chatgpt.com)</code></pre><h3 id="2bbf6180-cb55-8357-af82-811d30c784e2" class="" dir="auto">2-3. 현재 이 문제는 어떻게 해결되고 있는가? (기존 대안)</h3><ul id="949f6180-cb55-834c-b130-0195886e8af7" class="bulleted-list" dir="auto"><li style="list-style-type:disc">거지 키우기</li></ul><ul id="4d7f6180-cb55-8259-ae13-81c5bb9ab888" class="bulleted-list" dir="auto"><li style="list-style-type:disc">SMASH 대학교</li></ul><ul id="2aaf6180-cb55-82de-b77a-815d22d209de" class="bulleted-list" dir="auto"><li style="list-style-type:disc"><strong><a href="https://www.google.com/search?kgmid=%2Fm%2F027h5t8&amp;q=%EB%84%A5%EC%8A%A8"><span style="border-bottom:0.05em solid">넥슨</span></a></strong> 〈NYPC 코드배틀 : 캠퍼스리그〉 (핑크빈 간식차)</li></ul><ul id="399f6180-cb55-8343-9d7c-01a82e311dc7" class="bulleted-list" dir="auto"><li style="list-style-type:disc">〈마피아42〉 학교대항전 (치킨 수천 마리)</li></ul><ul id="43ff6180-cb55-8214-897c-0144ba5d4459" class="bulleted-list" dir="auto"><li style="list-style-type:disc">〈배틀그라운드 모바일〉 학교 대항전 &#x27;치킨교전’</li></ul><p id="ac6f6180-cb55-8282-a180-811e1a741dae" class="" dir="auto">
+</p><h3 id="e18f6180-cb55-83eb-9e97-012349ebe0cf" class="" dir="auto">2-4. 우리 서비스는 무엇이 다른가? (차별점)</h3><ul id="64ff6180-cb55-830c-ab8c-8122c815d011" class="bulleted-list" dir="auto"><li style="list-style-type:disc">실시간 경쟁</li></ul><ul id="92ef6180-cb55-82ab-8bd3-01b250395b9a" class="bulleted-list" dir="auto"><li style="list-style-type:disc">대규모 트래픽 방어</li></ul><ul id="971f6180-cb55-820b-a9a0-0122a0b5be69" class="bulleted-list" dir="auto"><li style="list-style-type:disc">대학 인증</li></ul><ul id="cd0f6180-cb55-839a-b25e-81b3bca2fc72" class="bulleted-list" dir="auto"><li style="list-style-type:disc">배경이 실제 학교</li></ul><ul id="30df6180-cb55-8269-93e0-816125871210" class="bulleted-list" dir="auto"><li style="list-style-type:disc">소속감 형성에 기여</li></ul><p id="572f6180-cb55-8289-b358-01d56fec0fe6" class="" dir="auto">
+</p><h2 id="b1cf6180-cb55-827e-b9b8-81cb7723933a" class="" dir="auto">3. 타겟 사용자</h2><hr id="b2ef6180-cb55-83b6-ba5b-01250d55d342" dir="auto"/><h3 id="1def6180-cb55-8255-bdf9-81bc02dabfc9" class="" dir="auto">3-1. 핵심 타겟 페르소나 (1명)</h3><table id="6b7f6180-cb55-837c-aa6b-813ee8daa367" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="464f6180-cb55-8288-83f6-01de4b98477e" dir="ltr"><th id=":`Qx" class="simple-table-header-color simple-table-header" style="width:288px">항목</th><th id="&lt;tA\" class="simple-table-header-color simple-table-header" style="width:421px">내용</th></tr></thead><tbody><tr id="683f6180-cb55-822e-9138-81b4762b08b0" dir="ltr"><td id=":`Qx" class="" style="width:288px">이름 (가상)</td><td id="&lt;tA\" class="" style="width:421px">강슬기</td></tr><tr id="bb3f6180-cb55-8309-970f-013bf5413a53" dir="ltr"><td id=":`Qx" class="" style="width:288px">나이/성별/직업</td><td id="&lt;tA\" class="" style="width:421px">20 / 여 / 대학교 신입생</td></tr><tr id="81ef6180-cb55-8216-958d-811dee307450" dir="ltr"><td id=":`Qx" class="" style="width:288px">상황 (어떤 맥락에서 우리 서비스를 떠올릴까?)</td><td id="&lt;tA\" class="" style="width:421px">라이벌 학교의 순위가 더 높다는 소식을 들었을 때</td></tr><tr id="c00f6180-cb55-8364-94bc-01b9644a4690" dir="ltr"><td id=":`Qx" class="" style="width:288px">현재 겪는 문제</td><td id="&lt;tA\" class="" style="width:421px">짧은 시간 안에 즐길 수 있는 게임 필요</td></tr><tr id="828f6180-cb55-831b-ae8b-8193aef43d83" dir="ltr"><td id=":`Qx" class="" style="width:288px">우리 서비스로 무엇이 어떻게 바뀌나?</td><td id="&lt;tA\" class="" style="width:421px">코로나 시절을 지나면서 약해진 소속감을 강화 시켜줄 수 있고, 짧은 시간에도 학업 스트레스를 매우 간단하게 풀 수 있다.</td></tr></tbody></table><h3 id="485f6180-cb55-82d4-91a9-01bba9fea428" class="" dir="auto">3-2. 예상 사용자 규모와 접근 방법</h3><pre id="1c3f6180-cb55-820e-899d-01e15b3b738c" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">전국 대학생 수는 2,399,413명 (KOSIS 국가통계포털 기준)
+
+성인(만20~59세)의 게임 이용률 83.0% (KOSIS 국가통계포털 기준)
+
+예상 사용자 규모
+
+- 전국 대학생 수 ✖️ 성인의 게임 이용률 ✖️ 30%
+- 2,399,413 ✖️ 83% ✖️ 30% ﹦약 60만명
+
+에브리타임 연합 게시판, 대학교 인스타그램 등 대학생이 많이 사용하는 커뮤니티에서 홍보</code></pre><p id="218f6180-cb55-8215-bf81-81229426a551" class="" dir="auto">
+</p><h2 id="6dbf6180-cb55-82b3-b1fe-81eaea336b15" class="" dir="auto">4. 핵심 기능 정의 (MVP 스코프)</h2><hr id="84cf6180-cb55-83e0-9d43-819025263c49" dir="auto"/><h3 id="6dcf6180-cb55-8245-bb51-814901ca07e2" class="" dir="auto">4-1. MVP 핵심 기능 목록</h3><table id="27ef6180-cb55-83a3-b75c-818ca8b5dff1" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="4cef6180-cb55-8366-8400-817e973a3534" dir="ltr"><th id="w&gt;jz" class="simple-table-header-color simple-table-header" style="width:92px">#</th><th id="o|w_" class="simple-table-header-color simple-table-header" style="width:132px">기능명</th><th id="e@ZF" class="simple-table-header-color simple-table-header" style="width:312.359375px">한 줄 설명</th><th id="{|Zo" class="simple-table-header-color simple-table-header" style="width:161.640625px">우선 순위(필수/선택)</th></tr></thead><tbody><tr id="6fcf6180-cb55-83b8-8227-816ae91b7a00" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">1</td><td id="o|w_" class="" style="width:132px"><code>학교 클릭</code></td><td id="e@ZF" class="" style="width:312.359375px">학교를 클릭하여 경험치를 올리는 API</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="ac1f6180-cb55-83aa-86af-0198fba43fd4" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">2</td><td id="o|w_" class="" style="width:132px"><code>클리커 업그레이드</code></td><td id="e@ZF" class="" style="width:312.359375px">클릭커 업그레이드</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="ec0f6180-cb55-82b5-9a97-0185888181fc" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">3</td><td id="o|w_" class="" style="width:132px"><code>아이템</code></td><td id="e@ZF" class="" style="width:312.359375px">아이템 구매 시 즉시 적용</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="a54f6180-cb55-83ae-b284-8166ceb6ca13" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">4</td><td id="o|w_" class="" style="width:132px"><code>순위(기여도)</code></td><td id="e@ZF" class="" style="width:312.359375px">교외(학교간), 교내(학과, 개인)에서 경험치를 가장 많이 올린 사용자 표시</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="17ff6180-cb55-8328-a538-814fed1cb97d" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">5</td><td id="o|w_" class="" style="width:132px"><code>대학 이메일 인증</code></td><td id="e@ZF" class="" style="width:312.359375px">대학생 신원 조회</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="652f6180-cb55-8233-828e-81b855dfcdc0" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">6</td><td id="o|w_" class="" style="width:132px"><code>어뷰징 방지</code></td><td id="e@ZF" class="" style="width:312.359375px">악성 프로그램으로 무한 요청 또는 신분 위조 검증</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="c8ef6180-cb55-8308-89a3-01387033c78b" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">7</td><td id="o|w_" class="" style="width:132px"><code>타 학교 방문</code></td><td id="e@ZF" class="" style="width:312.359375px">타 학교의 학교 키우기 상황 조회</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr><tr id="2dcf6180-cb55-828e-9dbc-815d841108c3" dir="ltr"><td id="w&gt;jz" class="" style="width:92px">8</td><td id="o|w_" class="" style="width:132px"><code>지도 출력</code></td><td id="e@ZF" class="" style="width:312.359375px">지도 상위권의 학교 점수 및 학교의 로고 출력</td><td id="{|Zo" class="" style="width:161.640625px">필수</td></tr></tbody></table><h3 id="70df6180-cb55-8354-bd76-81ea5aa17183" class="" dir="auto">4-2. MVP 기능 구현 후 추가 구현 기능</h3><pre id="64ef6180-cb55-82ba-9e74-01f1084a6101" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. 연합 기능
+	- 원하는 대학이랑 연합하여 다른 연합 대학이랑 일정 기간(최소 6시간~최대 n일) 동안 대결할 수 있는 기능
+	- 연합 (2:2), (3:3) 대결 보상 -&gt; 승리 시 패배 팀의 점수를 나눠 가지는 형태
+2. 경쟁 학교 이스터에그
+	- 고려대 vs 연세대와 같은 경쟁 학교끼리 대결할 수 있는 기능
+	- 공격 점수 * 1.1배
+3. 채팅 기능
+	- 대학 내 채팅 + 연합 내 채팅 + 채팅 메시지 필터링
+4. 방명록 기능
+	- 타 학교 방명록 기능(닉네임 + 학교이름 표시)
+5. 메일 기능
+	- 고객문의 메일 송신 기능
+6. 광고 기능
+7. 수익 모델 기능
+	- 사용자가 본인 학교 커스텀 로고
+	- 결제 정합성, 결제 동시성(제일 마지막에 로고를 바꾼 사람걸로)
+8. 이상 탐지
+	- 데이터를 분석하여 사람이 발생시킨 트래픽인지, 매크로나 불법 프로그램을 이용한 트래픽인지 탐지
+9. 특정 장소 이스터에그
+	- 도서관에서 클릭 시 추가 점수
+10. 타 학교를 부수는 기능 -&gt; 경험치를 올리는 속도보다는 느려야 함</code></pre><h3 id="9eef6180-cb55-82a8-b6ee-0124a8921a48" class="" dir="auto">4-3. 사용자 시나리오 (1~2개)</h3><pre id="5dff6180-cb55-831d-bb8e-8123cd92aec3" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">시나리오 1 — 처음 참여해 학교 점수 올리기
+1. 사용자가 접속해 자신의 학교 이메일을 입력해 코드를 요청한다.
+2. 학교 이메일로 받은 코드를 제출한다.
+3. 인증 후 서버가 확정한 소속 학교로 게임에 참여한다.
+4. 클라이언트는 학교를 클릭 한다.
+5. 사용자는 서버가 확정한 내 기여와 학교 순위를 확인한다.</code></pre><pre id="caef6180-cb55-8260-8dd3-01d983f4ec92" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">시나리오 2 — 타 학교 방문
+1. 사용자는 탑뷰를 통해 참여 학교들을 확인한다.
+2. 원하는 학교를 클릭하여 학교를 구경한다.
+3. 타 학교에 방명록을 남긴다.</code></pre><p id="97ef6180-cb55-83d8-a2f6-81bff6a8550f" class="" dir="auto">
+</p><h2 id="f5af6180-cb55-829c-9150-01339e7bda64" class="" dir="auto">5. 기술 스택 및 아키텍처</h2><hr id="6b0f6180-cb55-838e-af19-81ef401caa04" dir="auto"/><h3 id="bf9f6180-cb55-834d-8b27-01e736adf6e3" class="" dir="auto">5-1. 선택한 기술 스택</h3><table id="fbdf6180-cb55-82e6-b91e-019a2e8a0423" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="db1f6180-cb55-83a3-b044-017790299445" dir="ltr"><th id="mDoh" class="simple-table-header-color simple-table-header">영역</th><th id="iX`e" class="simple-table-header-color simple-table-header">기술</th><th id="G{^E" class="simple-table-header-color simple-table-header" style="width:385.0078125px">선택 이유</th></tr></thead><tbody><tr id="152f6180-cb55-83b9-8627-81f241aa83dd" dir="ltr"><td id="mDoh" class="">백엔드</td><td id="iX`e" class="">  • Spring Boot (Spring Security)<br/>  • Java<br/>  • Redis</td><td id="G{^E" class="" style="width:385.0078125px">  • 팀내 공통 기술 스택인 Java<br/>  • Kotlin도 후보에 있었지만 깊은 기술 역량을 보유하지 못함<br/>  • 같은 데이터에 대한 조회가 많을 것으로 예상되어 Redis로 캐시하도록 함<br/>      ◦ 다중 인스턴스 배포를 생각하여 별도의 Redis 인스턴스 사용 예정</td></tr><tr id="622f6180-cb55-8274-a650-01408afaf598" dir="ltr"><td id="mDoh" class="">DB</td><td id="iX`e" class="">  • PostgreSQL<br/>  • NoSQL</td><td id="G{^E" class="" style="width:385.0078125px">AWS RDS → MySQL<br/>AWS DynamoDB → NoSQL<br/><br/>  • 조회 작업은 대부분 Redis, 쓰기 작업이 많은 우리 서비스에는 PostgreSQL이 어울림<br/>      ◦  <a href="https://aws.amazon.com/ko/compare/the-difference-between-mysql-vs-postgresql/">https://aws.amazon.com/ko/compare/the-difference-between-mysql-vs-postgresql/</a></td></tr><tr id="6b7f6180-cb55-8365-859a-81a4d280360e" dir="ltr"><td id="mDoh" class="">프론트엔드</td><td id="iX`e" class="">  • Next.js<br/>  • TypeScript</td><td id="G{^E" class="" style="width:385.0078125px">  • 데브코스 강의에서 다룬 공통 기술 스택<br/>  • CSR 방식으로 렌더링 할 예정</td></tr><tr id="820f6180-cb55-8275-8529-819ed3807631" dir="ltr"><td id="mDoh" class="">인프라/배포</td><td id="iX`e" class="">  • EC2<br/>      ◦ WAS<br/>      ◦ Redis<br/>      ◦ Monitoring<br/>  • ALB<br/>  • CloudFront<br/>  • S3<br/>  • RDS<br/>  • DynamoDB</td><td id="G{^E" class="" style="width:385.0078125px">  • EC2: 서버 인스턴스(WAS, Redis, Monitoring) 운영<br/>  • ALB: 다중 EC2 인스턴스 로드 밸런싱 및 오토 스케일링<br/>  • CloudFront: 프론트 정적 빌드 파일 배포<br/>  • S3: 정적 빌드 파일, 프로필(학교, 학과, 회원) 이미지 저장<br/>  • RDS: PostgreSQL DB 구축<br/>  • DynamoDB: NoSQL DB 구축</td></tr><tr id="8a3f6180-cb55-83ce-a484-81542075d060" dir="ltr"><td id="mDoh" class="">기타 (CI/CD, 모니터링 등)</td><td id="iX`e" class="">  • GitHub Actions<br/>  • Prometheus<br/>  • Grafana</td><td id="G{^E" class="" style="width:385.0078125px">  • GitHub Actions: CI/CD<br/>  • Prometheus: 데이터 수집 및 저장<br/>  • Grafana: 데이터 시각화</td></tr></tbody></table><h3 id="966f6180-cb55-83e3-b02c-01daf40f9f48" class="" dir="auto">5-2. 아키텍처 다이어그램</h3><p id="133f6180-cb55-837d-9c02-015599e9adc6" class="" dir="auto">아래는 바뀔 예정 → 가능하면 시퀀스 다이어그램으로 클릭 상황 작성하기</p><pre id="9c7f6180-cb55-8318-849e-81e6cc740c2f" class="code code-wrap" data-notion-code-syntax="mermaid"><code class="language-mermaid" style="white-space:pre-wrap;word-break:break-all">flowchart LR
+    U[사용자 브라우저] --&gt;|HTTPS: 인증·클릭 제출·순위 조회| A[백엔드 애플리케이션]
+    U --&gt;|정적 화면 요청| W[웹 정적 파일 호스팅]
+    A --&gt;|인증 메일 발송| E[이메일 발송 서비스]
+    A --&gt;|계정·검증 기록·점수 트랜잭션| D[(관계형 DB)]
+    A --&gt;|로그·처리 지표| M[모니터링]</code></pre><figure id="5cdf6180-cb55-83c7-b99a-81f46824e870" class="image" data-notion-image="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/image.png" dir="ltr"><a href="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/image.png"><img style="width:2386px" src="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/image.png"/></a></figure><h4 id="693f6180-cb55-83cf-9fb1-81b2fd9b6ea0" class="" dir="auto">시퀀스 다이어그램 - 클릭</h4><figure id="455f6180-cb55-827d-810f-810e7a644ded" class="image" style="text-align:left" data-notion-image="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/4%E1%84%8E%E1%85%A1%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%8C%E1%85%A6%E1%86%A8%E1%84%90%E1%85%B3-%E1%84%89%E1%85%B5%E1%84%8F%E1%85%AF%E1%86%AB%E1%84%89%E1%85%B3%E1%84%83%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%8B%E1%85%A5%E1%84%80%E1%85%B3%E1%84%85%E1%85%A2%E1%86%B7-%E1%84%8F%E1%85%B3%E1%86%AF%E1%84%85%E1%85%B5%E1%86%A8.drawio.png" dir="ltr"><a href="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/4%E1%84%8E%E1%85%A1%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%8C%E1%85%A6%E1%86%A8%E1%84%90%E1%85%B3-%E1%84%89%E1%85%B5%E1%84%8F%E1%85%AF%E1%86%AB%E1%84%89%E1%85%B3%E1%84%83%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%8B%E1%85%A5%E1%84%80%E1%85%B3%E1%84%85%E1%85%A2%E1%86%B7-%E1%84%8F%E1%85%B3%E1%86%AF%E1%84%85%E1%85%B5%E1%86%A8.drawio.png"><img style="width:399.9921875px" src="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/4%E1%84%8E%E1%85%A1%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%8C%E1%85%A6%E1%86%A8%E1%84%90%E1%85%B3-%E1%84%89%E1%85%B5%E1%84%8F%E1%85%AF%E1%86%AB%E1%84%89%E1%85%B3%E1%84%83%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%8B%E1%85%A5%E1%84%80%E1%85%B3%E1%84%85%E1%85%A2%E1%86%B7-%E1%84%8F%E1%85%B3%E1%86%AF%E1%84%85%E1%85%B5%E1%86%A8.drawio.png"/></a></figure><h3 id="b2bf6180-cb55-82ea-b94d-01e85a3807cf" class="" dir="auto">5-3. 학습 범위 밖의 기술이 있는가?</h3><pre id="150f6180-cb55-83de-8ede-81299d60308e" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">  • AWS RDS
+  • AWS DynamoDB
+  • AWW CloudFront
+  • AWS ALB
+  • Prometheus/Grafana
+  • k6
+  • Redis
+  • WebSocket(STOMP)</code></pre><p id="f12f6180-cb55-833c-aba1-014141f97c77" class="" dir="auto">
+</p><h2 id="d5df6180-cb55-82ae-8993-01b4badc10d0" class="" dir="auto">6. 데이터 모델 초안</h2><hr id="a48f6180-cb55-830c-806b-01fc6535d3a0" dir="auto"/><figure id="6e3f6180-cb55-8336-8aac-81a05ad61685" class="image" data-notion-image="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/4%E1%84%8E%E1%85%A1%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%8C%E1%85%A6%E1%86%A8%E1%84%90%E1%85%B3-ERD.drawio_(7).png" dir="ltr"><a href="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/4%E1%84%8E%E1%85%A1%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%8C%E1%85%A6%E1%86%A8%E1%84%90%E1%85%B3-ERD.drawio_(7).png"><img style="width:656.9921875px" src="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/4%E1%84%8E%E1%85%A1%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%8C%E1%85%A6%E1%86%A8%E1%84%90%E1%85%B3-ERD.drawio_(7).png"/></a></figure><h3 id="b12f6180-cb55-83d7-a56a-018b522ce86c" class="" dir="auto">6.1 데이터 모델</h3><figure id="b2cf6180-cb55-8323-9abe-817fbdd51dbf" class="link-to-page"><a href="4%EC%B0%A8%20%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8%20%EA%B8%B0%ED%9A%8D%EC%84%9C(261111)/AI%EA%B0%80%20%EC%9E%91%EC%84%B1%ED%95%B4%EC%A4%80%20ERD%20%EC%83%81%EC%84%B8%20b2cf6180cb5583239abe817fbdd51dbf.html" data-notion-page-id="b2cf6180-cb55-8323-9abe-817fbdd51dbf" data-notion-space-id="beaf6180-cb55-816c-9eec-0003a8e2a5ae"><span class="icon" data-emoji="👽"></span>AI가 작성해준 ERD 상세</a></figure><h3 id="fd6f6180-cb55-8212-9642-01843f2f78b9" class="" dir="auto">6-2 기능 흐름</h3><h4 id="70af6180-cb55-8395-8fd1-81367533806e" class="" dir="auto">1. 대학교 이메일 검증 및 회원가입</h4><pre id="791f6180-cb55-8210-a6da-01c0d6a7ebbd" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. 클라이언트는 대학교 이메일을 입력하고 코드 요청
+2. 서버는 Redis에 TTL N분인 이메일 데이터를 하나 생성
+3. 서버는 클라이언트가 입력한 이메일에 코드를 전송
+4. 클라이언트는 코드 인증
+5. 클라이언트는 회원 정보를 입력 후 회원 가입을 서버에 요청
+6. 서버는 회원 정보 중 이메일이 (2번)Redis에 저장한 이메일과 일치한지 검사
+7. 일치하면 회원 생성, 불일치하면 회원 가입 실패 응답</code></pre><h4 id="f8df6180-cb55-82fd-867c-8197d3f399d6" class="" dir="auto">2. 클릭</h4><pre id="4daf6180-cb55-83b6-a4f0-016d60a95ccd" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. 프론트는 1초 동안 사용자의 클릭 횟수를 수집
+2. 1초마다 클릭 횟수를 서버에 보냄
+3. 서버는 비정상적인 트래픽인지 검증하고 Redis에 저장
+4. Redis에서는 각 학교 점수, 학과 점수, 학생의 기여도를 저장함
+5. Redis는 학교 점수와 학생의 기여도, 학교 로고를 응답함
+6. 서버는 학교 점수와 학생의 기여도, 학교 로고, 다른 사람의 학교 클릭 횟수를 프론트에 응답함</code></pre><h4 id="798f6180-cb55-8201-8113-81064b159c5a" class="" dir="auto">3. 기여도 데이터 저장</h4><pre id="138f6180-cb55-83fe-9fcf-8191c656d216" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">서버는 1분마다 Redis에 저장된 학교 점수, 학과 점수, 학생의 기여도를 DB에 배치 업데이트로 저장함.</code></pre><h4 id="9aef6180-cb55-82f6-882b-014717b39cb9" class="" dir="auto">4. 채팅 (WebSocket)</h4><pre id="26cf6180-cb55-8330-8729-81523caccb4e" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">1. 클라이언트는 대학교의 채팅방 채널을 구독
+2. 서버는 Redis에서 위의 학교 채널을 구독
+3. 클라이언트는 서버에 채팅 메시지를 보냄
+4. 서버는 JWT로 소속 학교 확인 그리고 메시지 필터링
+5. 메시지를 DB(DynamoDB)에 저장
+6. 서버는 Redis의 해당 채널에 메시지를 보냄
+7. Redis는 구독한 서버에 받은 메시지를 다시 전송
+8. 모든 서버는 메시지를 구독한 클라이언트들에게 보냄
+9. 프론트는 채팅을 최신화</code></pre><p id="eb6f6180-cb55-8353-a031-0166f22c6eaf" class="" dir="auto">
+</p><h2 id="baef6180-cb55-825c-af6c-018b88f10b2e" class="" dir="auto">7. 외부 API / 서비스 의존성</h2><hr id="5a5f6180-cb55-825b-bb32-8101f0c2f6e6" dir="auto"/><table id="c60f6180-cb55-82d0-b0e6-819e437fb5fa" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="9bcf6180-cb55-8370-84e9-8184ba753bf7" dir="ltr"><th id="sle|" class="simple-table-header-color simple-table-header">서비스</th><th id="oxVq" class="simple-table-header-color simple-table-header">용도</th><th id="]e&lt;R" class="simple-table-header-color simple-table-header">비용 (예상)</th><th id="xoNb" class="simple-table-header-color simple-table-header">가입/키 발급 완료 여부</th></tr></thead><tbody><tr id="489f6180-cb55-8287-8a54-0123a38c1c8e" dir="ltr"><td id="sle|" class="">AWS EC2</td><td id="oxVq" class="">  • 메인 서버(t3.small) 1~2대<br/>  • Redis 서버(t3.small)<br/>  • 모니터링 서버(t3.micro)<br/></td><td id="]e&lt;R" class="">  • t3.small(3대) 시간당 $0.026, 월 약 $19 * 3<br/>  • t3.micro 시간당 $0.013, 월 약 $9.5<br/>  • EBS 볼륨 스토리지 8GB $0.912</td><td id="xoNb" class="">☐ 완료 / ✅ 예정</td></tr><tr id="802f6180-cb55-83bd-bf23-8148b49e9e4b" dir="ltr"><td id="sle|" class="">AWS ALB</td><td id="oxVq" class="">  • 오토 스케일링<br/>  • 로드 밸런싱</td><td id="]e&lt;R" class="">  • 기본 유지비 + IPv4(2개) 월 약 $23.73<br/>  • 트래픽 처리량(LCU) 시간당 약 $0.008</td><td id="xoNb" class="">☐ 완료 / ✅ 예정</td></tr><tr id="829f6180-cb55-8298-8940-01e49b9713ee" dir="ltr"><td id="sle|" class="">AWS RDS</td><td id="oxVq" class="">  • db.t4g.small (단일 AZ)<br/>  • gp3스토리지 30GB</td><td id="]e&lt;R" class="">  • 인스턴스 시간당 $0.032, 월 약 $23.36<br/>  • 스토리지 월 약 $3.9</td><td id="xoNb" class="">☐ 완료 / ✅ 예정</td></tr><tr id="773f6180-cb55-82be-91aa-81d05712540c" dir="ltr"><td id="sle|" class="">AWS DynamoDB</td><td id="oxVq" class="">채팅 메시지 저장</td><td id="]e&lt;R" class="">  • 읽기 요청 100만 회당 약 $0.136<br/>  • 쓰기 요청 100만 회당 약 $0.68</td><td id="xoNb" class="">☐ 완료 / ✅ 예정</td></tr><tr id="f57f6180-cb55-8317-9a2a-81511b8d0ea5" dir="ltr"><td id="sle|" class="">AWS S3</td><td id="oxVq" class="">  • 프론트 빌드 파일 저장<br/>  • 프로필(학교, 학과, 회원) 이미지 저장<br/>  • 문의 첨부 파일 저장</td><td id="]e&lt;R" class="">GB당 월 $0.025</td><td id="xoNb" class="">☐ 완료 / ✅ 예정</td></tr><tr id="39ef6180-cb55-83f9-b89a-81b879ef6f16" dir="ltr"><td id="sle|" class="">AWS CloudFront</td><td id="oxVq" class="">프론트 빌드 파일 캐시</td><td id="]e&lt;R" class="">요청 10,000건당 약 $0.012</td><td id="xoNb" class="">☐ 완료 / ✅ 예정</td></tr></tbody></table><h2 id="9b0f6180-cb55-821b-b8e9-81e236fd7a0e" class="" dir="auto">8. 주차별 목표</h2><hr id="42ff6180-cb55-8280-9cd2-01d53f724225" dir="auto"/><table id="bd7f6180-cb55-8382-bd97-81e05b9c2989" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="ce9f6180-cb55-820d-a861-81e3344ae960" dir="ltr"><th id="Hncc" class="simple-table-header-color simple-table-header" style="width:71px">주차</th><th id="{W==" class="simple-table-header-color simple-table-header">기간</th><th id="lFFu" class="simple-table-header-color simple-table-header" style="width:271px">핵심 목표</th><th id="Xze?" class="simple-table-header-color simple-table-header">배포 가능 상태?</th></tr></thead><tbody><tr id="a26f6180-cb55-82d6-a1d5-0132b5ef004c" dir="ltr"><td id="Hncc" class="" style="width:71px">1주차</td><td id="{W==" class="">11.11~11.15</td><td id="lFFu" class="" style="width:271px">  • 백엔드 MVP 개발</td><td id="Xze?" class="">✅ 부분 가능 / ☐ 불가</td></tr><tr id="d9af6180-cb55-8300-990f-0146c82d1617" dir="ltr"><td id="Hncc" class="" style="width:71px">2주차</td><td id="{W==" class="">11.16~11.22</td><td id="lFFu" class="" style="width:271px">  • 프론트 개발 연동 및 버그 개선<br/>  • 배포</td><td id="Xze?" class="">✅ 가능</td></tr><tr id="865f6180-cb55-82a6-b47d-011e34ff8409" dir="ltr"><td id="Hncc" class="" style="width:71px">3주차</td><td id="{W==" class="">11.23~11.29</td><td id="lFFu" class="" style="width:271px">  • 성능 개선 및 추가 기능 개발</td><td id="Xze?" class="">✅ 가능</td></tr><tr id="986f6180-cb55-8355-9101-81aa2ec2e58b" dir="ltr"><td id="Hncc" class="" style="width:71px">4주차</td><td id="{W==" class="">11.30~12.04</td><td id="lFFu" class="" style="width:271px">  • 발표 준비</td><td id="Xze?" class="">✅ <strong>반드시 가능해야 함</strong></td></tr></tbody></table><p id="7d9f6180-cb55-83eb-9a6b-01bc78a335be" class="" dir="auto">
+</p><h2 id="800f6180-cb55-8332-ba93-01caa7cf1304" class="" dir="auto">9. 배포 계획</h2><hr id="5ddf6180-cb55-8273-a221-01478fb8e99d" dir="auto"/><table id="0b1f6180-cb55-82d6-aeb6-01088a5d04fa" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="fd4f6180-cb55-832b-9fcb-016c94ef6f31" dir="ltr"><th id="cg&lt;`" class="simple-table-header-color simple-table-header" style="width:182.23959350585938px">항목</th><th id="ZBFT" class="simple-table-header-color simple-table-header" style="width:397px">내용</th></tr></thead><tbody><tr id="ef1f6180-cb55-8353-a272-01d036d3cc3b" dir="ltr"><td id="cg&lt;`" class="" style="width:182.23959350585938px">백엔드 배포 환경</td><td id="ZBFT" class="" style="width:397px">EC2</td></tr><tr id="c1bf6180-cb55-838b-b302-013e23793b66" dir="ltr"><td id="cg&lt;`" class="" style="width:182.23959350585938px">프론트엔드 배포 환경</td><td id="ZBFT" class="" style="width:397px">S3, CloudFront</td></tr><tr id="8caf6180-cb55-83a8-b00e-814a16e870f4" dir="ltr"><td id="cg&lt;`" class="" style="width:182.23959350585938px">DB</td><td id="ZBFT" class="" style="width:397px">RDS, DynamoDB</td></tr><tr id="d45f6180-cb55-8221-a18a-818f2705ea60" dir="ltr"><td id="cg&lt;`" class="" style="width:182.23959350585938px">도메인 사용 여부</td><td id="ZBFT" class="" style="width:397px"><a href="http://hosting.kr">hosting.kr</a> → devcproject.cloud</td></tr><tr id="3c9f6180-cb55-82a9-ac10-816866c463e3" dir="ltr"><td id="cg&lt;`" class="" style="width:182.23959350585938px">CI/CD</td><td id="ZBFT" class="" style="width:397px">GitHub Actions</td></tr><tr id="dacf6180-cb55-825b-b99c-810228790476" dir="ltr"><td id="cg&lt;`" class="" style="width:182.23959350585938px">예상 월 인프라 비용</td><td id="ZBFT" class="" style="width:397px">약 $108.07 ~ $141.66 | 약 144,737원 ~ 189,711원<br/><br/>예약 인스턴스(1년) → 약 $83.95 ~ $117.54 | 약 112,409원 ~ 157,386원</td></tr></tbody></table><p id="e17f6180-cb55-8304-a3f6-01ed0c37c94e" class="" dir="auto">
+</p><h2 id="019f6180-cb55-82af-b58f-01fe0fb9d8e1" class="" dir="auto">10. 리스크 및 대응 방안</h2><hr id="0c7f6180-cb55-8340-8ad0-01970387aff6" dir="auto"/><table id="42df6180-cb55-83a7-9574-01c27630d7b2" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="e48f6180-cb55-82f9-b416-816f5898b469" dir="ltr"><th id="m&gt;By" class="simple-table-header-color simple-table-header">#</th><th id="a\]u" class="simple-table-header-color simple-table-header">예상 리스크</th><th id="DpdF" class="simple-table-header-color simple-table-header">발생 가능성</th><th id="qEQt" class="simple-table-header-color simple-table-header" style="width:86px">영향도</th><th id="Uh[c" class="simple-table-header-color simple-table-header" style="width:217.078125px">대응 방안</th></tr></thead><tbody><tr id="135f6180-cb55-83fc-bcd7-81583f59753d" dir="ltr"><td id="m&gt;By" class="">1</td><td id="a\]u" class="">트래픽</td><td id="DpdF" class="">100%</td><td id="qEQt" class="" style="width:86px">최상</td><td id="Uh[c" class="" style="width:217.078125px">  • 오토 스케일링<br/>  • 이벤트 기반 아키텍처</td></tr><tr id="d1af6180-cb55-831b-9b93-014698bc3b51" dir="ltr"><td id="m&gt;By" class="">2</td><td id="a\]u" class="">예산 초과</td><td id="DpdF" class="">50%</td><td id="qEQt" class="" style="width:86px">최상</td><td id="Uh[c" class="" style="width:217.078125px">  • 대안 무료 클라우드<br/>      ◦ Redis - Upstash<br/>      ◦ DB - Supabase<br/>      ◦ hosting - GitHub Pages<br/>      ◦ Server - Railway</td></tr><tr id="880f6180-cb55-8211-82cb-81f2d31d43ed" dir="ltr"><td id="m&gt;By" class="">3</td><td id="a\]u" class="">DDoS</td><td id="DpdF" class="">10%</td><td id="qEQt" class="" style="width:86px">최상</td><td id="Uh[c" class="" style="width:217.078125px">  • Nginx<br/>  • AWS Shield</td></tr><tr id="e99f6180-cb55-82bd-9619-814dd7c14923" dir="ltr"><td id="m&gt;By" class="">4</td><td id="a\]u" class="">비정상정인 트래픽(클릭)</td><td id="DpdF" class="">100%</td><td id="qEQt" class="" style="width:86px">상</td><td id="Uh[c" class="" style="width:217.078125px">  • 횟수 및 간격 검증</td></tr></tbody></table><p id="e63f6180-cb55-8216-8929-011b4cd48de8" class="" dir="auto">
+</p><h2 id="015f6180-cb55-825d-8e26-01609197c29b" class="" dir="auto">11. 성공 기준 (Definition of Done)</h2><hr id="325f6180-cb55-82cf-8eb8-815a6868dd57" dir="auto"/><pre id="927f6180-cb55-83bc-8323-81bc5d9defde" class="code code-wrap"><code style="white-space:pre-wrap;word-break:break-all">데이터 기준
+참여 대학 예상: 300개
+학교당 학생 수: 7,000명
+예상 학교당 참여 학생 수: 500명 
+총 참여 회원 수: 150,000명
+동시 접속 회원 수: 3,000명
+한 학교당 방문 중인 평균 회원 수: 50명
+한 학교당 방문 중인 최대 회원 수: 100명
+1초당 몇 개의 요청이 오는지? -&gt; 3,000개
+
+성공 기준
+요청했을 때 몇 초만에 응답이 오는지 -&gt; p(95) 50ms 이하
+요청이 1000번 중 몇 번 성공하는지 -&gt; 999번</code></pre><p id="a1ff6180-cb55-8317-898b-013d85abede1" class="" dir="auto">
+</p><h2 id="7e5f6180-cb55-83f9-a25d-01049909810a" class="" dir="auto">12. 개인정보 · 보안 고려사항</h2><hr id="0acf6180-cb55-8368-9053-0116f35eccfd" dir="auto"/><table id="c72f6180-cb55-825e-b1fb-016f35bb3e28" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="2a6f6180-cb55-82cc-b0bc-815eb4ef257d" dir="ltr"><th id="qSSl" class="simple-table-header-color simple-table-header">항목</th><th id=";|fP" class="simple-table-header-color simple-table-header" style="width:453px">내용</th></tr></thead><tbody><tr id="2e2f6180-cb55-832c-9433-81221d8e0d0a" dir="ltr"><td id="qSSl" class="">수집하는 개인정보</td><td id=";|fP" class="" style="width:453px">이메일, 비밀번호, 학교명, 회원 위치(위·경도) 저장 X</td></tr><tr id="14ff6180-cb55-8214-b40c-817157272f87" dir="ltr"><td id="qSSl" class="">저장 방식</td><td id=";|fP" class="" style="width:453px">  • 개인 정보는 암호화, 나머지는 평문 DB 저장<br/>  • 프로필(학교, 학과, 회원) 이미지 S3 저장<br/>  • 문의 첨부 파일 S3 저장<br/>  • 클릭 제출(ClickSubmissionDto)은 로그 파일로 별도 관리(S3)<br/>      ◦ 하루 마다 압축해서 저장<br/>      ◦ 약 30일 동안 보관</td></tr><tr id="baaf6180-cb55-827a-a76e-815b9cdbab35" dir="ltr"><td id="qSSl" class="">환경변수/시크릿 관리</td><td id=";|fP" class="" style="width:453px">  • 환경 변수는 .env 파일로 관리<br/>      ◦ .env.example 깃허브 배포<br/>  • 시크릿 키는 깃허브 액션 (배포용)</td></tr><tr id="ca8f6180-cb55-82b0-92c0-81c68a9decf1" dir="ltr"><td id="qSSl" class="">HTTPS 적용</td><td id=";|fP" class="" style="width:453px">  • Let’s Encrypt 무료 TSL 인증서 발급</td></tr><tr id="b9cf6180-cb55-83ad-ae1e-816c011dddb6" dir="ltr"><td id="qSSl" class="">외부 API 키 노출 방지 방안</td><td id=";|fP" class="" style="width:453px">  • 시크릿 키는 깃허브 액션(배포용)</td></tr><tr id="076f6180-cb55-8231-9a08-0138e6d0d1fd" dir="ltr"><td id="qSSl" class="">개인정보처리방침 페이지 게시 여부</td><td id=";|fP" class="" style="width:453px">  • 개인정보처리방침 페이지 게시 예정</td></tr></tbody></table><p id="53af6180-cb55-835f-b97a-813f51787a56" class="" dir="auto">
+</p><table id="689f6180-cb55-82b8-b1cc-01990a2ac651" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="ab4f6180-cb55-8212-8eca-81620ba9ecb1" dir="ltr"><th id="_JJ]" class="simple-table-header-color simple-table-header">담당</th><th id="&lt;Y{l" class="simple-table-header-color simple-table-header">도메인</th><th id="f@ok" class="simple-table-header-color simple-table-header">소유 테이블</th><th id="ehw@" class="simple-table-header-color simple-table-header">MVP</th><th id="^{hM" class="simple-table-header-color simple-table-header">추가 기능</th><th id="TXLJ" class="simple-table-header-color simple-table-header">공통 업무</th></tr></thead><tbody><tr id="9a8f6180-cb55-831d-82fc-8145fb8a68f0" dir="ltr"><td id="_JJ]" class="">김재철</td><td id="&lt;Y{l" class="">회원·인증 + 채팅·문의</td><td id="f@ok" class="">users, UNI_DOMAIN, REFRESH_TOKEN, CUSTOMER_SUPPORT, CHAT_MESSAGE</td><td id="ehw@" class="">대학 이메일 인증, 회원가입·로그인, JWT</td><td id="^{hM" class="">채팅, 고객 문의 메일, 관리자</td><td id="TXLJ" class="">프로젝트 초기 세팅, 공통 응답·예외</td></tr><tr id="244f6180-cb55-8209-b8b4-0160f783d4d3" dir="ltr"><td id="_JJ]" class="">박현호</td><td id="&lt;Y{l" class="">클릭·점수 엔진</td><td id="f@ok" class="">Redis 점수 키, 각 테이블의 점수 컬럼</td><td id="ehw@" class="">학교 클릭, 어뷰징 방지, 1분 배치</td><td id="^{hM" class="">타 학교 공격, 경쟁 학교·도서관 이스터에그, 이상 탐지</td><td id="TXLJ" class="">모니터링, 부하 테스트</td></tr><tr id="1ccf6180-cb55-8384-b97d-01e7448c404b" dir="ltr"><td id="_JJ]" class="">나희원</td><td id="&lt;Y{l" class="">학교·랭킹 + 연합</td><td id="f@ok" class="">UNIVERSITY, DEPARTMENT, GUEST_BOOK(+LIKE), ALLIANCE 3종</td><td id="ehw@" class="">순위, 타 학교 방문, 지도</td><td id="^{hM" class="">방명록, 연합, 연합 대결</td><td id="TXLJ" class="">대학·학과 시드 데이터, S3 업로드 모듈</td></tr><tr id="c33f6180-cb55-8334-8b1d-0111ddaec8f8" dir="ltr"><td id="_JJ]" class="">최훈희</td><td id="&lt;Y{l" class="">상점·결제</td><td id="f@ok" class="">CLICKER, ITEM, USER_ITEM, PAYMENT</td><td id="ehw@" class="">클리커 업그레이드, 아이템 구매·효과</td><td id="^{hM" class="">토스 결제, 커스텀 로고, 광고</td><td id="TXLJ" class="">CI/CD, AWS 배포</td></tr></tbody></table><p id="517f6180-cb55-823e-9106-018a1fd9f4b3" class="" dir="auto">
+</p></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

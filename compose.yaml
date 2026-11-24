@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - 'POSTGRES_DB=mydatabase'
+      - 'POSTGRES_PASSWORD=secret'
+      - 'POSTGRES_USER=myuser'
+    ports:
+      - '5432'
+  redis:
+    image: 'redis:latest'
+    ports:
+      - '6379'
+  # S3 대신 쓰는 AWS 에뮬레이터 (로고 이미지 업로드). 앱을 실행하면 spring-boot-docker-compose가 같이 띄우고,
+  # spring-cloud-aws-docker-compose가 S3 주소·키·리전을 이 컨테이너로 자동 연결한다
+  floci:
+    image: 'floci/floci:latest'
+    environment:
+      # Spring Cloud AWS가 이 세 값을 읽어 S3·DynamoDB 클라이언트에 넣는다 (에뮬레이터라 키는 아무 값이나 됨)
+      - 'AWS_DEFAULT_REGION=ap-northeast-2'
+      - 'AWS_ACCESS_KEY_ID=test'
+      - 'AWS_SECRET_ACCESS_KEY=test'
+    ports:
+      # 브라우저가 로고 이미지를 직접 열어야 해서 호스트 포트를 고정한다 (file.logo-public-base-url 기본값과 같음)
+      - '4566:4566'

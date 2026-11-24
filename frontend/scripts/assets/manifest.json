@@ -1,0 +1,1109 @@
+{
+  "palette": "art/palette.png",
+  "rawDir": "generated-images",
+  "outDir": "src/assets/campus",
+  "keyTolerance": 70,
+  "fringeTolerance": 140,
+  "assets": [
+    {
+      "id": "main-clocktower",
+      "category": "buildings",
+      "source": "a1a-c3-clocktower-2k",
+      "kind": "sprite",
+      "targetWidth": 134,
+      "lights": true
+    },
+    {
+      "id": "tent",
+      "category": "buildings",
+      "source": "a2-c1-tent",
+      "kind": "sprite",
+      "targetWidth": 40
+    },
+    {
+      "id": "hall-small",
+      "category": "buildings",
+      "source": "a2-c2-hall-small",
+      "kind": "sprite",
+      "targetWidth": 72,
+      "lights": true
+    },
+    {
+      "id": "hall-extended",
+      "category": "buildings",
+      "source": "a2-c3-hall-extended",
+      "kind": "sprite",
+      "targetWidth": 110,
+      "lights": true
+    },
+    {
+      "id": "signboard",
+      "category": "objects",
+      "source": "a2-c4-props-2x2",
+      "kind": "sheet",
+      "grid": [
+        2,
+        2
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "targetWidth": 22
+    },
+    {
+      "id": "tree-oak-1",
+      "category": "objects",
+      "source": "a2-c4-props-2x2",
+      "kind": "sheet",
+      "grid": [
+        2,
+        2
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "targetWidth": 44
+    },
+    {
+      "id": "sapling",
+      "category": "objects",
+      "source": "a2-c4-props-2x2",
+      "kind": "sheet",
+      "grid": [
+        2,
+        2
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "targetHeight": 16
+    },
+    {
+      "id": "shovel",
+      "category": "objects",
+      "source": "a2-c4-props-2x2",
+      "kind": "sheet",
+      "grid": [
+        2,
+        2
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "targetHeight": 14
+    },
+    {
+      "id": "tree-cherry-1",
+      "category": "objects",
+      "source": "a2-c5-tree-cherry",
+      "kind": "sprite",
+      "targetWidth": 46
+    },
+    {
+      "id": "tex-grass-1",
+      "category": "terrain",
+      "source": "a2-c6-tex-grass",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "tex-dirt",
+      "category": "terrain",
+      "source": "a2-c7-tex-dirt",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "library",
+      "category": "buildings",
+      "source": "a4-b1-library",
+      "kind": "sprite",
+      "targetWidth": 120,
+      "lights": true,
+      "lightsBelow": 0.4
+    },
+    {
+      "id": "library-r",
+      "category": "buildings",
+      "source": "g1-a2-c1-library-r-relight",
+      "kind": "sprite",
+      "targetWidth": 120,
+      "lights": true,
+      "lightsMirrorOf": "library"
+    },
+    {
+      "id": "lecture-2",
+      "category": "buildings",
+      "source": "a4-b2-lecture-2",
+      "kind": "sprite",
+      "targetWidth": 104,
+      "lights": true
+    },
+    {
+      "id": "lecture-2-r",
+      "category": "buildings",
+      "source": "g1-a2-c3-lecture-2-r-relight",
+      "kind": "sprite",
+      "targetWidth": 104,
+      "lights": true
+    },
+    {
+      "id": "lecture-3",
+      "category": "buildings",
+      "source": "a4-b3-lecture-3",
+      "kind": "sprite",
+      "targetWidth": 84,
+      "lights": true
+    },
+    {
+      "id": "stadium",
+      "category": "buildings",
+      "source": "a4-b4-stadium",
+      "kind": "sprite",
+      "targetWidth": 150
+    },
+    {
+      "id": "student-hall",
+      "category": "buildings",
+      "source": "a4-b5-student-hall",
+      "kind": "sprite",
+      "targetWidth": 84,
+      "lights": true
+    },
+    {
+      "id": "dorm-a",
+      "category": "buildings",
+      "source": "a4-b6-dorm-a",
+      "kind": "sprite",
+      "targetWidth": 70,
+      "lights": true
+    },
+    {
+      "id": "dorm-b",
+      "category": "buildings",
+      "source": "a4-b7-dorm-b",
+      "kind": "sprite",
+      "targetWidth": 70,
+      "lights": true
+    },
+    {
+      "id": "twin-tower",
+      "category": "buildings",
+      "source": "a4-b8-twin-tower",
+      "kind": "sprite",
+      "targetHeight": 150,
+      "lights": true
+    },
+    {
+      "id": "grand-hall",
+      "category": "buildings",
+      "source": "g3-c4-grand-hall-wide-b",
+      "kind": "sprite",
+      "targetWidth": 250,
+      "lights": true,
+      "lightsBlue": 35
+    },
+    {
+      "id": "fountain",
+      "category": "objects",
+      "source": "a4-b9-fountain",
+      "kind": "sprite",
+      "targetWidth": 56
+    },
+    {
+      "id": "tree-oak-2",
+      "category": "objects",
+      "source": "a4-s1-trees-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "targetWidth": 40
+    },
+    {
+      "id": "tree-cherry-2",
+      "category": "objects",
+      "source": "a4-s1-trees-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "targetWidth": 40
+    },
+    {
+      "id": "tree-maple-orange",
+      "category": "objects",
+      "source": "a4-s1-trees-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "targetWidth": 42
+    },
+    {
+      "id": "tree-maple-red",
+      "category": "objects",
+      "source": "a4-s1-trees-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "targetWidth": 42
+    },
+    {
+      "id": "tree-pine",
+      "category": "objects",
+      "source": "a4-s1-trees-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "targetHeight": 58
+    },
+    {
+      "id": "bush-1",
+      "category": "objects",
+      "source": "a4-s1-trees-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "targetWidth": 18
+    },
+    {
+      "id": "bush-2",
+      "category": "objects",
+      "source": "a4-s2-garden-2x3",
+      "kind": "sheet",
+      "targetWidth": 14,
+      "box": [
+        0.06,
+        0.06,
+        0.27,
+        0.28
+      ]
+    },
+    {
+      "id": "hedge",
+      "category": "objects",
+      "source": "a4-s2-garden-2x3",
+      "kind": "sheet",
+      "targetWidth": 36,
+      "box": [
+        0.32,
+        0.03,
+        0.665,
+        0.31
+      ]
+    },
+    {
+      "id": "flowerbed-1",
+      "category": "objects",
+      "source": "a4-s2-garden-2x3",
+      "kind": "sheet",
+      "targetWidth": 30,
+      "box": [
+        0.665,
+        0.04,
+        0.995,
+        0.3
+      ]
+    },
+    {
+      "id": "flowerbed-2",
+      "category": "objects",
+      "source": "a4-s2-garden-2x3",
+      "kind": "sheet",
+      "targetWidth": 28,
+      "box": [
+        0.02,
+        0.39,
+        0.32,
+        0.63
+      ]
+    },
+    {
+      "id": "flowers-1",
+      "category": "objects",
+      "source": "a4-s2-garden-2x3",
+      "kind": "sheet",
+      "targetWidth": 12,
+      "box": [
+        0.36,
+        0.4,
+        0.64,
+        0.62
+      ]
+    },
+    {
+      "id": "flowers-2",
+      "category": "objects",
+      "source": "a4-s2-garden-2x3",
+      "kind": "sheet",
+      "targetWidth": 20,
+      "box": [
+        0.72,
+        0.4,
+        0.94,
+        0.62
+      ]
+    },
+    {
+      "id": "lamp",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "targetHeight": 26
+    },
+    {
+      "id": "lamp-banner",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "targetHeight": 26
+    },
+    {
+      "id": "bench",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "targetWidth": 18
+    },
+    {
+      "id": "trash-bin",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "targetHeight": 9
+    },
+    {
+      "id": "bicycle",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "targetWidth": 16
+    },
+    {
+      "id": "bike-rack",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "targetWidth": 18
+    },
+    {
+      "id": "flag",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        2,
+        0
+      ],
+      "targetHeight": 40
+    },
+    {
+      "id": "picnic-mat",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        2,
+        1
+      ],
+      "targetWidth": 22
+    },
+    {
+      "id": "goal-post",
+      "category": "objects",
+      "source": "a4-s3-props-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        2,
+        2
+      ],
+      "targetWidth": 22
+    },
+    {
+      "id": "puddle",
+      "category": "objects",
+      "source": "a4-s4-water-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "targetWidth": 22
+    },
+    {
+      "id": "lily-pad",
+      "category": "objects",
+      "source": "a4-s4-water-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "targetWidth": 14
+    },
+    {
+      "id": "reeds",
+      "category": "objects",
+      "source": "a4-s4-water-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "targetHeight": 16
+    },
+    {
+      "id": "rock",
+      "category": "objects",
+      "source": "a4-s4-water-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "targetWidth": 12
+    },
+    {
+      "id": "deck",
+      "category": "objects",
+      "source": "a4-s4-water-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "targetWidth": 30
+    },
+    {
+      "id": "bleacher",
+      "category": "objects",
+      "source": "a4-s4-water-2x3",
+      "kind": "sheet",
+      "grid": [
+        2,
+        3
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "targetWidth": 34
+    },
+    {
+      "id": "student-walk-1",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        0,
+        0
+      ],
+      "targetHeight": 12
+    },
+    {
+      "id": "student-walk-2",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        0,
+        1
+      ],
+      "targetHeight": 12
+    },
+    {
+      "id": "student-walk-3",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        0,
+        2
+      ],
+      "targetHeight": 12
+    },
+    {
+      "id": "student-walk-4",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        1,
+        0
+      ],
+      "targetHeight": 12
+    },
+    {
+      "id": "student-sit-1",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        1,
+        1
+      ],
+      "targetHeight": 9
+    },
+    {
+      "id": "student-sit-2",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        1,
+        2
+      ],
+      "targetHeight": 9
+    },
+    {
+      "id": "cat",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        2,
+        0
+      ],
+      "targetHeight": 6
+    },
+    {
+      "id": "dog",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        2,
+        1
+      ],
+      "targetHeight": 7
+    },
+    {
+      "id": "duck",
+      "category": "people",
+      "source": "a4-s5-people-3x3",
+      "kind": "sheet",
+      "grid": [
+        3,
+        3
+      ],
+      "cell": [
+        2,
+        2
+      ],
+      "targetHeight": 6
+    },
+    {
+      "id": "cloud-1",
+      "category": "sky",
+      "source": "a4-s6-sky-2x3",
+      "kind": "sheet",
+      "targetWidth": 48,
+      "box": [
+        0.005,
+        0.02,
+        0.495,
+        0.32
+      ]
+    },
+    {
+      "id": "cloud-2",
+      "category": "sky",
+      "source": "a4-s6-sky-2x3",
+      "kind": "sheet",
+      "targetWidth": 56,
+      "box": [
+        0.5,
+        0.04,
+        0.985,
+        0.195
+      ]
+    },
+    {
+      "id": "cloud-3",
+      "category": "sky",
+      "source": "a4-s6-sky-2x3",
+      "kind": "sheet",
+      "targetWidth": 26,
+      "box": [
+        0.63,
+        0.2,
+        0.86,
+        0.365
+      ]
+    },
+    {
+      "id": "cloud-4",
+      "category": "sky",
+      "source": "a4-s6-sky-2x3",
+      "kind": "sheet",
+      "targetWidth": 36,
+      "box": [
+        0.05,
+        0.37,
+        0.45,
+        0.62
+      ]
+    },
+    {
+      "id": "sun",
+      "category": "sky",
+      "source": "a4-s6-sky-2x3",
+      "kind": "sheet",
+      "targetWidth": 20,
+      "box": [
+        0.66,
+        0.43,
+        0.82,
+        0.59
+      ]
+    },
+    {
+      "id": "moon",
+      "category": "sky",
+      "source": "a4-s6-sky-2x3",
+      "kind": "sheet",
+      "targetWidth": 18,
+      "box": [
+        0.73,
+        0.69,
+        0.975,
+        0.96
+      ]
+    },
+    {
+      "id": "horizon-forest",
+      "category": "sky",
+      "source": "a4-s7-horizon",
+      "kind": "sprite",
+      "targetWidth": 360,
+      "keyEdge": "top"
+    },
+    {
+      "id": "tex-grass-2",
+      "category": "terrain",
+      "source": "a4-t1-tex-grass-2",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "tex-paving",
+      "category": "terrain",
+      "source": "a4-t3-tex-paving",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "tex-water",
+      "category": "terrain",
+      "source": "a4-t4-tex-water",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "tex-court",
+      "category": "terrain",
+      "source": "a4-t5-tex-court",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "tex-track",
+      "category": "terrain",
+      "source": "a4-t6-tex-track",
+      "kind": "texture",
+      "targetWidth": 256
+    },
+    {
+      "id": "fence-iron",
+      "category": "objects",
+      "source": "g2-c1-fill-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 27,
+      "box": [
+        0.033,
+        0.031,
+        0.299,
+        0.301
+      ]
+    },
+    {
+      "id": "fence-picket",
+      "category": "objects",
+      "source": "g2-c1-fill-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 28,
+      "box": [
+        0.363,
+        0.043,
+        0.636,
+        0.296
+      ]
+    },
+    {
+      "id": "hedge-low",
+      "category": "objects",
+      "source": "g2-c1-fill-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 31,
+      "box": [
+        0.683,
+        0.053,
+        0.982,
+        0.284
+      ]
+    },
+    {
+      "id": "planter-strip",
+      "category": "objects",
+      "source": "g2-c1-fill-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 32,
+      "box": [
+        0.008,
+        0.386,
+        0.324,
+        0.612
+      ]
+    },
+    {
+      "id": "planter-square",
+      "category": "objects",
+      "source": "g2-c2-fill-2x3-b",
+      "kind": "sheet",
+      "targetWidth": 14,
+      "box": [
+        0.428,
+        0.427,
+        0.572,
+        0.572
+      ]
+    },
+    {
+      "id": "flower-border",
+      "category": "objects",
+      "source": "g2-c1-fill-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 32,
+      "box": [
+        0.679,
+        0.403,
+        0.989,
+        0.594
+      ]
+    },
+    {
+      "id": "sports-hall",
+      "category": "buildings",
+      "source": "g2-c4-sports-hall-b",
+      "kind": "sprite",
+      "targetWidth": 96,
+      "lights": true
+    },
+    {
+      "id": "campfire",
+      "category": "objects",
+      "source": "g4-c2-camp-2x3-b",
+      "kind": "sheet",
+      "targetWidth": 16,
+      "box": [
+        0.04,
+        0.04,
+        0.29,
+        0.28
+      ]
+    },
+    {
+      "id": "crates",
+      "category": "objects",
+      "source": "g4-c2-camp-2x3-b",
+      "kind": "sheet",
+      "targetWidth": 13,
+      "box": [
+        0.35,
+        0.02,
+        0.65,
+        0.3
+      ]
+    },
+    {
+      "id": "lumber",
+      "category": "objects",
+      "source": "g4-c2-camp-2x3-b",
+      "kind": "sheet",
+      "targetWidth": 16,
+      "box": [
+        0.68,
+        0.05,
+        0.985,
+        0.28
+      ]
+    },
+    {
+      "id": "wheelbarrow",
+      "category": "objects",
+      "source": "g4-c2-camp-2x3-b",
+      "kind": "sheet",
+      "targetWidth": 14,
+      "box": [
+        0.04,
+        0.38,
+        0.31,
+        0.62
+      ]
+    },
+    {
+      "id": "survey-stake",
+      "category": "objects",
+      "source": "g4-c2-camp-2x3-b",
+      "kind": "sheet",
+      "targetHeight": 12,
+      "box": [
+        0.44,
+        0.39,
+        0.57,
+        0.61
+      ]
+    },
+    {
+      "id": "watering-can",
+      "category": "objects",
+      "source": "g4-c2-camp-2x3-b",
+      "kind": "sheet",
+      "targetWidth": 6,
+      "box": [
+        0.72,
+        0.39,
+        0.94,
+        0.6
+      ]
+    },
+    {
+      "id": "lantern-post",
+      "category": "objects",
+      "source": "g4-c3-early-2x3-a",
+      "kind": "sheet",
+      "targetHeight": 24,
+      "box": [
+        0.1,
+        0.01,
+        0.28,
+        0.38
+      ]
+    },
+    {
+      "id": "notice-board",
+      "category": "objects",
+      "source": "g4-c3-early-2x3-a",
+      "kind": "sheet",
+      "targetHeight": 17,
+      "box": [
+        0.38,
+        0.02,
+        0.62,
+        0.36
+      ]
+    },
+    {
+      "id": "log-bench",
+      "category": "objects",
+      "source": "g4-c3-early-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 14,
+      "box": [
+        0.67,
+        0.06,
+        0.98,
+        0.31
+      ]
+    },
+    {
+      "id": "school-bell",
+      "category": "objects",
+      "source": "g4-c3-early-2x3-a",
+      "kind": "sheet",
+      "targetHeight": 16,
+      "box": [
+        0.03,
+        0.54,
+        0.31,
+        0.92
+      ]
+    },
+    {
+      "id": "birdhouse",
+      "category": "objects",
+      "source": "g4-c3-early-2x3-a",
+      "kind": "sheet",
+      "targetHeight": 18,
+      "box": [
+        0.41,
+        0.53,
+        0.59,
+        0.95
+      ]
+    },
+    {
+      "id": "stump",
+      "category": "objects",
+      "source": "g4-c3-early-2x3-a",
+      "kind": "sheet",
+      "targetWidth": 6,
+      "box": [
+        0.72,
+        0.62,
+        0.94,
+        0.87
+      ]
+    }
+  ]
+}

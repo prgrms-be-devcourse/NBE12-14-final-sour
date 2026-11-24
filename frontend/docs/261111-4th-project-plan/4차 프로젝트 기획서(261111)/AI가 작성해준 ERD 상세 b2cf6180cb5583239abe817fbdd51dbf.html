@@ -1,0 +1,797 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>AI가 작성해준 ERD 상세</title><meta name="data-notion-page-icon" content="👽"/><link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%91%BD%3C%2Ftext%3E%3C%2Fsvg%3E"/><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+	/* Paint a complete callout box on every PDF page fragment. */
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
+/* For default-background callouts, render the border outline. */
+.callout.block-color-default_background {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+/*
+ * Toggles and callouts hold arbitrary content, so they can easily be taller
+ * than a page. They must stay breakable: avoiding breaks inside them makes
+ * Chromium push the whole block onto the next page, which leaves the previous
+ * page mostly empty before every long toggle.
+ */
+details,
+aside {
+	margin: 1.25em 0;
+}
+
+/* Keep a toggle's title on the same page as the start of its content. */
+summary {
+	page-break-after: avoid;
+	break-after: avoid;
+}
+
+/*
+ * Toggle headings render as <h1/h2/h3 style="display:inline-block"> inside
+ * <summary>. Without this reset, the heading's margin-top pushes it below the
+ * ::marker (▼), so the triangle and the title appear on separate lines.
+ */
+summary h1,
+summary h2,
+summary h3,
+summary h4 {
+	margin-top: 0;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+
+	table.collection-content {
+		width: 100%;
+		table-layout: fixed;
+	}
+
+	table.collection-content th,
+	table.collection-content td {
+		overflow-wrap: anywhere;
+	}
+
+	table.collection-content td > .user,
+	table.collection-content td > time {
+		white-space: pre-wrap;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content-wrapper {
+	overflow-x: auto;
+}
+
+@media only print {
+	.collection-content-wrapper {
+		overflow-x: visible;
+	}
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	gap: 46px;
+}
+
+.column {
+	min-width: 0;
+	overflow: hidden;
+}
+
+.column > *:first-child {
+	margin-top: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding-inline: 0.125rem;
+	padding-block: 0.375rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+table {
+	border-collapse: collapse;
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol.numbered-list.numbered-list-digits-2 {
+	padding-inline-start: 2em;
+}
+
+ol.numbered-list.numbered-list-digits-3plus {
+	padding-inline-start: 2.4em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+/*
+ * Render emoji icons using a ::before pseudo-element to keep the glyph
+ * out of the DOM textContent traversal. This avoids double-rendering icons
+ * in callouts and page titles.
+ * NOTE(slim/html-export-pseudo-icons): I can't tagref this because it will
+ * flag as a duplicate tag after codegen.
+ */
+.icon[data-emoji]::before {
+	content: attr(data-emoji);
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	margin-right: 0.4em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.tab {
+	margin: 1.25em 0;
+	padding-inline: 1rem;
+	border: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style><style>@import url('https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex-swap.min.css')</style></head><body><article id="b2cf6180-cb55-8323-9abe-817fbdd51dbf" class="page sans" data-notion-page-icon="👽"><header><div class="page-header-icon undefined"><span class="icon" data-emoji="👽"></span></div><h1 class="page-title" dir="auto">AI가 작성해준 ERD 상세</h1><p class="page-description" dir="auto"></p></header><div class="page-body"><h1 id="f17f6180-cb55-8398-bd18-0140fbe409ef" class="" dir="auto">데이터 모델</h1><h2 id="b1af6180-cb55-8251-b619-013d686eeb87" class="" dir="auto">표기 규칙</h2><table id="09df6180-cb55-8230-a30d-818ad1874060" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="33bf6180-cb55-828f-a2d0-01674d7d8ee5" dir="ltr"><th id="N?GM" class="simple-table-header-color simple-table-header">표기</th><th id="IJcK" class="simple-table-header-color simple-table-header">의미</th></tr></thead><tbody><tr id="a03f6180-cb55-82c5-a5a4-81cba82b305f" dir="ltr"><td id="N?GM" class="">PK</td><td id="IJcK" class="">기본키</td></tr><tr id="2aef6180-cb55-8393-818c-017066628530" dir="ltr"><td id="N?GM" class="">FK</td><td id="IJcK" class="">외래키 (→ 참조 테이블)</td></tr><tr id="97bf6180-cb55-828c-8b35-81f7803b7dcb" dir="ltr"><td id="N?GM" class="">UK</td><td id="IJcK" class="">유니크 제약</td></tr><tr id="70bf6180-cb55-8257-9f8d-8130a7a9bfcb" dir="ltr"><td id="N?GM" class="">NN</td><td id="IJcK" class="">NOT NULL</td></tr><tr id="211f6180-cb55-8396-be6c-0183a99320f8" dir="ltr"><td id="N?GM" class="">NULL</td><td id="IJcK" class="">NULL 허용</td></tr><tr id="227f6180-cb55-82ab-8591-817991416c87" dir="ltr"><td id="N?GM" class="">DEFAULT</td><td id="IJcK" class="">기본값</td></tr><tr id="6dff6180-cb55-82c2-8e6c-8182b5f742eb" dir="ltr"><td id="N?GM" class="">CHECK</td><td id="IJcK" class="">값 검증 제약</td></tr><tr id="1e3f6180-cb55-8359-a2ed-016fbc01d515" dir="ltr"><td id="N?GM" class="">IDX</td><td id="IJcK" class="">조회용 인덱스</td></tr></tbody></table><h2 id="320f6180-cb55-8248-92e7-013b9e07f4c1" class="" dir="auto">공통 규칙</h2><table id="6baf6180-cb55-828b-b688-81730e20c587" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="f5ff6180-cb55-83b2-b281-01b8459cb549" dir="ltr"><th id="G:Rm" class="simple-table-header-color simple-table-header">항목</th><th id="?wD;" class="simple-table-header-color simple-table-header">내용</th></tr></thead><tbody><tr id="a29f6180-cb55-82dd-a897-0140f1537ea1" dir="ltr"><td id="G:Rm" class="">문자셋</td><td id="?wD;" class=""><code>utf8mb4</code> / <code>utf8mb4_unicode_ci</code></td></tr><tr id="d98f6180-cb55-8228-b8e6-812b3f7b2d18" dir="ltr"><td id="G:Rm" class="">ID</td><td id="?wD;" class=""><code>BIGINT AUTO_INCREMENT</code> (복합 PK 테이블 제외)</td></tr><tr id="387f6180-cb55-82ba-ace0-01df48a97d2b" dir="ltr"><td id="G:Rm" class="">CREATED_AT</td><td id="?wD;" class=""><code>DATETIME(6)</code> NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="426f6180-cb55-8376-9382-8134f255885d" dir="ltr"><td id="G:Rm" class="">UPDATED_AT</td><td id="?wD;" class=""><code>DATETIME(6)</code> NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="a0ff6180-cb55-8271-b74f-819ff95ac4f8" dir="ltr"><td id="G:Rm" class="">DELETED_AT</td><td id="?wD;" class=""><code>DATETIME(6)</code> NULL, 값이 있으면 삭제된 행 (soft delete)</td></tr><tr id="9c2f6180-cb55-829d-8d36-01a41bd34ae3" dir="ltr"><td id="G:Rm" class="">점수 컬럼</td><td id="?wD;" class=""><code>BIGINT</code> NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="5aff6180-cb55-82b1-92f0-812ce17be39c" dir="ltr"><td id="G:Rm" class="">상태 컬럼</td><td id="?wD;" class=""><code>VARCHAR(20)</code> + 애플리케이션 Enum (<code>@Enumerated(EnumType.STRING)</code>)</td></tr><tr id="2d7f6180-cb55-8233-9a0c-017956e22242" dir="ltr"><td id="G:Rm" class="">FK 삭제 정책</td><td id="?wD;" class=""><code>ON DELETE RESTRICT</code> (soft delete를 쓰므로 연쇄 삭제 사용 안 함)</td></tr><tr id="eedf6180-cb55-8215-a0e9-0165d5398d6d" dir="ltr"><td id="G:Rm" class="">테이블명</td><td id="?wD;" class=""><code>USER</code>는 MySQL 예약어이므로 실제 테이블명은 <code>users</code> 사용</td></tr></tbody></table><h2 id="c40f6180-cb55-8339-ace5-81af5fb84132" class="" dir="auto">테이블 목록</h2><table id="924f6180-cb55-83b3-840b-0180c72b88b0" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="a93f6180-cb55-83c4-b57b-01f7975f8986" dir="ltr"><th id="?[U&lt;" class="simple-table-header-color simple-table-header">엔티티</th><th id="&gt;]?W" class="simple-table-header-color simple-table-header">설명</th><th id="f=~J" class="simple-table-header-color simple-table-header">저장소</th></tr></thead><tbody><tr id="a73f6180-cb55-826f-9763-015e96e0bdd1" dir="ltr"><td id="?[U&lt;" class="">UNIVERSITY</td><td id="&gt;]?W" class="">학교 정보 및 학교 누적 점수</td><td id="f=~J" class="">MySQL</td></tr><tr id="79df6180-cb55-82a7-b3bd-01afd62a44e2" dir="ltr"><td id="?[U&lt;" class="">UNI_DOMAIN</td><td id="&gt;]?W" class="">학교별 허용 이메일 도메인</td><td id="f=~J" class="">MySQL</td></tr><tr id="237f6180-cb55-828c-ad91-81f0d49a951c" dir="ltr"><td id="?[U&lt;" class="">DEPARTMENT</td><td id="&gt;]?W" class="">학과 정보 및 학과 누적 점수</td><td id="f=~J" class="">MySQL</td></tr><tr id="b67f6180-cb55-82bd-8dea-01852674f097" dir="ltr"><td id="?[U&lt;" class="">USER</td><td id="&gt;]?W" class="">회원 정보 및 개인 기여도</td><td id="f=~J" class="">MySQL</td></tr><tr id="877f6180-cb55-8212-a9a8-01c8badc6080" dir="ltr"><td id="?[U&lt;" class="">CLICKER</td><td id="&gt;]?W" class="">클리커 레벨별 클릭 세기</td><td id="f=~J" class="">MySQL</td></tr><tr id="efdf6180-cb55-8235-a7d1-81fd7cc4dd42" dir="ltr"><td id="?[U&lt;" class="">ITEM</td><td id="&gt;]?W" class="">아이템 마스터</td><td id="f=~J" class="">MySQL</td></tr><tr id="b78f6180-cb55-82c9-8bd5-818c77d07451" dir="ltr"><td id="?[U&lt;" class="">USER_ITEM</td><td id="&gt;]?W" class="">아이템 구매 이력</td><td id="f=~J" class="">MySQL</td></tr><tr id="dd5f6180-cb55-8240-8a3c-01dbd87cd2cb" dir="ltr"><td id="?[U&lt;" class="">PAYMENT</td><td id="&gt;]?W" class="">CASH 아이템 결제 (토스페이먼츠)</td><td id="f=~J" class="">MySQL</td></tr><tr id="0f8f6180-cb55-83d3-8baf-81b9da114a5d" dir="ltr"><td id="?[U&lt;" class="">REFRESH_TOKEN</td><td id="&gt;]?W" class="">리프레시 토큰</td><td id="f=~J" class="">MySQL</td></tr><tr id="97af6180-cb55-8319-b4a2-017012fd5b2d" dir="ltr"><td id="?[U&lt;" class="">GUEST_BOOK</td><td id="&gt;]?W" class="">타 학교 방명록</td><td id="f=~J" class="">MySQL</td></tr><tr id="08bf6180-cb55-832f-8ed7-01fbbce240ac" dir="ltr"><td id="?[U&lt;" class="">GUEST_BOOK_LIKE</td><td id="&gt;]?W" class="">방명록 좋아요</td><td id="f=~J" class="">MySQL</td></tr><tr id="f74f6180-cb55-835b-a9d1-8104160f36e8" dir="ltr"><td id="?[U&lt;" class="">CUSTOMER_SUPPORT</td><td id="&gt;]?W" class="">고객 문의</td><td id="f=~J" class="">MySQL</td></tr><tr id="391f6180-cb55-832d-8c5d-816f53b93ceb" dir="ltr"><td id="?[U&lt;" class="">ALLIANCE</td><td id="&gt;]?W" class="">연합</td><td id="f=~J" class="">MySQL</td></tr><tr id="229f6180-cb55-8297-93b3-01145a3b9b41" dir="ltr"><td id="?[U&lt;" class="">ALLIANCE_UNIVERSITY</td><td id="&gt;]?W" class="">연합 신청·가입 이력</td><td id="f=~J" class="">MySQL</td></tr><tr id="3dcf6180-cb55-82ed-a995-8103632f9afd" dir="ltr"><td id="?[U&lt;" class="">ALLIANCE_MATCH</td><td id="&gt;]?W" class="">연합 대결</td><td id="f=~J" class="">MySQL</td></tr><tr id="f53f6180-cb55-829c-b28f-81d10c61033f" dir="ltr"><td id="?[U&lt;" class="">CHAT_MESSAGE</td><td id="&gt;]?W" class="">채팅 메시지</td><td id="f=~J" class="">DynamoDB</td></tr></tbody></table><hr id="916f6180-cb55-82e6-8039-013137693ea4" dir="auto"/><h2 id="e1af6180-cb55-825e-86ca-012c30308ba4" class="" dir="auto">테이블 명세</h2><h3 id="2bff6180-cb55-83c1-b7c0-01d9de8bc106" class="" dir="auto">UNIVERSITY</h3><p id="4a1f6180-cb55-82c4-a702-01e099692d02" class="" dir="auto">학교 정보와 학교 누적 점수를 저장한다.</p><table id="ceff6180-cb55-8326-85ae-815dfee32677" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="fc1f6180-cb55-835c-ae3a-01a9dc0f9937" dir="ltr"><th id="F=U`" class="simple-table-header-color simple-table-header">컬럼</th><th id="d;uh" class="simple-table-header-color simple-table-header">설명</th><th id="|B]w" class="simple-table-header-color simple-table-header">타입</th><th id="pvjH" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="a9cf6180-cb55-82ac-be75-81efd4f9349d" dir="ltr"><td id="F=U`" class="">ID</td><td id="d;uh" class="">학교 ID</td><td id="|B]w" class="">BIGINT</td><td id="pvjH" class="">PK, AUTO_INCREMENT</td></tr><tr id="72af6180-cb55-8223-acd5-01bd5d1d6e07" dir="ltr"><td id="F=U`" class="">NAME</td><td id="d;uh" class="">학교명</td><td id="|B]w" class="">VARCHAR(100)</td><td id="pvjH" class="">NN, UK</td></tr><tr id="7e4f6180-cb55-82d1-8eaa-814f08c455cc" dir="ltr"><td id="F=U`" class="">TOTAL_SCORE</td><td id="d;uh" class="">학교 누적 점수</td><td id="|B]w" class="">BIGINT</td><td id="pvjH" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="e0ff6180-cb55-823e-8676-0148db3176ac" dir="ltr"><td id="F=U`" class="">LIBRARY_LAT</td><td id="d;uh" class="">도서관 위도</td><td id="|B]w" class="">DECIMAL(9,6)</td><td id="pvjH" class="">NULL</td></tr><tr id="fc5f6180-cb55-83b0-b3d1-815746efb7f9" dir="ltr"><td id="F=U`" class="">LIBRARY_LNG</td><td id="d;uh" class="">도서관 경도</td><td id="|B]w" class="">DECIMAL(9,6)</td><td id="pvjH" class="">NULL</td></tr><tr id="07cf6180-cb55-83d3-9261-81ebf2d0f8c7" dir="ltr"><td id="F=U`" class="">LOGO_URL</td><td id="d;uh" class="">학교 로고 이미지 URL (S3)</td><td id="|B]w" class="">VARCHAR(500)</td><td id="pvjH" class="">NULL</td></tr><tr id="29df6180-cb55-8341-a1cb-81a93a89d05f" dir="ltr"><td id="F=U`" class="">CREATED_AT</td><td id="d;uh" class="">생성 시각</td><td id="|B]w" class="">DATETIME(6)</td><td id="pvjH" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="466f6180-cb55-8264-9bd0-8113476865ce" dir="ltr"><td id="F=U`" class="">UPDATED_AT</td><td id="d;uh" class="">수정 시각</td><td id="|B]w" class="">DATETIME(6)</td><td id="pvjH" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="a7df6180-cb55-824a-a28b-818355fbe872" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="7fef6180-cb55-832e-a0ec-81938a7a1e00" class="bulleted-list" dir="auto"><li style="list-style-type:disc">학교 하나에 여러 회원, 학과, 허용 도메인이 연결된다.</li></ul><ul id="c8df6180-cb55-82ad-800f-81db3fb60210" class="bulleted-list" dir="auto"><li style="list-style-type:disc">TOTAL_SCORE는 Redis에서 1분마다 배치로 반영한다.</li></ul><ul id="a99f6180-cb55-828e-8164-01705b2ad0ff" class="bulleted-list" dir="auto"><li style="list-style-type:disc">순위는 저장하지 않고 점수로 계산한다.</li></ul><ul id="e78f6180-cb55-821b-a3c6-812b5a249d90" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(TOTAL_SCORE DESC)</code> (학교 순위 조회)</li></ul><h3 id="666f6180-cb55-8387-a7bd-8172741a60cd" class="" dir="auto">UNI_DOMAIN</h3><p id="4c0f6180-cb55-826e-b468-012cc7c14995" class="" dir="auto">학교별로 허용하는 이메일 도메인을 저장한다.</p><table id="929f6180-cb55-8256-8048-81bdb79770f9" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="fbdf6180-cb55-827d-a7ba-81c57485a245" dir="ltr"><th id="xNTA" class="simple-table-header-color simple-table-header">컬럼</th><th id="XzD@" class="simple-table-header-color simple-table-header">설명</th><th id="GFwI" class="simple-table-header-color simple-table-header">타입</th><th id="rALj" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="937f6180-cb55-8284-ab98-8126a793c8fe" dir="ltr"><td id="xNTA" class="">ID</td><td id="XzD@" class="">도메인 ID</td><td id="GFwI" class="">BIGINT</td><td id="rALj" class="">PK, AUTO_INCREMENT</td></tr><tr id="762f6180-cb55-8235-90f2-813e1847fabf" dir="ltr"><td id="xNTA" class="">UNIVERSITY_ID</td><td id="XzD@" class="">학교 ID</td><td id="GFwI" class="">BIGINT</td><td id="rALj" class="">FK → UNIVERSITY.ID, NN</td></tr><tr id="badf6180-cb55-835d-8fa5-012fd8106286" dir="ltr"><td id="xNTA" class="">DOMAIN</td><td id="XzD@" class="">이메일 도메인 (예: <code>snu.ac.kr</code>)</td><td id="GFwI" class="">VARCHAR(100)</td><td id="rALj" class="">NN, UK</td></tr><tr id="f9ef6180-cb55-8229-b72b-0111448b9778" dir="ltr"><td id="xNTA" class="">CREATED_AT</td><td id="XzD@" class="">생성 시각</td><td id="GFwI" class="">DATETIME(6)</td><td id="rALj" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="a06f6180-cb55-83e2-b3b9-813e17494fad" dir="ltr"><td id="xNTA" class="">UPDATED_AT</td><td id="XzD@" class="">수정 시각</td><td id="GFwI" class="">DATETIME(6)</td><td id="rALj" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="228f6180-cb55-8372-b34e-8141e23a1925" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="6d2f6180-cb55-82eb-bb3a-8191c3611cee" class="bulleted-list" dir="auto"><li style="list-style-type:disc">UNIVERSITY 1 : UNI_DOMAIN 1..N</li></ul><ul id="b4af6180-cb55-82d9-8dde-01f867814592" class="bulleted-list" dir="auto"><li style="list-style-type:disc">검증한 도메인만 등록한다. 소문자로 정규화해서 저장한다.</li></ul><ul id="0d1f6180-cb55-83a4-b7f8-81756f1d5af3" class="bulleted-list" dir="auto"><li style="list-style-type:disc">한 도메인을 여러 학교가 공유하면 정책을 정하기 전까지 지원을 보류한다.</li></ul><h3 id="75df6180-cb55-83eb-9206-01aaba74c8bd" class="" dir="auto">DEPARTMENT</h3><p id="9d3f6180-cb55-833e-95f8-01312327e2f7" class="" dir="auto">학과 정보와 학과 누적 점수를 저장한다.</p><table id="44ef6180-cb55-8313-9639-81e3bb092ffd" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="4d3f6180-cb55-827e-a296-81225024b5e5" dir="ltr"><th id="\d~D" class="simple-table-header-color simple-table-header">컬럼</th><th id="{bQc" class="simple-table-header-color simple-table-header">설명</th><th id="thd|" class="simple-table-header-color simple-table-header">타입</th><th id="HttM" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="00cf6180-cb55-828b-bec4-01b4d20f669f" dir="ltr"><td id="\d~D" class="">ID</td><td id="{bQc" class="">학과 ID</td><td id="thd|" class="">BIGINT</td><td id="HttM" class="">PK, AUTO_INCREMENT</td></tr><tr id="f2bf6180-cb55-82e4-8d1e-8143b314ef8e" dir="ltr"><td id="\d~D" class="">UNIVERSITY_ID</td><td id="{bQc" class="">학교 ID</td><td id="thd|" class="">BIGINT</td><td id="HttM" class="">FK → UNIVERSITY.ID, NN</td></tr><tr id="829f6180-cb55-827c-9b2e-015b1105b84f" dir="ltr"><td id="\d~D" class="">NAME</td><td id="{bQc" class="">학과명</td><td id="thd|" class="">VARCHAR(100)</td><td id="HttM" class="">NN</td></tr><tr id="ab1f6180-cb55-82bc-b8c6-019c0eacbc97" dir="ltr"><td id="\d~D" class="">TOTAL_SCORE</td><td id="{bQc" class="">학과 누적 점수</td><td id="thd|" class="">BIGINT</td><td id="HttM" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="cd2f6180-cb55-830d-84d7-010a61a3166e" dir="ltr"><td id="\d~D" class="">LOGO_URL</td><td id="{bQc" class="">학과 이미지 URL (S3)</td><td id="thd|" class="">VARCHAR(500)</td><td id="HttM" class="">NULL</td></tr><tr id="16af6180-cb55-8279-a3b5-81485491a594" dir="ltr"><td id="\d~D" class="">CREATED_AT</td><td id="{bQc" class="">생성 시각</td><td id="thd|" class="">DATETIME(6)</td><td id="HttM" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="e61f6180-cb55-8220-b839-01bb4063e475" dir="ltr"><td id="\d~D" class="">UPDATED_AT</td><td id="{bQc" class="">수정 시각</td><td id="thd|" class="">DATETIME(6)</td><td id="HttM" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="239f6180-cb55-824c-9853-01ab8a1b668a" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="07bf6180-cb55-83d6-9c96-011d1ac70d83" class="bulleted-list" dir="auto"><li style="list-style-type:disc">UNIVERSITY 1 : DEPARTMENT 0..N</li></ul><ul id="750f6180-cb55-8228-91c8-8117fea3b14f" class="bulleted-list" dir="auto"><li style="list-style-type:disc">UK: <code>(UNIVERSITY_ID, NAME)</code> (같은 학교 안에서 학과명 중복 불가)</li></ul><ul id="bb5f6180-cb55-8278-9de9-01f9ee36a0bb" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(UNIVERSITY_ID, TOTAL_SCORE DESC)</code> (교내 학과 순위 조회)</li></ul><h3 id="c30f6180-cb55-83ba-9496-810baa5e48b8" class="" dir="auto">USER</h3><p id="b28f6180-cb55-83fd-af5f-817fe8db157c" class="" dir="auto">회원 정보와 개인 기여도를 저장한다. 실제 테이블명은 <code>users</code>이다.</p><table id="f78f6180-cb55-830b-bf76-0165f2337405" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="2d1f6180-cb55-8228-8439-011e7ba144e6" dir="ltr"><th id="dwRF" class="simple-table-header-color simple-table-header">컬럼</th><th id="Bg:@" class="simple-table-header-color simple-table-header">설명</th><th id="rzEn" class="simple-table-header-color simple-table-header">타입</th><th id="{na[" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="fbdf6180-cb55-826e-81ff-010209036ca4" dir="ltr"><td id="dwRF" class="">ID</td><td id="Bg:@" class="">회원 ID</td><td id="rzEn" class="">BIGINT</td><td id="{na[" class="">PK, AUTO_INCREMENT</td></tr><tr id="1b3f6180-cb55-82bf-8282-014b9d60628d" dir="ltr"><td id="dwRF" class="">UNIVERSITY_ID</td><td id="Bg:@" class="">소속 학교 ID</td><td id="rzEn" class="">BIGINT</td><td id="{na[" class="">FK → UNIVERSITY.ID, NN</td></tr><tr id="5bcf6180-cb55-833d-99b0-01c5c1fa0f59" dir="ltr"><td id="dwRF" class="">DEPARTMENT_ID</td><td id="Bg:@" class="">소속 학과 ID</td><td id="rzEn" class="">BIGINT</td><td id="{na[" class="">FK → DEPARTMENT.ID, NN</td></tr><tr id="09af6180-cb55-83fc-9fe1-811a1dd468d9" dir="ltr"><td id="dwRF" class="">CLICKER_ID</td><td id="Bg:@" class="">현재 클리커 (레벨)</td><td id="rzEn" class="">BIGINT</td><td id="{na[" class="">FK → CLICKER.ID, NN, DEFAULT <code>1</code></td></tr><tr id="741f6180-cb55-8329-b90e-016935c9e0bb" dir="ltr"><td id="dwRF" class="">ROLE</td><td id="Bg:@" class="">권한</td><td id="rzEn" class="">VARCHAR(20)</td><td id="{na[" class="">NN, DEFAULT <code>&#x27;USER&#x27;</code> (<code>USER</code> / <code>ADMIN</code>)</td></tr><tr id="c81f6180-cb55-820e-a601-014dd3bd1830" dir="ltr"><td id="dwRF" class="">NICKNAME</td><td id="Bg:@" class="">닉네임</td><td id="rzEn" class="">VARCHAR(30)</td><td id="{na[" class="">NN, UK</td></tr><tr id="3aaf6180-cb55-83c4-8433-016a75c64235" dir="ltr"><td id="dwRF" class="">EMAIL</td><td id="Bg:@" class="">학교 이메일 (암호화 저장)</td><td id="rzEn" class="">VARCHAR(512)</td><td id="{na[" class="">NN</td></tr><tr id="268f6180-cb55-8317-bfc4-814463a43844" dir="ltr"><td id="dwRF" class="">EMAIL_HASH</td><td id="Bg:@" class="">정규화한 이메일의 SHA-256</td><td id="rzEn" class="">CHAR(64)</td><td id="{na[" class="">NN, UK</td></tr><tr id="2a6f6180-cb55-8380-8cae-01209c03aaab" dir="ltr"><td id="dwRF" class="">PASSWORD</td><td id="Bg:@" class="">비밀번호 (BCrypt)</td><td id="rzEn" class="">VARCHAR(100)</td><td id="{na[" class="">NN</td></tr><tr id="6b3f6180-cb55-8339-a6a3-01494569f8fd" dir="ltr"><td id="dwRF" class="">APPROVED_AT</td><td id="Bg:@" class="">학교 이메일 인증 시각</td><td id="rzEn" class="">DATETIME(6)</td><td id="{na[" class="">NN</td></tr><tr id="5d2f6180-cb55-83ae-b006-811ee3a747ac" dir="ltr"><td id="dwRF" class="">TOTAL_CONTRIB_SCORE</td><td id="Bg:@" class="">누적 기여 점수 (순위·아이템 재화 겸용)</td><td id="rzEn" class="">BIGINT</td><td id="{na[" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="d3bf6180-cb55-828a-a87f-81b079d13251" dir="ltr"><td id="dwRF" class="">TOTAL_ATTACK_SCORE</td><td id="Bg:@" class="">누적 공격 점수</td><td id="rzEn" class="">BIGINT</td><td id="{na[" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="84cf6180-cb55-82b0-ab89-81e321b777b1" dir="ltr"><td id="dwRF" class="">LOGO_URL</td><td id="Bg:@" class="">프로필 이미지 URL (S3)</td><td id="rzEn" class="">VARCHAR(500)</td><td id="{na[" class="">NULL</td></tr><tr id="b06f6180-cb55-8306-b92f-0104972df467" dir="ltr"><td id="dwRF" class="">STATUS</td><td id="Bg:@" class="">계정 상태</td><td id="rzEn" class="">VARCHAR(20)</td><td id="{na[" class="">NN, DEFAULT <code>&#x27;ACTIVE&#x27;</code> (<code>ACTIVE</code> / <code>SUSPENDED</code> / <code>BANNED</code> / <code>WITHDRAWN</code>)</td></tr><tr id="6c7f6180-cb55-823e-aec8-01a4bd3dc068" dir="ltr"><td id="dwRF" class="">CREATED_AT</td><td id="Bg:@" class="">가입 시각</td><td id="rzEn" class="">DATETIME(6)</td><td id="{na[" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="54cf6180-cb55-83f6-a668-812fcce439a0" dir="ltr"><td id="dwRF" class="">UPDATED_AT</td><td id="Bg:@" class="">수정 시각</td><td id="rzEn" class="">DATETIME(6)</td><td id="{na[" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr><tr id="d2ff6180-cb55-8220-a016-81ac3869d3d5" dir="ltr"><td id="dwRF" class="">DELETED_AT</td><td id="Bg:@" class="">탈퇴 시각</td><td id="rzEn" class="">DATETIME(6)</td><td id="{na[" class="">NULL</td></tr></tbody></table><p id="aaaf6180-cb55-82ef-863e-813b64ed9e50" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="6fdf6180-cb55-82b9-b118-8168b340139b" class="bulleted-list" dir="auto"><li style="list-style-type:disc">UNIVERSITY 1 : USER 0..N / DEPARTMENT 1 : USER 0..N / CLICKER 1 : USER 0..N</li></ul><ul id="c1bf6180-cb55-8225-be0e-81a81f949a77" class="bulleted-list" dir="auto"><li style="list-style-type:disc">이메일은 암호화해서 저장하므로 유일성은 EMAIL_HASH의 UK로 보장한다.</li></ul><ul id="6cef6180-cb55-823e-a115-819fe59d5a47" class="bulleted-list" dir="auto"><li style="list-style-type:disc">탈퇴(soft delete)한 회원의 재가입 정책은 별도로 정한다. EMAIL_HASH의 UK 때문에 같은 이메일로 바로 재가입할 수 없다.</li></ul><ul id="0a2f6180-cb55-8351-9b2a-01e1f70f1de5" class="bulleted-list" dir="auto"><li style="list-style-type:disc">소속 학교는 인증한 이메일 도메인으로 서버가 확정한다. 클라이언트 입력값은 사용하지 않는다.</li></ul><ul id="0b2f6180-cb55-83d1-8daa-8188e47b2a10" class="bulleted-list" dir="auto"><li style="list-style-type:disc">TOTAL_CONTRIB_SCORE는 Redis가 원본이다. 아이템을 구매할 때 Redis에서 원자적으로 차감하고, 1분마다 DB에 배치로 반영한다.</li></ul><ul id="decf6180-cb55-825a-a8d1-0156105fc2ed" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(UNIVERSITY_ID, TOTAL_CONTRIB_SCORE DESC)</code> (교내 개인 순위 조회)</li></ul><h3 id="061f6180-cb55-83de-bd83-01782f47eba4" class="" dir="auto">CLICKER</h3><p id="e1af6180-cb55-822c-96e6-8174e6b993bf" class="" dir="auto">클리커 레벨별 클릭 세기와 업그레이드 조건을 저장한다.</p><table id="f73f6180-cb55-83e9-952e-81384da7c79a" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="5baf6180-cb55-826c-a1e2-81aed3737ac2" dir="ltr"><th id="Byvi" class="simple-table-header-color simple-table-header">컬럼</th><th id=";zLC" class="simple-table-header-color simple-table-header">설명</th><th id="KTQp" class="simple-table-header-color simple-table-header">타입</th><th id="}~Vq" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="a2af6180-cb55-83aa-bfa0-0123909a7d81" dir="ltr"><td id="Byvi" class="">ID</td><td id=";zLC" class="">클리커 ID (= 레벨)</td><td id="KTQp" class="">BIGINT</td><td id="}~Vq" class="">PK</td></tr><tr id="360f6180-cb55-82c2-9125-813bedaf1612" dir="ltr"><td id="Byvi" class="">CLICK_POWER</td><td id=";zLC" class="">클릭 1회당 점수</td><td id="KTQp" class="">INT</td><td id="}~Vq" class="">NN, CHECK <code>&gt; 0</code></td></tr><tr id="b6ef6180-cb55-8386-b4b0-811b8fb07371" dir="ltr"><td id="Byvi" class="">REQUIRED_SCORE</td><td id=";zLC" class="">이 레벨에 도달하는 데 필요한 기여도</td><td id="KTQp" class="">BIGINT</td><td id="}~Vq" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="5aff6180-cb55-836f-9f85-018ec061c294" dir="ltr"><td id="Byvi" class="">CREATED_AT</td><td id=";zLC" class="">생성 시각</td><td id="KTQp" class="">DATETIME(6)</td><td id="}~Vq" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="b7af6180-cb55-82fd-ba92-0111b68f0de0" dir="ltr"><td id="Byvi" class="">UPDATED_AT</td><td id=";zLC" class="">수정 시각</td><td id="KTQp" class="">DATETIME(6)</td><td id="}~Vq" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="10ef6180-cb55-837b-8d63-0150fb6d26a4" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="596f6180-cb55-83b0-8e6b-01cdae74b777" class="bulleted-list" dir="auto"><li style="list-style-type:disc">CLICKER 1 : USER 0..N</li></ul><ul id="115f6180-cb55-8206-8992-815cc978d58b" class="bulleted-list" dir="auto"><li style="list-style-type:disc">마스터 데이터이다. ID 1은 기본 클리커(REQUIRED_SCORE = 0)로 반드시 존재해야 한다.</li></ul><h3 id="a80f6180-cb55-8280-bb64-81964faa7484" class="" dir="auto">ITEM</h3><p id="d1af6180-cb55-83c6-aba2-013174a704d1" class="" dir="auto">아이템 마스터 데이터를 저장한다.</p><table id="fd0f6180-cb55-8244-bb47-01b9911a2fd2" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="136f6180-cb55-8381-8bd2-81a0032653c3" dir="ltr"><th id="SLBm" class="simple-table-header-color simple-table-header">컬럼</th><th id="ABwr" class="simple-table-header-color simple-table-header">설명</th><th id="Be`U" class="simple-table-header-color simple-table-header">타입</th><th id="o_Pi" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="ad9f6180-cb55-8378-a8ab-810f3f6fe340" dir="ltr"><td id="SLBm" class="">ID</td><td id="ABwr" class="">아이템 ID</td><td id="Be`U" class="">BIGINT</td><td id="o_Pi" class="">PK, AUTO_INCREMENT</td></tr><tr id="2fff6180-cb55-8229-a6f8-01c5aaa2f169" dir="ltr"><td id="SLBm" class="">NAME</td><td id="ABwr" class="">아이템명</td><td id="Be`U" class="">VARCHAR(50)</td><td id="o_Pi" class="">NN, UK</td></tr><tr id="022f6180-cb55-831d-b7e1-81552be1b4b3" dir="ltr"><td id="SLBm" class="">CONTENT</td><td id="ABwr" class="">아이템 설명</td><td id="Be`U" class="">VARCHAR(255)</td><td id="o_Pi" class="">NN</td></tr><tr id="18cf6180-cb55-820b-a552-81467721b1e2" dir="ltr"><td id="SLBm" class="">PAY_TYPE</td><td id="ABwr" class="">구매 수단</td><td id="Be`U" class="">VARCHAR(20)</td><td id="o_Pi" class="">NN, DEFAULT <code>&#x27;CONTRIBUTION&#x27;</code> (<code>CONTRIBUTION</code> / <code>CASH</code>)</td></tr><tr id="afff6180-cb55-8213-9f92-0140dfa37d71" dir="ltr"><td id="SLBm" class="">PRICE</td><td id="ABwr" class="">가격 (CONTRIBUTION이면 기여도, CASH이면 원)</td><td id="Be`U" class="">BIGINT</td><td id="o_Pi" class="">NN, CHECK <code>&gt;= 0</code></td></tr><tr id="835f6180-cb55-83ab-b851-011894e65da4" dir="ltr"><td id="SLBm" class="">DURATION</td><td id="ABwr" class="">효과 지속시간 (초)</td><td id="Be`U" class="">INT</td><td id="o_Pi" class="">NN, CHECK <code>&gt; 0</code></td></tr><tr id="9acf6180-cb55-82ad-ac63-01af4daaa554" dir="ltr"><td id="SLBm" class="">CREATED_AT</td><td id="ABwr" class="">생성 시각</td><td id="Be`U" class="">DATETIME(6)</td><td id="o_Pi" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="744f6180-cb55-8373-8092-812c382fa31a" dir="ltr"><td id="SLBm" class="">UPDATED_AT</td><td id="ABwr" class="">수정 시각</td><td id="Be`U" class="">DATETIME(6)</td><td id="o_Pi" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="dfaf6180-cb55-832f-be7d-819cd3102581" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="6f8f6180-cb55-82fc-a592-8107c90babb7" class="bulleted-list" dir="auto"><li style="list-style-type:disc">ITEM 1 : USER_ITEM 0..N / ITEM 1 : PAYMENT 0..N</li></ul><ul id="573f6180-cb55-826d-afed-81b0e72156e8" class="bulleted-list" dir="auto"><li style="list-style-type:disc">PAY_TYPE이 <code>CASH</code>인 아이템(3종)은 반드시 PAYMENT를 거쳐야 하고, 기여도로는 살 수 없다.</li></ul><ul id="503f6180-cb55-8308-a38d-8127af008e9d" class="bulleted-list" dir="auto"><li style="list-style-type:disc">구매하는 즉시 적용된다. 보관할 수 없다.</li></ul><ul id="bd2f6180-cb55-831b-8297-81e020915baa" class="bulleted-list" dir="auto"><li style="list-style-type:disc">적용 중인 효과는 Redis에서 관리한다. (TTL = DURATION)</li></ul><h3 id="593f6180-cb55-8241-8a23-011f8bdcbf64" class="" dir="auto">USER_ITEM</h3><p id="451f6180-cb55-8352-8a19-01c2f5816589" class="" dir="auto">아이템 구매 이력을 저장한다. 구매 1건이 1행이다.</p><table id="045f6180-cb55-83f3-b143-01013c56b91e" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="62bf6180-cb55-82d5-b4a3-011de95068de" dir="ltr"><th id="pzhG" class="simple-table-header-color simple-table-header">컬럼</th><th id="}gZf" class="simple-table-header-color simple-table-header">설명</th><th id="kCUX" class="simple-table-header-color simple-table-header">타입</th><th id="TEFx" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="92bf6180-cb55-820c-b2a9-8153c107a2e0" dir="ltr"><td id="pzhG" class="">ID</td><td id="}gZf" class="">구매 ID</td><td id="kCUX" class="">BIGINT</td><td id="TEFx" class="">PK, AUTO_INCREMENT</td></tr><tr id="a1bf6180-cb55-833f-aba6-816d94e77790" dir="ltr"><td id="pzhG" class="">USER_ID</td><td id="}gZf" class="">구매 회원 ID</td><td id="kCUX" class="">BIGINT</td><td id="TEFx" class="">FK → USER.ID, NN</td></tr><tr id="f63f6180-cb55-82db-a3a8-81621ffea90f" dir="ltr"><td id="pzhG" class="">ITEM_ID</td><td id="}gZf" class="">아이템 ID</td><td id="kCUX" class="">BIGINT</td><td id="TEFx" class="">FK → ITEM.ID, NN</td></tr><tr id="f76f6180-cb55-828a-b614-0169f382e814" dir="ltr"><td id="pzhG" class="">PAYMENT_ID</td><td id="}gZf" class="">결제 ID (CASH 아이템일 때만)</td><td id="kCUX" class="">BIGINT</td><td id="TEFx" class="">FK → PAYMENT.ID, NULL, UK</td></tr><tr id="0f4f6180-cb55-82ea-a360-010d639683a4" dir="ltr"><td id="pzhG" class="">PRICE</td><td id="}gZf" class="">구매 당시 가격 (스냅샷)</td><td id="kCUX" class="">BIGINT</td><td id="TEFx" class="">NN, CHECK <code>&gt;= 0</code></td></tr><tr id="661f6180-cb55-83a8-95eb-810bc0c7c5cb" dir="ltr"><td id="pzhG" class="">EXPIRED_AT</td><td id="}gZf" class="">효과 종료 시각 (= 구매 시각 + DURATION)</td><td id="kCUX" class="">DATETIME(6)</td><td id="TEFx" class="">NN</td></tr><tr id="a7ff6180-cb55-82f3-88e7-8183feca788a" dir="ltr"><td id="pzhG" class="">CREATED_AT</td><td id="}gZf" class="">구매 시각</td><td id="kCUX" class="">DATETIME(6)</td><td id="TEFx" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="911f6180-cb55-83c4-b886-0192dbf8a827" dir="ltr"><td id="pzhG" class="">UPDATED_AT</td><td id="}gZf" class="">수정 시각</td><td id="kCUX" class="">DATETIME(6)</td><td id="TEFx" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="c33f6180-cb55-82ad-add5-013c49c41236" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="20df6180-cb55-8279-931f-014081911420" class="bulleted-list" dir="auto"><li style="list-style-type:disc">USER 1 : USER_ITEM 0..N / ITEM 1 : USER_ITEM 0..N / PAYMENT 0..1 : USER_ITEM 0..1</li></ul><ul id="ef9f6180-cb55-82ff-8228-0145930dc0ad" class="bulleted-list" dir="auto"><li style="list-style-type:disc">기여도 아이템은 PAYMENT_ID가 NULL, CASH 아이템은 PAYMENT_ID가 NN이다 (애플리케이션에서 검증).</li></ul><ul id="3f4f6180-cb55-8383-b814-01f62c60f387" class="bulleted-list" dir="auto"><li style="list-style-type:disc">PAYMENT_ID의 UK로 결제 1건에 아이템이 두 번 지급되는 것을 막는다 (MySQL UK는 NULL 중복 허용).</li></ul><ul id="efbf6180-cb55-8369-be71-01720e3de732" class="bulleted-list" dir="auto"><li style="list-style-type:disc">기여도 차감·결제 근거로 쓴다. 수정하거나 삭제하지 않는다.</li></ul><ul id="842f6180-cb55-8340-936d-0172d2160e28" class="bulleted-list" dir="auto"><li style="list-style-type:disc">Redis가 재시작되면 <code>EXPIRED_AT &gt; NOW()</code>인 행으로 적용 중인 효과를 복구한다.</li></ul><ul id="472f6180-cb55-826c-b002-81940ba5c7d2" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(USER_ID, EXPIRED_AT)</code></li></ul><h3 id="ffbf6180-cb55-822a-8dc7-8189b171baf3" class="" dir="auto">PAYMENT</h3><p id="c76f6180-cb55-83e1-9d71-01fe4b94fc77" class="" dir="auto">CASH 아이템의 토스페이먼츠 결제 정보를 저장한다. 결제 1건이 1행이다.</p><table id="413f6180-cb55-8390-a87f-818905caa5f4" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="53ef6180-cb55-8308-88b1-01d2ebc32d28" dir="ltr"><th id="?Nh|" class="simple-table-header-color simple-table-header">컬럼</th><th id="P:UO" class="simple-table-header-color simple-table-header">설명</th><th id="WQ`R" class="simple-table-header-color simple-table-header">타입</th><th id="irTX" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="50ff6180-cb55-8384-987c-01fcbcaf35dd" dir="ltr"><td id="?Nh|" class="">ID</td><td id="P:UO" class="">결제 ID</td><td id="WQ`R" class="">BIGINT</td><td id="irTX" class="">PK, AUTO_INCREMENT</td></tr><tr id="f37f6180-cb55-8361-adf8-816f94e6cd39" dir="ltr"><td id="?Nh|" class="">ORDER_ID</td><td id="P:UO" class="">토스 <code>orderId</code> (서버 생성 UUID)</td><td id="WQ`R" class="">VARCHAR(64)</td><td id="irTX" class="">NN, UK, 6~64자, 영문·숫자·<code>-</code>·<code>_</code>·<code>=</code>만 허용</td></tr><tr id="d93f6180-cb55-8305-bd00-017197b93771" dir="ltr"><td id="?Nh|" class="">ORDER_NAME</td><td id="P:UO" class="">토스 <code>orderName</code> (아이템명 스냅샷)</td><td id="WQ`R" class="">VARCHAR(100)</td><td id="irTX" class="">NN</td></tr><tr id="963f6180-cb55-83d5-aaf3-011038b15ebb" dir="ltr"><td id="?Nh|" class="">USER_ID</td><td id="P:UO" class="">결제 회원 ID</td><td id="WQ`R" class="">BIGINT</td><td id="irTX" class="">FK → USER.ID, NN</td></tr><tr id="1c3f6180-cb55-8216-a9cd-014935c700a9" dir="ltr"><td id="?Nh|" class="">ITEM_ID</td><td id="P:UO" class="">결제 아이템 ID</td><td id="WQ`R" class="">BIGINT</td><td id="irTX" class="">FK → ITEM.ID, NN</td></tr><tr id="d12f6180-cb55-83ad-8d29-0156cd1428b0" dir="ltr"><td id="?Nh|" class="">AMOUNT</td><td id="P:UO" class="">결제 금액 (원)</td><td id="WQ`R" class="">BIGINT</td><td id="irTX" class="">NN, CHECK <code>&gt; 0</code></td></tr><tr id="c16f6180-cb55-8348-8f7a-01f5b1a326a8" dir="ltr"><td id="?Nh|" class="">STATUS</td><td id="P:UO" class="">결제 상태</td><td id="WQ`R" class="">VARCHAR(20)</td><td id="irTX" class="">NN, DEFAULT <code>&#x27;READY&#x27;</code> (<code>READY</code> / <code>IN_PROGRESS</code> / <code>DONE</code> / <code>ABORTED</code> / <code>EXPIRED</code> / <code>CANCELED</code>)</td></tr><tr id="9cdf6180-cb55-822b-a806-8139ede34972" dir="ltr"><td id="?Nh|" class="">PAYMENT_KEY</td><td id="P:UO" class="">토스 <code>paymentKey</code></td><td id="WQ`R" class="">VARCHAR(200)</td><td id="irTX" class="">NULL (인증 전), UK</td></tr><tr id="d13f6180-cb55-820f-b4a3-81ca804a20c3" dir="ltr"><td id="?Nh|" class="">METHOD</td><td id="P:UO" class="">토스 <code>method</code> (<code>카드</code>, <code>간편결제</code>, <code>휴대폰</code> 등)</td><td id="WQ`R" class="">VARCHAR(20)</td><td id="irTX" class="">NULL</td></tr><tr id="8bbf6180-cb55-8305-83c7-0158d4286292" dir="ltr"><td id="?Nh|" class="">FAIL_CODE</td><td id="P:UO" class="">실패 코드 (failUrl <code>code</code> 또는 승인 API 에러 코드)</td><td id="WQ`R" class="">VARCHAR(100)</td><td id="irTX" class="">NULL</td></tr><tr id="090f6180-cb55-838d-aa0f-011b86db7464" dir="ltr"><td id="?Nh|" class="">FAIL_MESSAGE</td><td id="P:UO" class="">실패 메시지</td><td id="WQ`R" class="">VARCHAR(255)</td><td id="irTX" class="">NULL</td></tr><tr id="d70f6180-cb55-82db-bbf7-0111dee39ebe" dir="ltr"><td id="?Nh|" class="">CANCEL_REASON</td><td id="P:UO" class="">취소 사유 (토스 <code>cancelReason</code>)</td><td id="WQ`R" class="">VARCHAR(200)</td><td id="irTX" class="">NULL</td></tr><tr id="96af6180-cb55-836f-b9d1-811c54ba62c8" dir="ltr"><td id="?Nh|" class="">REQUESTED_AT</td><td id="P:UO" class="">토스 <code>requestedAt</code> (결제 요청 시각)</td><td id="WQ`R" class="">DATETIME(6)</td><td id="irTX" class="">NULL</td></tr><tr id="043f6180-cb55-82d0-8b6d-0136763dab16" dir="ltr"><td id="?Nh|" class="">APPROVED_AT</td><td id="P:UO" class="">토스 <code>approvedAt</code> (승인 시각)</td><td id="WQ`R" class="">DATETIME(6)</td><td id="irTX" class="">NULL</td></tr><tr id="c10f6180-cb55-8276-8f5a-81ae08a6dba3" dir="ltr"><td id="?Nh|" class="">CANCELED_AT</td><td id="P:UO" class="">취소 시각 (토스 <code>cancels[].canceledAt</code>)</td><td id="WQ`R" class="">DATETIME(6)</td><td id="irTX" class="">NULL</td></tr><tr id="098f6180-cb55-8382-82f1-8195737f37e8" dir="ltr"><td id="?Nh|" class="">CREATED_AT</td><td id="P:UO" class="">주문 생성 시각</td><td id="WQ`R" class="">DATETIME(6)</td><td id="irTX" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="759f6180-cb55-8205-b196-0186671ec1fc" dir="ltr"><td id="?Nh|" class="">UPDATED_AT</td><td id="P:UO" class="">수정 시각</td><td id="WQ`R" class="">DATETIME(6)</td><td id="irTX" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="aaaf6180-cb55-82c5-ba94-816787a6464c" class="" dir="auto"><strong>상태 정의</strong> (토스 Payment <code>status</code>와 이름을 맞춤)</p><table id="ffef6180-cb55-832a-b4b7-01c658215818" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="80ef6180-cb55-8236-8d30-01385a8ff97b" dir="ltr"><th id="[&gt;:P" class="simple-table-header-color simple-table-header">STATUS</th><th id="=&gt;WZ" class="simple-table-header-color simple-table-header">의미</th><th id="OCqF" class="simple-table-header-color simple-table-header">바뀌는 시점</th></tr></thead><tbody><tr id="6bcf6180-cb55-8216-9805-012a66d22cff" dir="ltr"><td id="[&gt;:P" class="">READY</td><td id="=&gt;WZ" class="">주문 생성, 결제창 호출 전</td><td id="OCqF" class="">서버가 주문을 만들 때</td></tr><tr id="780f6180-cb55-83ab-af90-012f25d7f721" dir="ltr"><td id="[&gt;:P" class="">IN_PROGRESS</td><td id="=&gt;WZ" class="">승인 API 호출 중</td><td id="OCqF" class="">서버가 승인 API를 호출하기 직전 (중복 승인 방지용 잠금)</td></tr><tr id="681f6180-cb55-82bc-a0d5-814e25804e2f" dir="ltr"><td id="[&gt;:P" class="">DONE</td><td id="=&gt;WZ" class="">승인 완료</td><td id="OCqF" class="">승인 API 응답 <code>status = DONE</code></td></tr><tr id="c7cf6180-cb55-8379-880c-01de9dfe623e" dir="ltr"><td id="[&gt;:P" class="">ABORTED</td><td id="=&gt;WZ" class="">결제 실패</td><td id="OCqF" class="">failUrl로 돌아왔거나 승인 API가 실패했을 때</td></tr><tr id="8f4f6180-cb55-83ed-8a18-0197d2cc0d2c" dir="ltr"><td id="[&gt;:P" class="">EXPIRED</td><td id="=&gt;WZ" class="">유효 시간 초과</td><td id="OCqF" class="">일정 시간 동안 READY로 남은 주문을 배치로 정리할 때</td></tr><tr id="e03f6180-cb55-83b3-b0d7-019845b6671f" dir="ltr"><td id="[&gt;:P" class="">CANCELED</td><td id="=&gt;WZ" class="">결제 취소(환불)</td><td id="OCqF" class="">취소 API 응답 <code>status = CANCELED</code></td></tr></tbody></table><ul id="89af6180-cb55-8315-8e3e-813e790f7798" class="bulleted-list" dir="auto"><li style="list-style-type:disc">상태 전이: <code>READY → IN_PROGRESS → DONE → CANCELED</code>, <code>READY → ABORTED</code>, <code>IN_PROGRESS → ABORTED</code>, <code>READY → EXPIRED</code></li></ul><ul id="d13f6180-cb55-8268-886a-01d31566d26a" class="bulleted-list" dir="auto"><li style="list-style-type:disc">아이템은 전액 결제·전액 취소만 쓰므로 <code>PARTIAL_CANCELED</code>는 사용하지 않는다.</li></ul><ul id="ed5f6180-cb55-837c-b5f0-014d2b6b9fcc" class="bulleted-list" dir="auto"><li style="list-style-type:disc">가상계좌는 결제수단에서 제외한다. (<code>WAITING_FOR_DEPOSIT</code> 상태와 입금 웹훅 처리가 필요 없어짐)</li></ul><p id="808f6180-cb55-83c0-a10c-01337f4a6e89" class="" dir="auto"><strong>결제 흐름</strong></p><table id="a40f6180-cb55-83e3-9650-812d7b0e9b71" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="236f6180-cb55-82c1-84cc-81f36f681a2d" dir="ltr"><th id="=Hjk" class="simple-table-header-color simple-table-header">단계</th><th id="=i]|" class="simple-table-header-color simple-table-header">주체</th><th id="PRDg" class="simple-table-header-color simple-table-header">처리</th></tr></thead><tbody><tr id="6ecf6180-cb55-8331-aa52-0152eae3ea28" dir="ltr"><td id="=Hjk" class="">1. 주문 생성</td><td id="=i]|" class="">서버</td><td id="PRDg" class=""><code>POST /api/payments</code> (itemId) → ITEM.PAY_TYPE이 <code>CASH</code>인지 확인 → PAYMENT를 <code>READY</code>로 INSERT (ORDER_ID = UUID, AMOUNT = ITEM.PRICE) → orderId, orderName, amount 응답</td></tr><tr id="399f6180-cb55-82ba-9f98-019cddc91069" dir="ltr"><td id="=Hjk" class="">2. 결제창 호출</td><td id="=i]|" class="">프론트</td><td id="PRDg" class="">토스 SDK <code>requestPayment</code>에 orderId, orderName, 금액, successUrl, failUrl 전달</td></tr><tr id="8eff6180-cb55-82bb-80c0-81032f1ab24b" dir="ltr"><td id="=Hjk" class="">3-1. 인증 성공</td><td id="=i]|" class="">프론트 → 서버</td><td id="PRDg" class="">successUrl로 <code>paymentKey</code>, <code>orderId</code>, <code>amount</code>를 받아 <code>POST /api/payments/confirm</code>으로 전달</td></tr><tr id="e9ef6180-cb55-8268-b5bc-0136c2877bb7" dir="ltr"><td id="=Hjk" class="">3-2. 인증 실패</td><td id="=i]|" class="">프론트 → 서버</td><td id="PRDg" class="">failUrl로 <code>code</code>, <code>message</code>, <code>orderId</code>를 받아 서버에 전달 → <code>ABORTED</code> (승인 API 호출 안 함)</td></tr><tr id="74af6180-cb55-8361-99a2-81f24d698ef5" dir="ltr"><td id="=Hjk" class="">4. 검증</td><td id="=i]|" class="">서버</td><td id="PRDg" class="">ORDER_ID로 조회 → 본인 주문인지, <code>STATUS = READY</code>인지, <code>amount = AMOUNT</code>인지 확인</td></tr><tr id="a5ef6180-cb55-82f2-b42c-819f0194dee2" dir="ltr"><td id="=Hjk" class="">5. 잠금</td><td id="=i]|" class="">서버</td><td id="PRDg" class=""><code>UPDATE payment SET status = &#x27;IN_PROGRESS&#x27;, payment_key = ? WHERE order_id = ? AND status = &#x27;READY&#x27;</code> → 영향받은 행이 0이면 중복 요청이므로 중단</td></tr><tr id="183f6180-cb55-83fa-ba15-81d76e55948b" dir="ltr"><td id="=Hjk" class="">6. 승인</td><td id="=i]|" class="">서버 → 토스</td><td id="PRDg" class=""><code>POST /v1/payments/confirm</code> (paymentKey, orderId, amount), 헤더 <code>Authorization: Basic base64(시크릿키 + &quot;:&quot;)</code></td></tr><tr id="ba1f6180-cb55-83ef-bfc4-814612201977" dir="ltr"><td id="=Hjk" class="">7-1. 승인 성공</td><td id="=i]|" class="">서버</td><td id="PRDg" class="">한 트랜잭션에서 STATUS <code>DONE</code>, METHOD·REQUESTED_AT·APPROVED_AT 저장 + USER_ITEM INSERT → 커밋 후 Redis에 아이템 효과 적용</td></tr><tr id="b57f6180-cb55-8325-9541-015f5e6abd18" dir="ltr"><td id="=Hjk" class="">7-2. 승인 실패</td><td id="=i]|" class="">서버</td><td id="PRDg" class="">STATUS <code>ABORTED</code>, FAIL_CODE·FAIL_MESSAGE 저장</td></tr></tbody></table><p id="ed1f6180-cb55-83ac-878d-81989bf37843" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="7bef6180-cb55-82f0-9339-01a3c1f6670c" class="bulleted-list" dir="auto"><li style="list-style-type:disc">USER 1 : PAYMENT 0..N / ITEM 1 : PAYMENT 0..N / PAYMENT 0..1 : USER_ITEM 0..1</li></ul><ul id="527f6180-cb55-8311-aea8-81102f6a194e" class="bulleted-list" dir="auto"><li style="list-style-type:disc">AMOUNT는 서버가 ITEM.PRICE로 확정한다. 클라이언트가 보낸 금액은 검증용으로만 쓴다.</li></ul><ul id="61bf6180-cb55-8392-bce5-015eb856da3e" class="bulleted-list" dir="auto"><li style="list-style-type:disc">토스 승인 API 호출은 DB 트랜잭션 밖에서 한다. 외부 HTTP 호출 동안 DB 커넥션과 락을 잡고 있지 않기 위해서다.</li></ul><ul id="8aaf6180-cb55-83f0-94d3-81da0e432693" class="bulleted-list" dir="auto"><li style="list-style-type:disc">승인 API가 타임아웃 나면 실패로 단정하지 않는다. 결제 조회 API(<code>GET /v1/payments/orders/{orderId}</code>)로 실제 상태를 확인한 뒤 DONE 또는 ABORTED로 맞춘다.</li></ul><ul id="f25f6180-cb55-824e-b443-81f7044f49a8" class="bulleted-list" dir="auto"><li style="list-style-type:disc"><code>IN_PROGRESS</code>로 오래 남은 결제는 배치가 조회 API로 상태를 다시 맞춘다.</li></ul><ul id="7e0f6180-cb55-8387-9851-014a5a3fc651" class="bulleted-list" dir="auto"><li style="list-style-type:disc">토스 인증 후 일정 시간 안에 승인하지 않으면 결제가 만료된다. 문서상 시간이 10분과 30분으로 다르게 적혀 있어 실제 연동할 때 확인한다. <code>READY</code>로 30분 이상 남은 주문은 배치로 <code>EXPIRED</code> 처리한다.</li></ul><ul id="393f6180-cb55-82e8-b1dc-01635a3e4681" class="bulleted-list" dir="auto"><li style="list-style-type:disc">웹훅(결제 상태 변경 이벤트)을 받으면 본문을 그대로 믿지 않고, paymentKey로 조회 API를 다시 호출해 상태를 확인한다.</li></ul><ul id="abaf6180-cb55-83e8-a9a2-818186e17de6" class="bulleted-list" dir="auto"><li style="list-style-type:disc">환불은 <code>POST /v1/payments/{paymentKey}/cancel</code> (cancelReason)로 요청하고, 헤더에 멱등키(UUID)를 넣어 중복 취소를 막는다.</li></ul><ul id="b3ef6180-cb55-8297-8358-81ceaadaaa55" class="bulleted-list" dir="auto"><li style="list-style-type:disc">아이템은 구매 즉시 적용되므로 환불 정책(예: 효과 적용 후 환불 불가)은 별도로 정한다.</li></ul><ul id="6f5f6180-cb55-8286-9ee7-8158dd24792f" class="bulleted-list" dir="auto"><li style="list-style-type:disc">시크릿 키는 서버 환경변수로만 관리하고 프론트에는 클라이언트 키만 둔다.</li></ul><ul id="cdef6180-cb55-83f2-91ca-81655259544d" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(USER_ID, CREATED_AT DESC)</code> (결제 내역 조회), <code>(STATUS, CREATED_AT)</code> (미완료 결제 정리)</li></ul><h3 id="222f6180-cb55-82e5-a1a2-01c8e3f6a353" class="" dir="auto">REFRESH_TOKEN</h3><p id="80af6180-cb55-83b2-b96f-8121c1e1e6b8" class="" dir="auto">리프레시 토큰을 저장한다.</p><table id="d52f6180-cb55-8298-9f5b-018fe08d42a4" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="fc2f6180-cb55-83d7-b187-0155d452534d" dir="ltr"><th id="nvix" class="simple-table-header-color simple-table-header">컬럼</th><th id="Bn_L" class="simple-table-header-color simple-table-header">설명</th><th id="@RJv" class="simple-table-header-color simple-table-header">타입</th><th id="&lt;WUC" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="b07f6180-cb55-8272-82b8-813308b7dedd" dir="ltr"><td id="nvix" class="">ID</td><td id="Bn_L" class="">토큰 ID</td><td id="@RJv" class="">BIGINT</td><td id="&lt;WUC" class="">PK, AUTO_INCREMENT</td></tr><tr id="492f6180-cb55-833a-bb8d-81167e47ffd5" dir="ltr"><td id="nvix" class="">USER_ID</td><td id="Bn_L" class="">회원 ID</td><td id="@RJv" class="">BIGINT</td><td id="&lt;WUC" class="">FK → USER.ID, NN</td></tr><tr id="6edf6180-cb55-8230-9b93-816be0cae6e5" dir="ltr"><td id="nvix" class="">TOKEN</td><td id="Bn_L" class="">토큰의 SHA-256 해시</td><td id="@RJv" class="">CHAR(64)</td><td id="&lt;WUC" class="">NN, UK</td></tr><tr id="5d4f6180-cb55-83da-9d42-81c833c43efb" dir="ltr"><td id="nvix" class="">EXPIRED_AT</td><td id="Bn_L" class="">만료 시각</td><td id="@RJv" class="">DATETIME(6)</td><td id="&lt;WUC" class="">NN</td></tr><tr id="5bdf6180-cb55-8367-9e10-01656d6ddbaf" dir="ltr"><td id="nvix" class="">CREATED_AT</td><td id="Bn_L" class="">발급 시각</td><td id="@RJv" class="">DATETIME(6)</td><td id="&lt;WUC" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="4b1f6180-cb55-82f7-925a-015791dfafa5" dir="ltr"><td id="nvix" class="">UPDATED_AT</td><td id="Bn_L" class="">수정 시각</td><td id="@RJv" class="">DATETIME(6)</td><td id="&lt;WUC" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="09ef6180-cb55-837f-8051-8165e9890d2e" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="e2bf6180-cb55-838f-8fe0-819beb96fc5f" class="bulleted-list" dir="auto"><li style="list-style-type:disc">USER 1 : REFRESH_TOKEN 0..N</li></ul><ul id="b88f6180-cb55-8269-86ca-013b9c7fc938" class="bulleted-list" dir="auto"><li style="list-style-type:disc">토큰 원문은 저장하지 않고 해시로 저장한다.</li></ul><ul id="b4cf6180-cb55-830e-adb7-8102be94f3bc" class="bulleted-list" dir="auto"><li style="list-style-type:disc">재발급할 때 기존 토큰은 삭제한다 (Rotation).</li></ul><ul id="15bf6180-cb55-83ba-a672-01b91c56099d" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(USER_ID)</code></li></ul><h3 id="0f6f6180-cb55-822d-a615-01b3624ef021" class="" dir="auto">GUEST_BOOK</h3><p id="afef6180-cb55-838e-9613-016fac643b67" class="" dir="auto">타 학교 방명록을 저장한다.</p><table id="db9f6180-cb55-8237-8151-81ae4fd76a7d" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="f4cf6180-cb55-828b-995d-0149a5a408ba" dir="ltr"><th id="AaYG" class="simple-table-header-color simple-table-header">컬럼</th><th id="ncWA" class="simple-table-header-color simple-table-header">설명</th><th id="v:X}" class="simple-table-header-color simple-table-header">타입</th><th id="|heI" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="2cbf6180-cb55-8275-8c69-01ae9927260e" dir="ltr"><td id="AaYG" class="">ID</td><td id="ncWA" class="">방명록 ID</td><td id="v:X}" class="">BIGINT</td><td id="|heI" class="">PK, AUTO_INCREMENT</td></tr><tr id="44bf6180-cb55-8281-a15e-818fd6818503" dir="ltr"><td id="AaYG" class="">USER_ID</td><td id="ncWA" class="">작성 회원 ID</td><td id="v:X}" class="">BIGINT</td><td id="|heI" class="">FK → USER.ID, NN</td></tr><tr id="e09f6180-cb55-826d-99db-011b6fbebbd3" dir="ltr"><td id="AaYG" class="">UNIVERSITY_ID</td><td id="ncWA" class="">방명록을 남긴 학교 ID</td><td id="v:X}" class="">BIGINT</td><td id="|heI" class="">FK → UNIVERSITY.ID, NN</td></tr><tr id="704f6180-cb55-829c-9110-81bdfe31dcc9" dir="ltr"><td id="AaYG" class="">CONTENT</td><td id="ncWA" class="">내용</td><td id="v:X}" class="">VARCHAR(500)</td><td id="|heI" class="">NN</td></tr><tr id="449f6180-cb55-8279-85b5-0198fe40e757" dir="ltr"><td id="AaYG" class="">LIKE_COUNT</td><td id="ncWA" class="">좋아요 수</td><td id="v:X}" class="">INT</td><td id="|heI" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="cccf6180-cb55-82a2-8ae7-018419e42b37" dir="ltr"><td id="AaYG" class="">CREATED_AT</td><td id="ncWA" class="">작성 시각</td><td id="v:X}" class="">DATETIME(6)</td><td id="|heI" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="8c0f6180-cb55-83ec-9206-81e4e43a8237" dir="ltr"><td id="AaYG" class="">UPDATED_AT</td><td id="ncWA" class="">수정 시각</td><td id="v:X}" class="">DATETIME(6)</td><td id="|heI" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="9a1f6180-cb55-83b2-9496-8181719c96ff" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="158f6180-cb55-83fb-9656-81bfecb03640" class="bulleted-list" dir="auto"><li style="list-style-type:disc">USER 1 : GUEST_BOOK 0..N / UNIVERSITY 1 : GUEST_BOOK 0..N</li></ul><ul id="90df6180-cb55-826d-b9d7-0197f2ce1b1d" class="bulleted-list" dir="auto"><li style="list-style-type:disc">방명록은 삭제할 수 없다.</li></ul><ul id="feaf6180-cb55-8297-8f01-0138c6571327" class="bulleted-list" dir="auto"><li style="list-style-type:disc">화면에는 작성자 닉네임과 학교명을 표시한다.</li></ul><ul id="07af6180-cb55-830a-a8d1-018d146c976e" class="bulleted-list" dir="auto"><li style="list-style-type:disc">LIKE_COUNT는 GUEST_BOOK_LIKE를 INSERT·DELETE할 때 같은 트랜잭션에서 <code>+1</code>·<code>1</code>로 갱신한다.</li></ul><ul id="97df6180-cb55-8254-a1b4-81140c0c9df6" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(UNIVERSITY_ID, CREATED_AT DESC)</code> (학교별 최신 방명록 조회)</li></ul><h3 id="42ef6180-cb55-82de-a4db-81b84d421753" class="" dir="auto">GUEST_BOOK_LIKE</h3><p id="eb3f6180-cb55-83d2-9791-01c87992065d" class="" dir="auto">방명록 좋아요를 저장한다.</p><table id="e1bf6180-cb55-8356-bcdb-01ee618552fe" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="96df6180-cb55-8205-8b11-818c8cee5b51" dir="ltr"><th id=";RK:" class="simple-table-header-color simple-table-header">컬럼</th><th id="w&gt;zI" class="simple-table-header-color simple-table-header">설명</th><th id="oZ&gt;C" class="simple-table-header-color simple-table-header">타입</th><th id="wgvA" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="e91f6180-cb55-83dd-84a9-01f3acd93099" dir="ltr"><td id=";RK:" class="">GUEST_BOOK_ID</td><td id="w&gt;zI" class="">방명록 ID</td><td id="oZ&gt;C" class="">BIGINT</td><td id="wgvA" class="">PK, FK → GUEST_BOOK.ID</td></tr><tr id="096f6180-cb55-826a-8e24-816122e08a6b" dir="ltr"><td id=";RK:" class="">USER_ID</td><td id="w&gt;zI" class="">회원 ID</td><td id="oZ&gt;C" class="">BIGINT</td><td id="wgvA" class="">PK, FK → USER.ID</td></tr><tr id="84ff6180-cb55-8364-9c45-014083d32191" dir="ltr"><td id=";RK:" class="">CREATED_AT</td><td id="w&gt;zI" class="">생성 시각</td><td id="oZ&gt;C" class="">DATETIME(6)</td><td id="wgvA" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="a8cf6180-cb55-824c-989c-819a6f2da922" dir="ltr"><td id=";RK:" class="">UPDATED_AT</td><td id="w&gt;zI" class="">수정 시각</td><td id="oZ&gt;C" class="">DATETIME(6)</td><td id="wgvA" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="979f6180-cb55-82df-afcb-81b43cb6ce10" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="ca2f6180-cb55-8221-88eb-01cad94d9e11" class="bulleted-list" dir="auto"><li style="list-style-type:disc">GUEST_BOOK 1 : GUEST_BOOK_LIKE 0..N / USER 1 : GUEST_BOOK_LIKE 0..N</li></ul><ul id="a1df6180-cb55-8331-bf2c-81312966e576" class="bulleted-list" dir="auto"><li style="list-style-type:disc">복합 PK <code>(GUEST_BOOK_ID, USER_ID)</code>로 한 회원이 한 글에 좋아요를 한 번만 누를 수 있다.</li></ul><ul id="c52f6180-cb55-821f-a81c-81e2124a9553" class="bulleted-list" dir="auto"><li style="list-style-type:disc">좋아요를 취소하면 행을 실제로 삭제한다 (hard delete).</li></ul><h3 id="b31f6180-cb55-8356-b308-819c9a699b52" class="" dir="auto">CUSTOMER_SUPPORT</h3><p id="4c7f6180-cb55-827c-b1d9-814afc472115" class="" dir="auto">고객 문의를 저장한다.</p><table id="5a4f6180-cb55-82ad-9afe-011a17fe9350" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="3e2f6180-cb55-8268-a6b9-811545b2e387" dir="ltr"><th id=";`]l" class="simple-table-header-color simple-table-header">컬럼</th><th id="ghZ:" class="simple-table-header-color simple-table-header">설명</th><th id="MtY=" class="simple-table-header-color simple-table-header">타입</th><th id="oozs" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="68ff6180-cb55-8308-8e54-811d3d954e17" dir="ltr"><td id=";`]l" class="">ID</td><td id="ghZ:" class="">문의 ID</td><td id="MtY=" class="">BIGINT</td><td id="oozs" class="">PK, AUTO_INCREMENT</td></tr><tr id="3a6f6180-cb55-8330-bf21-81ae123c27ec" dir="ltr"><td id=";`]l" class="">USER_ID</td><td id="ghZ:" class="">문의 회원 ID</td><td id="MtY=" class="">BIGINT</td><td id="oozs" class="">FK → USER.ID, NULL (비회원 문의 허용)</td></tr><tr id="426f6180-cb55-8253-9d28-01dc9545c860" dir="ltr"><td id=";`]l" class="">RECIPIENT_EMAIL</td><td id="ghZ:" class="">답변 받을 이메일</td><td id="MtY=" class="">VARCHAR(255)</td><td id="oozs" class="">NN</td></tr><tr id="a95f6180-cb55-82dc-a297-015f62b469f2" dir="ltr"><td id=";`]l" class="">TITLE</td><td id="ghZ:" class="">제목</td><td id="MtY=" class="">VARCHAR(100)</td><td id="oozs" class="">NN</td></tr><tr id="fddf6180-cb55-824e-b841-01d6d2f00adc" dir="ltr"><td id=";`]l" class="">CONTENT</td><td id="ghZ:" class="">내용</td><td id="MtY=" class="">TEXT</td><td id="oozs" class="">NN</td></tr><tr id="ee2f6180-cb55-8357-b8d5-0148b757d8df" dir="ltr"><td id=";`]l" class="">ATTACH_FILE_URL</td><td id="ghZ:" class="">첨부 파일 URL (S3)</td><td id="MtY=" class="">VARCHAR(500)</td><td id="oozs" class="">NULL</td></tr><tr id="e7ef6180-cb55-8297-b268-010af16decee" dir="ltr"><td id=";`]l" class="">STATUS</td><td id="ghZ:" class="">처리 상태</td><td id="MtY=" class="">VARCHAR(20)</td><td id="oozs" class="">NN, DEFAULT <code>&#x27;RECEIVED&#x27;</code> (<code>RECEIVED</code> / <code>ANSWERED</code>)</td></tr><tr id="278f6180-cb55-8373-96b4-81de894fd4e6" dir="ltr"><td id=";`]l" class="">ANSWER_TITLE</td><td id="ghZ:" class="">답변 제목</td><td id="MtY=" class="">VARCHAR(100)</td><td id="oozs" class="">NULL</td></tr><tr id="80af6180-cb55-82bb-800d-01549486a18f" dir="ltr"><td id=";`]l" class="">ANSWER_CONTENT</td><td id="ghZ:" class="">답변 내용</td><td id="MtY=" class="">TEXT</td><td id="oozs" class="">NULL</td></tr><tr id="038f6180-cb55-82e3-acf0-81e6d9698c55" dir="ltr"><td id=";`]l" class="">CREATED_AT</td><td id="ghZ:" class="">접수 시각</td><td id="MtY=" class="">DATETIME(6)</td><td id="oozs" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="c14f6180-cb55-8244-88a4-81b9c8196645" dir="ltr"><td id=";`]l" class="">UPDATED_AT</td><td id="ghZ:" class="">수정 시각</td><td id="MtY=" class="">DATETIME(6)</td><td id="oozs" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr></tbody></table><p id="0f2f6180-cb55-8309-86a0-813b7f6dc08f" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="bc8f6180-cb55-8280-8466-0192c414ca52" class="bulleted-list" dir="auto"><li style="list-style-type:disc">USER 0..1 : CUSTOMER_SUPPORT 0..N</li></ul><ul id="4dcf6180-cb55-83d4-bda1-017d0093448e" class="bulleted-list" dir="auto"><li style="list-style-type:disc">STATUS가 <code>ANSWERED</code>이면 ANSWER_TITLE과 ANSWER_CONTENT는 NN이다 (애플리케이션에서 검증).</li></ul><ul id="1fcf6180-cb55-82f5-a71c-81b9196a0d99" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(STATUS, CREATED_AT)</code> (미답변 문의 조회)</li></ul><h3 id="b4cf6180-cb55-821e-b79c-0145f584ee43" class="" dir="auto">ALLIANCE</h3><p id="5bef6180-cb55-8265-8787-01541f211537" class="" dir="auto">연합 정보를 저장한다.</p><table id="c28f6180-cb55-8291-9a79-01ada9fe3537" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="db7f6180-cb55-828a-a2e9-81529ce05f7f" dir="ltr"><th id="EUiZ" class="simple-table-header-color simple-table-header">컬럼</th><th id="{uo|" class="simple-table-header-color simple-table-header">설명</th><th id="Z~;C" class="simple-table-header-color simple-table-header">타입</th><th id="K;je" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="f17f6180-cb55-836b-92f3-0151f63aec2d" dir="ltr"><td id="EUiZ" class="">ID</td><td id="{uo|" class="">연합 ID</td><td id="Z~;C" class="">BIGINT</td><td id="K;je" class="">PK, AUTO_INCREMENT</td></tr><tr id="33df6180-cb55-82ef-a10a-0164baa0462f" dir="ltr"><td id="EUiZ" class="">NAME</td><td id="{uo|" class="">연합명</td><td id="Z~;C" class="">VARCHAR(50)</td><td id="K;je" class="">NN</td></tr><tr id="773f6180-cb55-824e-85c4-815a135f65e6" dir="ltr"><td id="EUiZ" class="">TOTAL_SCORE</td><td id="{uo|" class="">연합 누적 점수</td><td id="Z~;C" class="">BIGINT</td><td id="K;je" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="f39f6180-cb55-82c5-ada6-017c93454c66" dir="ltr"><td id="EUiZ" class="">STATUS</td><td id="{uo|" class="">연합 상태</td><td id="Z~;C" class="">VARCHAR(20)</td><td id="K;je" class="">NN, DEFAULT <code>&#x27;ACTIVE&#x27;</code> (<code>ACTIVE</code> / <code>IN_MATCH</code> / <code>EXPIRED</code>)</td></tr><tr id="1b6f6180-cb55-833f-8a79-013de78cdfb7" dir="ltr"><td id="EUiZ" class="">EXPIRED_AT</td><td id="{uo|" class="">연합 만료 시각</td><td id="Z~;C" class="">DATETIME(6)</td><td id="K;je" class="">NULL</td></tr><tr id="62af6180-cb55-8220-94cf-015ece94914f" dir="ltr"><td id="EUiZ" class="">CREATED_AT</td><td id="{uo|" class="">생성 시각</td><td id="Z~;C" class="">DATETIME(6)</td><td id="K;je" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="88bf6180-cb55-82fd-aa8a-81e662fcdf55" dir="ltr"><td id="EUiZ" class="">UPDATED_AT</td><td id="{uo|" class="">수정 시각</td><td id="Z~;C" class="">DATETIME(6)</td><td id="K;je" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr><tr id="014f6180-cb55-8237-bd0e-0105c4e1c0bc" dir="ltr"><td id="EUiZ" class="">DELETED_AT</td><td id="{uo|" class="">삭제 시각</td><td id="Z~;C" class="">DATETIME(6)</td><td id="K;je" class="">NULL</td></tr></tbody></table><p id="265f6180-cb55-8378-846b-810b2aee1f19" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="3fef6180-cb55-8396-8ed6-8149219624ea" class="bulleted-list" dir="auto"><li style="list-style-type:disc">ALLIANCE 1 : ALLIANCE_UNIVERSITY 1..N</li></ul><ul id="845f6180-cb55-825f-a278-81c4f6a97e71" class="bulleted-list" dir="auto"><li style="list-style-type:disc">연합은 최대 3개 학교이다. 규모는 저장하지 않고 ACCEPTED 행을 COUNT해서 구한다. (최대 인원은 코드 상수 <code>MAX_ALLIANCE_SIZE = 3</code>)</li></ul><ul id="6c0f6180-cb55-82bc-a24e-013e3c3e6842" class="bulleted-list" dir="auto"><li style="list-style-type:disc">언제든 신청을 받을 수 있다. 단, STATUS가 <code>IN_MATCH</code>이면 신청을 거절한다.</li></ul><h3 id="4a9f6180-cb55-8334-add1-8166d8c910ce" class="" dir="auto">ALLIANCE_UNIVERSITY</h3><p id="3fef6180-cb55-8354-863b-814df2aa9c19" class="" dir="auto">연합 신청·가입·탈퇴 이력을 저장한다.</p><table id="7e0f6180-cb55-829e-8e15-01b22d266bfc" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="00af6180-cb55-83f4-9611-817110afa130" dir="ltr"><th id="r?n|" class="simple-table-header-color simple-table-header">컬럼</th><th id="\oYL" class="simple-table-header-color simple-table-header">설명</th><th id="pMfW" class="simple-table-header-color simple-table-header">타입</th><th id="xe\?" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="e51f6180-cb55-8252-a4a1-81b30e3b9d5e" dir="ltr"><td id="r?n|" class="">ID</td><td id="\oYL" class="">이력 ID</td><td id="pMfW" class="">BIGINT</td><td id="xe\?" class="">PK, AUTO_INCREMENT</td></tr><tr id="8ccf6180-cb55-83e2-9ece-01360dba9fa4" dir="ltr"><td id="r?n|" class="">ALLIANCE_ID</td><td id="\oYL" class="">연합 ID</td><td id="pMfW" class="">BIGINT</td><td id="xe\?" class="">FK → ALLIANCE.ID, NN</td></tr><tr id="c6bf6180-cb55-8210-8946-017b62693178" dir="ltr"><td id="r?n|" class="">UNIVERSITY_ID</td><td id="\oYL" class="">신청 학교 ID</td><td id="pMfW" class="">BIGINT</td><td id="xe\?" class="">FK → UNIVERSITY.ID, NN</td></tr><tr id="405f6180-cb55-8327-ab1f-81f5f8b63402" dir="ltr"><td id="r?n|" class="">APPLICANT_USER_ID</td><td id="\oYL" class="">신청한 회원 ID</td><td id="pMfW" class="">BIGINT</td><td id="xe\?" class="">FK → USER.ID, NN</td></tr><tr id="555f6180-cb55-8253-b119-81d396487b9a" dir="ltr"><td id="r?n|" class="">APPROVER_USER_ID</td><td id="\oYL" class="">승인한 회원 ID</td><td id="pMfW" class="">BIGINT</td><td id="xe\?" class="">FK → USER.ID, NULL (승인 전)</td></tr><tr id="55cf6180-cb55-822e-a3bd-0135210068c4" dir="ltr"><td id="r?n|" class="">TOTAL_SCORE</td><td id="\oYL" class="">연합 내 학교 기여 점수</td><td id="pMfW" class="">BIGINT</td><td id="xe\?" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="34ef6180-cb55-839e-a20c-81ed0613d423" dir="ltr"><td id="r?n|" class="">STATUS</td><td id="\oYL" class="">신청 상태</td><td id="pMfW" class="">VARCHAR(20)</td><td id="xe\?" class="">NN, DEFAULT <code>&#x27;PENDING&#x27;</code> (<code>PENDING</code> / <code>ACCEPTED</code> / <code>REJECTED</code> / <code>LEFT</code>)</td></tr><tr id="1d2f6180-cb55-83ad-8ce9-014933994123" dir="ltr"><td id="r?n|" class="">CREATED_AT</td><td id="\oYL" class="">신청 시각</td><td id="pMfW" class="">DATETIME(6)</td><td id="xe\?" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="428f6180-cb55-8360-b74d-81825ce2c47b" dir="ltr"><td id="r?n|" class="">UPDATED_AT</td><td id="\oYL" class="">수정 시각</td><td id="pMfW" class="">DATETIME(6)</td><td id="xe\?" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr><tr id="3edf6180-cb55-8356-b4e1-011db3b82016" dir="ltr"><td id="r?n|" class="">DELETED_AT</td><td id="\oYL" class="">삭제 시각</td><td id="pMfW" class="">DATETIME(6)</td><td id="xe\?" class="">NULL</td></tr></tbody></table><p id="287f6180-cb55-82dc-ab6c-81cf7ea8cad0" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="8aaf6180-cb55-836a-b2bd-818c9488e6c7" class="bulleted-list" dir="auto"><li style="list-style-type:disc">ALLIANCE 1 : ALLIANCE_UNIVERSITY 1..N / UNIVERSITY 1 : ALLIANCE_UNIVERSITY 0..N</li></ul><ul id="743f6180-cb55-8203-becc-014809f62ef3" class="bulleted-list" dir="auto"><li style="list-style-type:disc">USER 1 : ALLIANCE_UNIVERSITY 0..N (신청자) / USER 0..1 : ALLIANCE_UNIVERSITY 0..N (승인자)</li></ul><ul id="032f6180-cb55-8235-b515-0147cae77d3d" class="bulleted-list" dir="auto"><li style="list-style-type:disc">대리키를 쓰므로 거절되거나 탈퇴한 뒤에도 같은 연합에 다시 신청할 수 있다.</li></ul><ul id="d05f6180-cb55-8212-a326-81d67ce71a20" class="bulleted-list" dir="auto"><li style="list-style-type:disc">한 학교는 동시에 한 연합에만 ACCEPTED 상태로 속할 수 있다. 승인할 때 애플리케이션에서 확인한다.</li></ul><ul id="3cdf6180-cb55-82f2-b1a1-812ad9a44474" class="bulleted-list" dir="auto"><li style="list-style-type:disc">승인할 때 <code>SELECT ... FROM alliance WHERE id = ? FOR UPDATE</code>로 연합 행을 잠그고, ACCEPTED 수가 3 미만일 때만 승인한다.</li></ul><ul id="b2df6180-cb55-833e-b440-81d8ec0a373f" class="bulleted-list" dir="auto"><li style="list-style-type:disc">신청자와 승인자는 해당 학교 또는 연합 소속 회원이어야 한다.</li></ul><ul id="2c9f6180-cb55-82e1-842c-81e27a5cc7fa" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(ALLIANCE_ID, STATUS)</code>, <code>(UNIVERSITY_ID, STATUS)</code></li></ul><h3 id="785f6180-cb55-83c8-950a-81bc0f94d959" class="" dir="auto">ALLIANCE_MATCH</h3><p id="a82f6180-cb55-8367-af74-0142e82b100f" class="" dir="auto">연합 간 대결 정보를 저장한다.</p><table id="602f6180-cb55-83b2-8295-811d68c0b169" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="541f6180-cb55-83b1-960f-811be98b9e28" dir="ltr"><th id="H\?K" class="simple-table-header-color simple-table-header">컬럼</th><th id="t:Q?" class="simple-table-header-color simple-table-header">설명</th><th id="F=v=" class="simple-table-header-color simple-table-header">타입</th><th id="`}YI" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="3a9f6180-cb55-8349-aae9-019737692cb2" dir="ltr"><td id="H\?K" class="">ID</td><td id="t:Q?" class="">대결 ID</td><td id="F=v=" class="">BIGINT</td><td id="`}YI" class="">PK, AUTO_INCREMENT</td></tr><tr id="29ef6180-cb55-8290-8c61-81284bcb2120" dir="ltr"><td id="H\?K" class="">ALLIANCE_A_ID</td><td id="t:Q?" class="">연합 A ID</td><td id="F=v=" class="">BIGINT</td><td id="`}YI" class="">FK → ALLIANCE.ID, NN</td></tr><tr id="c0bf6180-cb55-82b6-8040-01743fe460bf" dir="ltr"><td id="H\?K" class="">ALLIANCE_B_ID</td><td id="t:Q?" class="">연합 B ID</td><td id="F=v=" class="">BIGINT</td><td id="`}YI" class="">FK → ALLIANCE.ID, NN</td></tr><tr id="d3cf6180-cb55-82b1-bb79-8107f16fc9ef" dir="ltr"><td id="H\?K" class="">WINNER_ALLIANCE_ID</td><td id="t:Q?" class="">승리 연합 ID</td><td id="F=v=" class="">BIGINT</td><td id="`}YI" class="">FK → ALLIANCE.ID, NULL (진행 중·무승부)</td></tr><tr id="3c5f6180-cb55-8228-a03d-8177bedfc5c4" dir="ltr"><td id="H\?K" class="">STARTED_AT</td><td id="t:Q?" class="">대결 시작 시각</td><td id="F=v=" class="">DATETIME(6)</td><td id="`}YI" class="">NULL (수락 전)</td></tr><tr id="62cf6180-cb55-8396-9d33-81fd058f4750" dir="ltr"><td id="H\?K" class="">ENDED_AT</td><td id="t:Q?" class="">대결 종료 시각</td><td id="F=v=" class="">DATETIME(6)</td><td id="`}YI" class="">NULL (수락 전)</td></tr><tr id="5ddf6180-cb55-823a-9b72-81019bb627ff" dir="ltr"><td id="H\?K" class="">REQUEST_EXPIRED_AT</td><td id="t:Q?" class="">대결 신청 마감 시각</td><td id="F=v=" class="">DATETIME(6)</td><td id="`}YI" class="">NN</td></tr><tr id="be8f6180-cb55-823e-9bc4-014c3640b775" dir="ltr"><td id="H\?K" class="">STATUS</td><td id="t:Q?" class="">대결 상태</td><td id="F=v=" class="">VARCHAR(20)</td><td id="`}YI" class="">NN, DEFAULT <code>&#x27;REQUESTED&#x27;</code> (<code>REQUESTED</code> / <code>IN_PROGRESS</code> / <code>FINISHED</code> / <code>CANCELED</code>)</td></tr><tr id="d85f6180-cb55-8305-bd1f-81b8dd7cecfd" dir="ltr"><td id="H\?K" class="">A_SCORE</td><td id="t:Q?" class="">연합 A 점수</td><td id="F=v=" class="">BIGINT</td><td id="`}YI" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="acff6180-cb55-8304-b71a-816c888ec470" dir="ltr"><td id="H\?K" class="">B_SCORE</td><td id="t:Q?" class="">연합 B 점수</td><td id="F=v=" class="">BIGINT</td><td id="`}YI" class="">NN, DEFAULT <code>0</code>, CHECK <code>&gt;= 0</code></td></tr><tr id="110f6180-cb55-8383-a1fa-0159ee7ffe32" dir="ltr"><td id="H\?K" class="">CREATED_AT</td><td id="t:Q?" class="">생성 시각</td><td id="F=v=" class="">DATETIME(6)</td><td id="`}YI" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code></td></tr><tr id="22bf6180-cb55-8204-899c-8165328fefeb" dir="ltr"><td id="H\?K" class="">UPDATED_AT</td><td id="t:Q?" class="">수정 시각</td><td id="F=v=" class="">DATETIME(6)</td><td id="`}YI" class="">NN, DEFAULT <code>CURRENT_TIMESTAMP(6)</code> ON UPDATE</td></tr><tr id="b0ef6180-cb55-83cd-9df1-018f6c13a150" dir="ltr"><td id="H\?K" class="">DELETED_AT</td><td id="t:Q?" class="">삭제 시각</td><td id="F=v=" class="">DATETIME(6)</td><td id="`}YI" class="">NULL</td></tr></tbody></table><p id="61cf6180-cb55-8309-806d-010e63ad33ef" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="237f6180-cb55-82bf-8264-0164efba582f" class="bulleted-list" dir="auto"><li style="list-style-type:disc">ALLIANCE 1 : ALLIANCE_MATCH 0..N (A, B 각각) / ALLIANCE 0..1 : ALLIANCE_MATCH 0..N (승자)</li></ul><ul id="9caf6180-cb55-8397-bfa6-817c4f2126dc" class="bulleted-list" dir="auto"><li style="list-style-type:disc">CHECK: <code>ALLIANCE_A_ID &lt;&gt; ALLIANCE_B_ID</code></li></ul><ul id="023f6180-cb55-832e-8761-0154a93278ff" class="bulleted-list" dir="auto"><li style="list-style-type:disc">CHECK: <code>ENDED_AT &gt; STARTED_AT</code></li></ul><ul id="4bbf6180-cb55-820c-8fee-015afecad55e" class="bulleted-list" dir="auto"><li style="list-style-type:disc">대결 기간은 최소 6시간이다 (애플리케이션에서 검증).</li></ul><ul id="00cf6180-cb55-820a-a4a7-0129fdf985c6" class="bulleted-list" dir="auto"><li style="list-style-type:disc">WINNER_ALLIANCE_ID는 A 또는 B 중 하나여야 한다 (애플리케이션에서 검증).</li></ul><ul id="c5cf6180-cb55-835b-bf6c-81709458cecc" class="bulleted-list" dir="auto"><li style="list-style-type:disc">IDX: <code>(STATUS, ENDED_AT)</code> (종료 대상 대결 조회)</li></ul><h3 id="55df6180-cb55-83af-84e1-81c1e74e09fa" class="" dir="auto">CHAT_MESSAGE (DynamoDB)</h3><p id="505f6180-cb55-82d1-b9e5-811c48d67262" class="" dir="auto">학교·연합 채팅 메시지를 저장한다.</p><table id="110f6180-cb55-827d-ae3b-81794e6f7568" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="205f6180-cb55-823d-b08c-811cf3bc60d5" dir="ltr"><th id="pXiR" class="simple-table-header-color simple-table-header">속성</th><th id="YCG`" class="simple-table-header-color simple-table-header">설명</th><th id="aV;S" class="simple-table-header-color simple-table-header">타입</th><th id="r`oS" class="simple-table-header-color simple-table-header">제약조건</th></tr></thead><tbody><tr id="b27f6180-cb55-8209-9cf8-81bbbe4452d6" dir="ltr"><td id="pXiR" class="">ROOM_ID</td><td id="YCG`" class="">채팅방 ID (<code>UNIV#{학교ID}</code> / <code>ALLIANCE#{연합ID}</code>)</td><td id="aV;S" class="">S</td><td id="r`oS" class="">파티션 키</td></tr><tr id="b9df6180-cb55-82bf-9b0b-81f785bdad10" dir="ltr"><td id="pXiR" class="">MESSAGE_ID</td><td id="YCG`" class="">메시지 ID (ULID, 시간순 정렬)</td><td id="aV;S" class="">S</td><td id="r`oS" class="">정렬 키</td></tr><tr id="cdff6180-cb55-83b2-9f0a-81de1e863ced" dir="ltr"><td id="pXiR" class="">UNIVERSITY_NAME</td><td id="YCG`" class="">작성자 학교명</td><td id="aV;S" class="">S</td><td id="r`oS" class="">필수</td></tr><tr id="22ff6180-cb55-8296-8528-01bc27a69d7f" dir="ltr"><td id="pXiR" class="">USER_ID</td><td id="YCG`" class="">작성자 회원 ID</td><td id="aV;S" class="">N</td><td id="r`oS" class="">필수</td></tr><tr id="e6cf6180-cb55-820b-9921-01a59f644ee4" dir="ltr"><td id="pXiR" class="">NICKNAME</td><td id="YCG`" class="">작성자 닉네임</td><td id="aV;S" class="">S</td><td id="r`oS" class="">필수</td></tr><tr id="50af6180-cb55-82a7-8d7e-01bf89d5c7be" dir="ltr"><td id="pXiR" class="">ALLIANCE_ID</td><td id="YCG`" class="">연합 ID</td><td id="aV;S" class="">N</td><td id="r`oS" class="">연합 채팅일 때만</td></tr><tr id="fb3f6180-cb55-82c5-8ca7-01d717257cbe" dir="ltr"><td id="pXiR" class="">CONTENT</td><td id="YCG`" class="">메시지 내용 (필터링 후)</td><td id="aV;S" class="">S</td><td id="r`oS" class="">필수</td></tr><tr id="ee4f6180-cb55-83ea-b757-810596f185e7" dir="ltr"><td id="pXiR" class="">CREATED_AT</td><td id="YCG`" class="">작성 시각 (epoch ms)</td><td id="aV;S" class="">N</td><td id="r`oS" class="">필수</td></tr><tr id="991f6180-cb55-82c7-9c54-01fd996032cd" dir="ltr"><td id="pXiR" class="">TTL</td><td id="YCG`" class="">만료 시각 (epoch <strong>초</strong>)</td><td id="aV;S" class="">N</td><td id="r`oS" class="">연합 채팅일 때만</td></tr></tbody></table><p id="b1ef6180-cb55-827b-9653-014d9d9c0873" class="" dir="auto"><strong>관계 및 제약</strong></p><ul id="e39f6180-cb55-8340-82d3-812358580ada" class="bulleted-list" dir="auto"><li style="list-style-type:disc">조회는 <code>ROOM_ID</code> 기준 Query, <code>ScanIndexForward = false</code>(최신순), <code>Limit</code>, <code>ExclusiveStartKey</code>로 페이지네이션한다.</li></ul><ul id="fedf6180-cb55-83a5-b0b7-01eb07108079" class="bulleted-list" dir="auto"><li style="list-style-type:disc">MESSAGE_ID는 ULID라서 문자열 정렬이 곧 시간순 정렬이다.</li></ul><ul id="209f6180-cb55-831a-bf27-81e581780813" class="bulleted-list" dir="auto"><li style="list-style-type:disc">연합 채팅은 연합 만료 시각을 TTL로 설정해 자동 삭제한다.</li></ul><ul id="555f6180-cb55-8271-8317-817592e1352b" class="bulleted-list" dir="auto"><li style="list-style-type:disc">작성자 정보는 조회 성능을 위해 비정규화해서 함께 저장한다.</li></ul><hr id="e95f6180-cb55-83f4-8f65-0126ff46b39d" dir="auto"/><h2 id="57ef6180-cb55-8361-972f-811e6637b8d6" class="" dir="auto">DB 외부에서 지키는 규칙</h2><table id="01ff6180-cb55-8243-a1c7-01e79280eac7" class="simple-table" dir="ltr"><thead class="simple-table-header"><tr id="c0af6180-cb55-8376-a9f7-81cc49d9c229" dir="ltr"><th id="]lp=" class="simple-table-header-color simple-table-header">규칙</th><th id="O`Fe" class="simple-table-header-color simple-table-header">처리 위치</th><th id="G^_G" class="simple-table-header-color simple-table-header">방법</th></tr></thead><tbody><tr id="4c0f6180-cb55-8399-b92b-01e3c67838e0" dir="ltr"><td id="]lp=" class="">클릭 중복 제출 방지</td><td id="O`Fe" class="">Redis</td><td id="G^_G" class=""><code>SET submit:{userId}:{submissionId} NX EX 10</code></td></tr><tr id="d48f6180-cb55-8245-99e7-013205b81b9d" dir="ltr"><td id="]lp=" class="">클릭 점수 집계</td><td id="O`Fe" class="">Redis → MySQL</td><td id="G^_G" class="">Redis에 누적하고 1분마다 배치로 UPDATE</td></tr><tr id="307f6180-cb55-83dd-8430-0121edd7d336" dir="ltr"><td id="]lp=" class="">아이템 구매 시 기여도 차감</td><td id="O`Fe" class="">Redis</td><td id="G^_G" class="">Lua 스크립트로 잔액 확인 + 차감을 원자적으로 처리 후 USER_ITEM INSERT</td></tr><tr id="2ebf6180-cb55-834e-bd56-01639da48a24" dir="ltr"><td id="]lp=" class="">아이템 효과 적용</td><td id="O`Fe" class="">Redis</td><td id="G^_G" class="">효과 키에 TTL = DURATION</td></tr><tr id="adbf6180-cb55-82bc-a068-814791759dfd" dir="ltr"><td id="]lp=" class="">CASH 아이템 결제 금액 검증</td><td id="O`Fe" class="">애플리케이션</td><td id="G^_G" class="">토스 승인 API 호출 전에 PAYMENT.AMOUNT와 successUrl의 amount 비교</td></tr><tr id="4b7f6180-cb55-822f-92f7-81c423a5fc22" dir="ltr"><td id="]lp=" class="">결제 중복 승인·이중 지급 방지</td><td id="O`Fe" class="">애플리케이션 + DB</td><td id="G^_G" class=""><code>READY → IN_PROGRESS</code> 조건부 UPDATE + USER_ITEM.PAYMENT_ID UK</td></tr><tr id="40ef6180-cb55-8255-9065-81f2c7f58fa5" dir="ltr"><td id="]lp=" class="">이메일 인증 코드</td><td id="O`Fe" class="">Redis</td><td id="G^_G" class="">TTL N분</td></tr><tr id="644f6180-cb55-83fd-971b-0187c4b682e7" dir="ltr"><td id="]lp=" class="">한 학교 한 연합</td><td id="O`Fe" class="">애플리케이션</td><td id="G^_G" class="">승인 전에 ACCEPTED 이력 확인</td></tr><tr id="f85f6180-cb55-826f-b949-01704fe4238f" dir="ltr"><td id="]lp=" class="">연합 정원 3개</td><td id="O`Fe" class="">애플리케이션 + DB 락</td><td id="G^_G" class="">ALLIANCE 행 <code>FOR UPDATE</code> 후 COUNT 확인</td></tr></tbody></table></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

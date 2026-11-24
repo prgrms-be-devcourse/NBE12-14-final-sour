@@ -1,0 +1,28 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+# Public, non-secret settings for `npm run dev` (--mode api) and `npm run dev:mock` (--mode mock). Personal overrides: .env.<mode>.local
+!.env.api
+!.env.mock
+
+# Local multi-agent workflow artifacts
+.agent-workflow/
+
+# Raw image-generation output (Pi vertex-image). Commit only finished assets under src/assets/.
+generated-images/
+
+# Python bytecode cache (scripts/assets)
+__pycache__/
+
+# Experiment A: source-resolution campus sprites from scripts/assets/process.py --raw (comparison only, not committed)
+public/campus-raw/
+
+# Wireframe draft outputs (wireframe/scripts capture.mjs → build.mjs → pdf.mjs). Kept local, not pushed.
+wireframe/shots/
+wireframe/*.html
+wireframe/*.pdf

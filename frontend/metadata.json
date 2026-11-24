@@ -1,0 +1,8 @@
+{
+  "name": "261106-mockup",
+  "description": "Mockup.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
