@@ -11,8 +11,10 @@ import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 
@@ -62,6 +64,31 @@ class AllianceMatchSettlementRecordIntegrationTest {
                 FROM alliance_match_settlement WHERE match_id = :id
                 """).setParameter("id", id).executeUpdate())
                 .isInstanceOf(PersistenceException.class);
+    }
+
+    @Test
+    @DisplayName("미완료 정산 조회 시 PENDING과 APPLIED만 대결 ID 순서로 반환한다")
+    void findIncompleteIds_returnsOnlyPendingAndApplied() {
+        // given
+        AllianceMatchSettlement pending = createSettlement();
+        AllianceMatchSettlement completed = createSettlement();
+        completed.markApplied();
+        AllianceMatch completedMatch = matchRepository.findById(completed.getMatchId()).orElseThrow();
+        completedMatch.finish(completedMatch.getEndedAt(), completed.getAScore(), completed.getBScore());
+        completed.markCompleted();
+        AllianceMatchSettlement applied = createSettlement();
+        applied.markApplied();
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        List<Long> result = settlementRepository.findIncompleteIds(
+                List.of(AllianceMatchSettlementStatus.PENDING, AllianceMatchSettlementStatus.APPLIED),
+                PageRequest.of(0, 100));
+
+        // then
+        assertThat(result)
+                .containsExactly(pending.getMatchId(), applied.getMatchId());
     }
 
     private AllianceMatchSettlement createSettlement() {

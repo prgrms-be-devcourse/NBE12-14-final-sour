@@ -37,7 +37,7 @@ interface CampusClicks extends ClickUpgradeGate {
 }
 const noPendingScore = () => 0;
 const notSending = () => false;
-const EMPTY_BATCH: ClickBatchSnapshot = { pendingClicks: 0, pendingScore: 0, sending: false, error: null, recoverable: false, locked: false };
+const EMPTY_BATCH: ClickBatchSnapshot = { pendingClicks: 0, pendingScore: 0, sending: false, error: null, recoverable: false, restoring: false, locked: false };
 
 function useMockCampusClicks(): CampusClicks {
   const { tap } = useMockGame();
@@ -161,6 +161,7 @@ export function useApiCampusClicks(): CampusClicks {
   const canRetryLimited = signedIn && snapshot.recoverable && isClickLimitError(snapshot.error);
   const needsVerification = signedIn && requiresClickVerification(snapshot.error);
   const getNotice = (): string | null => {
+    if (snapshot.restoring) return `점수 복구 중이에요. 자동으로 다시 보냅니다. 미확정 ${snapshot.pendingClicks}회`;
     if (snapshot.error) {
       let guidance = '중복 적립 방지를 위해 추가 클릭과 재전송을 중단했습니다.';
       if (canRetryLimited) guidance = '잠시 기다린 뒤 아래 버튼을 누르면 거절된 배치의 점수를 되돌리고 남은 대기 클릭을 재개합니다.';

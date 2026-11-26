@@ -78,6 +78,38 @@ test('JSON 본문은 Content-Type을 붙이고, FormData는 브라우저가 경�
   assert.equal('Content-Type' in (calls[1].init.headers as Record<string, string>), false);
 });
 
+test('요청별 헤더는 예약 헤더를 대소문자와 관계없이 보호하면서 전달한다', async () => {
+  const { fetch, calls } = fakeFetch(ok(null));
+  const client = createApiClient({ fetch });
+  client.session.signIn('member');
+  const options = { method: 'POST' as const, body: { value: 1 }, headers: {
+    'Idempotency-Key': 'key-1', accept: 'text/plain', 'content-type': 'text/plain', authorization: 'evil',
+  } };
+  await client.request('/x', options);
+  const headers = new Headers(calls[0].init.headers);
+  assert.equal(headers.get('Idempotency-Key'), 'key-1');
+  assert.equal(headers.get('Accept'), 'application/json');
+  assert.equal(headers.get('Content-Type'), 'application/json');
+  assert.equal(headers.get('Authorization'), 'Bearer member');
+});
+
+test('토큰 재발급 뒤 원래 요청에 같은 멱등 헤더를 보낸다', async () => {
+  const { fetch, calls } = fakeFetch(
+    fail(401, 'COMMON_EXPIRED_TOKEN', '만료'),
+    ok({ accessToken: 'renewed', expiresInSeconds: 3600 }),
+    ok(null),
+  );
+  const client = createApiClient({ fetch });
+  client.session.signIn('old');
+  const options = { method: 'POST' as const, headers: { 'Idempotency-Key': 'same-key' } };
+  await client.request('/items/1/purchase', options);
+  assert.equal(calls.length, 3);
+  assert.equal(new Headers(calls[0].init.headers).get('Idempotency-Key'), 'same-key');
+  assert.equal(new Headers(calls[1].init.headers).get('Idempotency-Key'), null);
+  assert.equal(new Headers(calls[2].init.headers).get('Idempotency-Key'), 'same-key');
+  assert.equal(new Headers(calls[2].init.headers).get('Authorization'), 'Bearer renewed');
+});
+
 test('204는 본문 없이 undefined를 돌려준다', async () => {
   const { fetch } = fakeFetch(() => new Response(null, { status: 204 }));
   assert.equal(await createApiClient({ fetch }).request('/anything', { method: 'DELETE' }), undefined);

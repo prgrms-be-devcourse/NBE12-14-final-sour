@@ -28,6 +28,7 @@ export interface ApiRequestOptions {
   query?: Readonly<Record<string, QueryValue>>;
   /** FormData goes as multipart (the logo item, ItemController); anything else as JSON. */
   body?: unknown;
+  headers?: Readonly<Record<string, string>>;
   signal?: AbortSignal;
   /**
    * Leave the session out: no Authorization header, no reissue, and a session-ending code does not end the session.
@@ -125,9 +126,12 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 
   /** One HTTP exchange: sends `accessToken` when given, returns data or throws ApiError. */
   async function send<T>(url: string, method: HttpMethod, body: unknown, signal: AbortSignal | undefined,
-    accessToken: string | null): Promise<T> {
+    accessToken: string | null, extraHeaders?: Readonly<Record<string, string>>): Promise<T> {
     const encoded = encodeBody(body);
     const headers: Record<string, string> = { Accept: 'application/json' };
+    for (const [name, value] of Object.entries(extraHeaders ?? {})) {
+      if (!['accept', 'content-type', 'authorization'].includes(name.toLowerCase())) headers[name] = value;
+    }
     if (encoded.contentType) headers['Content-Type'] = encoded.contentType;
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
@@ -180,14 +184,14 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     return reissuing;
   }
 
-  async function request<T>(path: string, { method = 'GET', query, body, signal, anonymous = false }: ApiRequestOptions = {}): Promise<T> {
+  async function request<T>(path: string, { method = 'GET', query, body, headers, signal, anonymous = false }: ApiRequestOptions = {}): Promise<T> {
     const url = buildUrl(baseUrl, path, query);
     await faults.beforeRequest(signal, { method, path });
-    if (anonymous) return send<T>(url, method, body, signal, null);
+    if (anonymous) return send<T>(url, method, body, signal, null, headers);
 
     const sentToken = session.getAccessToken();
     try {
-      return await send<T>(url, method, body, signal, sentToken);
+      return await send<T>(url, method, body, signal, sentToken, headers);
     } catch (error) {
       if (!(isApiError(error) && error.code === EXPIRED_TOKEN_CODE && sentToken)) endSessionIfOver(error);
     }
@@ -196,7 +200,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     const current = session.getAccessToken();
     const nextToken = current && current !== sentToken ? current : await awaitShared(reissue(), signal);
     try {
-      return await send<T>(url, method, body, signal, nextToken);
+      return await send<T>(url, method, body, signal, nextToken, headers);
     } catch (error) {
       // Only one retry: a second COMMON_EXPIRED_TOKEN goes to the caller instead of reissuing in a loop.
       return endSessionIfOver(error);

@@ -30,6 +30,7 @@ const { createApiClient } = await import('../src/api/client');
 const { createQueryClient } = await import('../src/api/queryClient');
 const { userKeys } = await import('../src/api/users');
 const { universityKeys } = await import('../src/api/universities');
+const { allianceKeys } = await import('../src/api/alliances');
 const { MockGameProvider } = await import('../src/hooks/useMockGame');
 const { useApiCampusAttacks } = await import('../src/hooks/useCampusAttacks');
 const { VisitingScreen1Phone } = await import('../src/components/VisitingScreen1Phone');
@@ -330,6 +331,51 @@ test('연합 학교는 지원 버튼으로 바뀌어 /assists로 보내고, 서�
   assert.equal(screen.getByTestId('visit-rank').textContent, '1위');
   assert.deepEqual(f.queryClient.getQueryData<MyInfo>(userKeys.me), { ...ME, totalContribScore: 140 }, '공격 점수는 그대로');
   assert.equal(f.locked(), false);
+});
+
+test('공격 점수 복구 중에는 자동 재전송과 미확정 횟수를 안내한다', async () => {
+  mount({ respond: () => fail(503, 'RESTORE_SCORE_RESTORING') });
+  await waitFor(() => assert.ok(attackButton()));
+  fireEvent.click(attackButton());
+  await waitFor(() => assert.match(screen.getByRole('alert').textContent ?? '', /점수 복구 중.*자동.*미확정.*1회/), { timeout: 2500 });
+});
+
+test('연합 해제 뒤 첫 지원 거절은 대기분을 취소하고 잠금을 풀어 새 입력을 받는다', async () => {
+  const allies = [SCHOOL_ID.pusan];
+  let detailReads = 0;
+  const f = mount({ allies, beforeRead: (path) => {
+    if (path.endsWith(`/universities/${SCHOOL_ID.pusan}`)) detailReads++;
+    return undefined;
+  }, respond: () => {
+    allies.length = 0;
+    return fail(400, 'ASSIST_NOT_ALLY');
+  } });
+  await waitFor(() => assert.ok(assistButton()));
+  f.queryClient.setQueryData(allianceKeys.mine(ME.id), { marker: true });
+  for (let i = 0; i < 25; i++) fireEvent.click(assistButton());
+  await waitFor(() => assert.equal(attacks.pendingClicks, 0), { timeout: 2500 });
+  assert.equal(f.locked(), false);
+  assert.equal(f.assistCalls.length, 1);
+  assert.match(screen.getByRole('alert').textContent ?? '', /지원 25회.*취소/);
+  await waitFor(() => assert.ok(attackButton()));
+  assert.ok(detailReads >= 2);
+  assert.equal(f.queryClient.getQueryState(allianceKeys.mine(ME.id))?.isInvalidated, true);
+  act(() => { assert.equal(attacks.tap(SCHOOL_ID.pusan, 'attack'), true); });
+});
+
+test('지원 응답 유실 뒤 연합 거절은 미확정 배치와 대기분을 보존한다', async () => {
+  const f = mount({ allies: [SCHOOL_ID.pusan], respond: (_body, n) => {
+    if (n === 1) throw new TypeError('response lost');
+    return fail(400, 'ASSIST_NOT_ALLY');
+  } });
+  await waitFor(() => assert.ok(assistButton()));
+  for (let i = 0; i < 25; i++) fireEvent.click(assistButton());
+  await waitFor(() => assert.equal(attacks.blocked, true), { timeout: 3500 });
+  assert.equal(f.assistCalls.length, 2);
+  assert.deepEqual(f.assistCalls[0].body, f.assistCalls[1].body);
+  assert.equal(attacks.pendingClicks, 25);
+  assert.equal(f.locked(), true);
+  assert.doesNotMatch(screen.getByRole('alert').textContent ?? '', /취소했어요/);
 });
 
 test('동맹 공격 거절은 상세를 갱신하고 대기 공격을 취소하되, 지원은 사용자가 다시 눌러야 보낸다', async () => {

@@ -61,14 +61,14 @@ function Probe() {
     visible && React.createElement(ApiItemShop, { shop: latest }),
   );
 }
-interface Call { path: string; method?: string; body?: BodyInit | null; auth: string | null; signal?: AbortSignal | null }
+interface Call { path: string; method?: string; body?: BodyInit | null; auth: string | null; signal?: AbortSignal | null; idempotencyKey?: string | null }
 function mount(options: { signedIn?: boolean; profile?: MyInfo; effect?: ActiveItemEffect | null; catalog?: () => Promise<Response>;
   buy?: () => Promise<Response>; activeRead?: () => Promise<Response>; readMe?: () => Promise<Response> } = {}) {
   let profile = options.profile ?? ME;
   let effect = options.effect ?? null;
   const calls: Call[] = [];
   const client = createApiClient({ fetch: (async (input, init) => {
-    const path = String(input); calls.push({ path, method: init?.method, body: init?.body, auth: new Headers(init?.headers).get('Authorization'), signal: init?.signal });
+    const path = String(input); calls.push({ path, method: init?.method, body: init?.body, auth: new Headers(init?.headers).get('Authorization'), signal: init?.signal, idempotencyKey: new Headers(init?.headers).get('Idempotency-Key') });
     if (path.endsWith('/items')) return options.catalog ? options.catalog() : ok([COFFEE, CREDIT]);
     if (path.endsWith('/items/me/active')) return options.activeRead ? options.activeRead() : ok(effect);
     if (path.endsWith('/purchase')) {
@@ -114,12 +114,36 @@ test('공개 목록·인증 활성 효과·본문 없는 201 구매 DTO를 그�
     return ok(path.endsWith('/purchase') ? receipt : path.endsWith('/active') ? null : [COFFEE, CREDIT], path.endsWith('/purchase') ? 201 : 200);
   }) as typeof fetch }); client.session.signIn('member');
   assert.deepEqual(await getItems(client), [COFFEE, CREDIT]); assert.equal(await getActiveItemEffect(client), null);
-  assert.deepEqual(await purchaseItem(client, 801), receipt);
+  assert.deepEqual(await purchaseItem(client, 801, 'purchase-key'), receipt);
   assert.deepEqual(calls, [
     { path: '/api/v1/items', method: 'GET', body: undefined, auth: null },
     { path: '/api/v1/items/me/active', method: 'GET', body: undefined, auth: 'Bearer member' },
     { path: '/api/v1/items/801/purchase', method: 'POST', body: undefined, auth: 'Bearer member' },
   ]);
+});
+
+test('별도 구매 시도마다 UUID 멱등 키를 전송한다', async () => {
+  const f = mount({ buy: async () => fail(400, 'ITEM_NOT_ENOUGH_SCORE') });
+  await ready();
+  buy(); await waitFor(() => assert.equal(f.buys().length, 1));
+  await waitFor(() => assert.equal(latest.pending, false));
+  buy(); await waitFor(() => assert.equal(f.buys().length, 2));
+  const [first, second] = f.buys().map((call) => call.idempotencyKey);
+  assert.match(first ?? '', /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  assert.match(second ?? '', /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  assert.notEqual(first, second);
+});
+
+test('중복 구매 409는 성공으로 표시하지 않고 서버 조회로 확인한다', async () => {
+  const f = mount({ buy: async () => fail(409, 'ITEM_DUPLICATE_PURCHASE') });
+  await ready(); buy();
+  await waitFor(() => assert.ok(latest.reconcile));
+  assert.equal(latest.receipt, null);
+  assert.doesNotMatch(latest.status ?? '', /구매 완료/);
+  const before = f.calls.filter((call) => call.path.endsWith('/users/me')).length;
+  await act(async () => latest.reconcile?.());
+  await waitFor(() => assert.ok(f.calls.filter((call) => call.path.endsWith('/users/me')).length > before));
+  assert.equal(f.buys().length, 1);
 });
 
 test('서버 가격·이름·기간만 표시하고 크레딧 상품은 비활성이며 null은 활성 효과 없음이다', async () => {

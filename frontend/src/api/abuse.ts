@@ -15,6 +15,10 @@ export function requiresClickVerification(error: unknown): boolean {
   return isApiError(error) && error.status === 403 && error.code === 'ABUSE_VERIFICATION_REQUIRED';
 }
 
+export function isScoreRestoring(error: unknown): boolean {
+  return isApiError(error) && error.kind === 'http' && error.status === 503 && error.code === 'RESTORE_SCORE_RESTORING';
+}
+
 export function isClickLimitError(error: unknown): boolean {
   return isApiError(error) && error.status === 429
     && (error.code === 'CLICK_TOO_FREQUENT' || error.code === 'CLICK_COUNT_EXCEEDED');

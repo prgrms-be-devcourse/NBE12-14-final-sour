@@ -49,6 +49,95 @@ function fixture(send: (request: ClickRequest) => Promise<ClickResponse> = async
   return { controller, sent, accepted, snapshots, advance, tasks, suspend: (ms: number) => { time += ms; } };
 }
 
+test('randomUUID 없는 환경의 기본 제출 ID는 UUID v4다', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis.crypto, 'randomUUID');
+  let callback: (() => void) | undefined;
+  const sent: ClickRequest[] = [];
+  const controller = createClickBatcher({
+    schedule: (run) => { callback = run; return () => {}; },
+    send: async (request) => { sent.push(request); return response; },
+    onAccepted: () => {}, onChange: () => {},
+  });
+  try {
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: undefined });
+    controller.enqueue(1);
+    assert.ok(callback);
+    callback();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].submissionId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  } finally {
+    controller.dispose();
+    if (descriptor) Object.defineProperty(globalThis.crypto, 'randomUUID', descriptor);
+    else Reflect.deleteProperty(globalThis.crypto, 'randomUUID');
+  }
+});
+
+const restoringError = () => new ApiError({ kind: 'http', status: 503, code: 'RESTORE_SCORE_RESTORING' });
+
+test('복구 503: 대기 후 같은 배치와 ID로 성공하고 뒤의 대기분도 전송한다', async () => {
+  let calls = 0;
+  const f = fixture(async () => { if (++calls === 1) throw restoringError(); return response; });
+  for (let i = 0; i < 25; i++) f.controller.enqueue(2);
+  await f.advance(1000);
+  assert.equal(f.controller.getSnapshot().pendingClicks, 25);
+  assert.equal(f.controller.enqueue(2), false);
+  assert.equal((f.controller.getSnapshot() as ClickBatchSnapshot & { restoring: boolean }).restoring, true);
+  await f.advance(1999); assert.equal(f.sent.length, 1);
+  await f.advance(1); assert.deepEqual(f.sent[1], f.sent[0]);
+  assert.equal(f.controller.getSnapshot().pendingClicks, 5);
+  await f.advance(1000);
+  assert.equal(f.sent[2].clickCount, 5);
+  assert.notEqual(f.sent[2].submissionId, f.sent[0].submissionId);
+  assert.equal(f.controller.getSnapshot().pendingClicks, 0);
+});
+
+test('복구 503 백오프는 2, 4, 8, 16, 30초이며 같은 ID와 대기분을 보존한다', async () => {
+  const f = fixture(async () => { throw restoringError(); });
+  for (let i = 0; i < 25; i++) f.controller.enqueue(1);
+  await f.advance(1000);
+  for (const delay of [2000, 4000, 8000, 16000, 30000, 30000]) {
+    const count = f.sent.length;
+    await f.advance(delay - 1); assert.equal(f.sent.length, count);
+    await f.advance(1); assert.equal(f.sent.length, count + 1);
+    assert.deepEqual(f.sent.at(-1), f.sent[0]);
+    assert.equal(f.controller.getSnapshot().pendingClicks, 25);
+  }
+  f.controller.dispose();
+});
+
+test('통신 재시도 뒤 복구 503은 8초 경계 전엔 같은 ID, 경계에서는 중단한다', async () => {
+  let calls = 0;
+  const f = fixture(async () => { if (++calls === 1) throw network(); throw restoringError(); });
+  for (let i = 0; i < 25; i++) f.controller.enqueue(1);
+  await f.advance(2000);
+  assert.deepEqual(f.sent[1], f.sent[0]);
+  await f.advance(2000);
+  assert.deepEqual(f.sent[2], f.sent[0]);
+  f.suspend(5000);
+  await f.advance(0);
+  assert.equal(f.sent.length, 3, '8초 경계 이후에는 재전송 금지');
+  assert.equal(f.controller.getSnapshot().pendingClicks, 25);
+  assert.ok(f.controller.getSnapshot().error);
+});
+
+test('본문 없는 프록시 503은 복구 대기가 아닌 기존 네트워크 재시도 후 보류다', async () => {
+  const f = fixture(async () => { throw new ApiError({ kind: 'network', status: 503, code: 'CLIENT_NETWORK_ERROR' }); });
+  f.controller.enqueue(1); await f.advance(10000);
+  assert.equal(f.sent.length, 2);
+  assert.deepEqual(f.sent[0], f.sent[1]);
+  assert.equal(f.controller.getSnapshot().pendingClicks, 1);
+  assert.ok(f.controller.getSnapshot().error);
+});
+
+test('복구 대기 중 dispose는 타이머를 취소한다', async () => {
+  const f = fixture(async () => { throw restoringError(); });
+  f.controller.enqueue(1); await f.advance(1000);
+  assert.equal(f.tasks.size, 1);
+  f.controller.dispose(); assert.equal(f.tasks.size, 0);
+  await f.advance(60000); assert.equal(f.sent.length, 1);
+});
+
 for (const initial of [undefined, { latitude: 37.5, longitude: 127 }]) {
   test(`위치${initial ? '있음' : '없음'}: 새 제출에서만 읽고 네트워크 재시도는 위치 변경·중지와 무관하게 본문을 유지한다`, async () => {
     let coordinates = initial;

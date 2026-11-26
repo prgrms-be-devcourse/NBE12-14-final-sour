@@ -82,6 +82,13 @@ function Probe() {
   );
 }
 
+test('클릭 점수 복구 중에는 자동 재전송과 미확정 횟수를 안내한다', async () => {
+  mount(async () => fail(503, 'RESTORE_SCORE_RESTORING'));
+  await ready();
+  fireEvent.click(screen.getByRole('button', { name: '클릭' }));
+  await waitFor(() => assert.match(screen.getByRole('alert').textContent ?? '', /점수 복구 중.*자동.*미확정.*1회/), { timeout: 2500 });
+});
+
 const idleLoader: TurnstileLoader = async () => ({ render: () => 'idle', reset: () => undefined, remove: () => undefined });
 function fakeTurnstile() {
   const widgets: TurnstileRenderOptions[] = [];

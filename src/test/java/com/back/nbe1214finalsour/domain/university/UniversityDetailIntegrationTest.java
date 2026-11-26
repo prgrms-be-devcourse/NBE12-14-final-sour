@@ -5,7 +5,12 @@ import com.back.nbe1214finalsour.domain.university.entity.Department;
 import com.back.nbe1214finalsour.domain.university.entity.University;
 import com.back.nbe1214finalsour.domain.university.repository.DepartmentRepository;
 import com.back.nbe1214finalsour.domain.university.repository.UniversityRepository;
+import com.back.nbe1214finalsour.domain.user.entity.User;
+import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
+import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
+import com.back.nbe1214finalsour.global.crypto.EmailHasher;
 import com.back.nbe1214finalsour.global.redis.RedisKey;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -14,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.OffsetDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,6 +41,12 @@ class UniversityDetailIntegrationTest {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private EmailHasher emailHasher;
 
     @Test
     void getUniversityDetail_withRealDbAndRedis() throws Exception {
@@ -136,5 +148,48 @@ class UniversityDetailIntegrationTest {
             redisTemplate.delete(memberCountKey);
             redisTemplate.opsForZSet().remove(universityKey, universityId);
         }
+    }
+
+    @Test
+    @DisplayName("학교 회원 수를 조회하면 해당 학교의 활성 회원만 집계한다")
+    void getUniversityDetail_countsOnlyActiveMembersOfRequestedUniversity() throws Exception {
+        // given
+        University university = universityRepository.saveAndFlush(new University("회원수집계테스트대학교"));
+        University otherUniversity = universityRepository.saveAndFlush(new University("회원수집계타대학교"));
+        Department department = departmentRepository.saveAndFlush(new Department(university, "컴퓨터공학과"));
+        Department otherDepartment = departmentRepository.saveAndFlush(new Department(otherUniversity, "컴퓨터공학과"));
+
+        saveMember(university, department, "회원수활성A", "member-count-active-a@test.ac.kr");
+        saveMember(university, department, "회원수활성B", "member-count-active-b@test.ac.kr");
+        User suspended = saveMember(university, department, "회원수정지", "member-count-suspended@test.ac.kr");
+        User banned = saveMember(university, department, "회원수차단", "member-count-banned@test.ac.kr");
+        User withdrawn = saveMember(university, department, "회원수탈퇴", "member-count-withdrawn@test.ac.kr");
+        saveMember(otherUniversity, otherDepartment, "회원수타학교", "member-count-other@test.ac.kr");
+        suspended.changeStatus(UserStatus.SUSPENDED);
+        banned.changeStatus(UserStatus.BANNED);
+        withdrawn.withdraw(OffsetDateTime.now());
+        userRepository.flush();
+
+        Long universityId = university.getId();
+        String memberCountKey = RedisKey.CACHE_UNIV_MEMBER_COUNT.of(universityId);
+        redisTemplate.delete(memberCountKey);
+
+        try {
+            // when
+            var result = mockMvc.perform(get("/api/v1/universities/{id}", universityId));
+
+            // then
+            result.andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.memberCount").value(2));
+        } finally {
+            redisTemplate.delete(memberCountKey);
+        }
+    }
+
+    private User saveMember(University university, Department department, String nickname, String email) {
+        return userRepository.saveAndFlush(User.create(
+                university.getId(), department.getId(), nickname, email,
+                emailHasher.hash(email), "{noop}unused", OffsetDateTime.now()
+        ));
     }
 }

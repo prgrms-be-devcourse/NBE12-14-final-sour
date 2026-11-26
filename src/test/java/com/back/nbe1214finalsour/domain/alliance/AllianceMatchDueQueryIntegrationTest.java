@@ -62,10 +62,40 @@ class AllianceMatchDueQueryIntegrationTest {
         assertThat(result).doesNotContain(requestedMatch.getId());
     }
 
+    @Test
+    @DisplayName("신청 마감 시각이 지난 대기 중 대결만 신청 만료 대상으로 조회한다")
+    void findExpiredRequestIds_returnsOnlyExpiredRequestedMatches() {
+        // given
+        OffsetDateTime now = OffsetDateTime.now().withNano(0);
+        AllianceMatch expired = createMatch(now.minusHours(2), now, false, now.minusMinutes(1));
+        AllianceMatch atDeadline = createMatch(now.minusHours(2), now, false, now);
+        AllianceMatch waiting = createMatch(now, now, false, now.plusHours(1));
+        AllianceMatch canceled = createMatch(now.minusHours(2), now, false, now.minusMinutes(1));
+        canceled.cancelRequested();
+        allianceMatchRepository.saveAndFlush(canceled);
+        AllianceMatch ongoing = createMatch(now.minusHours(2), now, true, now.minusMinutes(1));
+
+        // when
+        List<Long> result = allianceMatchRepository.findExpiredRequestIds(now);
+
+        // then
+        assertThat(result)
+                .containsExactly(expired.getId(), atDeadline.getId());
+    }
+
     private AllianceMatch createMatch(
             OffsetDateTime startedAt,
             OffsetDateTime now,
             boolean accepted
+    ) {
+        return createMatch(startedAt, now, accepted, now.plusHours(1));
+    }
+
+    private AllianceMatch createMatch(
+            OffsetDateTime startedAt,
+            OffsetDateTime now,
+            boolean accepted,
+            OffsetDateTime requestExpiredAt
     ) {
         Alliance allianceA = allianceRepository.save(
                 Alliance.create(
@@ -87,7 +117,7 @@ class AllianceMatchDueQueryIntegrationTest {
                 allianceA.getId(),
                 allianceB.getId(),
                 6,
-                now.plusHours(1)
+                requestExpiredAt
         );
 
         if (accepted) {

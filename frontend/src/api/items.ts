@@ -63,9 +63,9 @@ export function getActiveItemEffect(client: ApiClient, signal?: AbortSignal): Pr
 export function getPurchaseHistory(client: ApiClient, page = 0, signal?: AbortSignal): Promise<PurchaseHistoryResponse> {
   return client.get('/items/me/history', { query: { page, size: 20 }, signal });
 }
-/** Contribution potions only. No body, multipart, idempotency key or automatic POST retry. */
-export function purchaseItem(client: ApiClient, itemId: number, signal?: AbortSignal): Promise<ItemPurchaseResponse> {
-  return client.request(`/items/${itemId}/purchase`, { method: 'POST', signal });
+/** Contribution potions only. No body or multipart; token reissue retries use the same key. */
+export function purchaseItem(client: ApiClient, itemId: number, idempotencyKey: string, signal?: AbortSignal): Promise<ItemPurchaseResponse> {
+  return client.request(`/items/${itemId}/purchase`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, signal });
 }
 export function useItemCatalog() {
   const client = useApiClient();

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApiClient, useAuthSession } from '../api/ApiProvider';
 import { submitAttack, type AttackResponse } from '../api/attacks';
 import { submitAssist, type AssistResponse } from '../api/assists';
+import { allianceKeys } from '../api/alliances';
 import { isClickLimitError, requiresClickVerification } from '../api/abuse';
 import { errorMessage, isApiError } from '../api/errors';
 import { selectByMode } from '../api/mode';
@@ -30,10 +31,12 @@ export interface CampusAttacks {
   retryLimited: (() => void) | null;
   botCheck: { open: boolean; onOpen: () => void; onClose: () => void; onVerified: () => void } | null;
 }
-const EMPTY: ClickBatchSnapshot = { pendingClicks: 0, pendingScore: 0, sending: false, error: null, recoverable: false, locked: false };
+const EMPTY: ClickBatchSnapshot = { pendingClicks: 0, pendingScore: 0, sending: false, error: null, recoverable: false, restoring: false, locked: false };
 type AttackBatcher = ReturnType<typeof createClickBatcher<CampusActionResult>>;
 const isAllyAttackRejection = (error: unknown) => isApiError(error) && error.kind === 'http'
   && error.status === 400 && error.code === 'ATTACK_ALLY_UNIVERSITY';
+const isNonAllyAssistRejection = (error: unknown) => isApiError(error) && error.kind === 'http'
+  && error.status === 400 && error.code === 'ASSIST_NOT_ALLY';
 
 /**
  * App-root lifetime: navigation does not discard attacks or change a queued batch's target. No optimistic damage.
@@ -78,6 +81,13 @@ export function useApiCampusAttacks(beginAction: ClickUpgradeGate['beginUpgrade'
         }
       },
       onRejected(error, rejectedClicks) {
+        if (kind.current === 'assist' && isNonAllyAssistRejection(error)) {
+          if (target.current !== null) void queryClient.invalidateQueries({ queryKey: universityKeys.detail(target.current, userId), exact: true });
+          void queryClient.invalidateQueries({ queryKey: allianceKeys.mine(userId), exact: true });
+          setResult(null);
+          setNotice(`${errorMessage(error)} 거절된 지원 ${rejectedClicks}회는 취소했어요. 연합 정보를 다시 확인해 주세요.`);
+          return true;
+        }
         if (kind.current !== 'attack' || !isAllyAttackRejection(error)) return false;
         setResult(null);
         setNotice(`${errorMessage(error)} 거절된 공격 ${rejectedClicks}회는 취소했어요. 학교 정보를 다시 확인한 뒤 지원을 눌러 주세요.`);
@@ -176,13 +186,15 @@ export function useApiCampusAttacks(beginAction: ClickUpgradeGate['beginUpgrade'
     setBotOpen(false);
     if (!resumed) setNotice(`이전 ${CAMPUS_ACTION_LABEL[kind.current]}의 처리 여부가 불명확해 재전송하지 않았어요. 새로고침해 서버 점수를 확인해 주세요.`);
   }, []);
-  const failure = snapshot.error
+  const failure = snapshot.restoring
+    ? `점수 복구 중이에요. 자동으로 다시 보냅니다. 미확정 ${snapshot.pendingClicks}회`
+    : snapshot.error
     ? `${errorMessage(snapshot.error)} 미확정 ${CAMPUS_ACTION_LABEL[kind.current]} ${snapshot.pendingClicks}회는 보류 중입니다. 처리 여부가 불명확하면 재전송하지 않습니다. 새로고침하면 미확정 ${CAMPUS_ACTION_LABEL[kind.current]}은 사라지고 서버 점수만 남습니다.`
     : null;
   return {
     ready: signedIn && userId !== undefined,
     myUniversityId: signedIn ? me.data?.university.id ?? null : null,
-    pendingTargetId, pendingKind, pendingClicks: snapshot.pendingClicks, blocked: snapshot.error !== null, tap,
+    pendingTargetId, pendingKind, pendingClicks: snapshot.pendingClicks, blocked: snapshot.error !== null || snapshot.restoring, tap,
     result: signedIn ? result : null,
     notice: failure ? `${notice ? `${notice} ` : ''}${failure}` : notice,
     retryLimited: signedIn && snapshot.recoverable && isClickLimitError(snapshot.error) ? retryLimited : null,
