@@ -38,8 +38,8 @@ export function schoolBadge(university: NamedRef): OnboardingSchool {
 type Stage =
   | { step: 'email' }
   | { step: 'code'; email: string; university: NamedRef; issuedAt: number; expiresAt: number; resendAt: number; attemptsLeft: number }
-  | { step: 'password'; email: string; university: NamedRef; signupToken: string }
-  | { step: 'profile'; email: string; university: NamedRef; signupToken: string; password: string }
+  | { step: 'password'; email: string; university: NamedRef; signupToken: string; tokenExpiresAt: number }
+  | { step: 'profile'; email: string; university: NamedRef; signupToken: string; tokenExpiresAt: number; password: string }
   /** `signedIn`: the automatic login right after sign-up worked. */
   | { step: 'done'; result: SignupResponse; signedIn: boolean };
 
@@ -80,7 +80,7 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
   const departments = useDepartments(universityId);
 
   // The code's validity and the resend wait count down on screen, at the mock onboarding's 250ms pace.
-  const ticking = stage.step === 'code';
+  const ticking = stage.step === 'code' || stage.step === 'password' || stage.step === 'profile';
   useEffect(() => {
     if (!ticking) return;
     const timer = setInterval(() => setNow(Date.now()), 250);
@@ -102,6 +102,14 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
     setNicknameStatus(null);
     show(message);
   };
+
+  const tokenExpiresAt = stage.step === 'password' || stage.step === 'profile' ? stage.tokenExpiresAt : null;
+  useEffect(() => {
+    if (tokenExpiresAt !== null && now >= tokenExpiresAt && !pending) {
+      restart('가입 가능 시간이 지났어요. 이메일 인증을 다시 해 주세요.');
+    }
+  // restart uses only stable state setters.
+  }, [tokenExpiresAt, now, pending]);
 
   const sendCode = (email: string, resend: boolean) => {
     codeRequest.mutate(email, {
@@ -163,9 +171,11 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
             show('6자리 숫자를 모두 입력해 주세요.');
             return;
           }
+          const requestedAt = Date.now();
           verify.mutate({ email: stage.email, code }, {
             onSuccess: (response) => {
-              setStage({ step: 'password', email: stage.email, university: response.university, signupToken: response.signupToken });
+              setNow(Date.now());
+              setStage({ step: 'password', email: stage.email, university: response.university, signupToken: response.signupToken, tokenExpiresAt: requestedAt + response.expiresInSeconds * 1000 });
               show(null);
             },
             onError: (failure) => {
@@ -201,6 +211,7 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
         ruleText={PASSWORD_RULE_TEXT}
         error={error}
         onNext={() => {
+          if (Date.now() >= stage.tokenExpiresAt) { restart('가입 가능 시간이 지났어요. 이메일 인증을 다시 해 주세요.'); return; }
           const problem = passwordProblem(password, confirm);
           if (problem) {
             show(problem);
@@ -255,6 +266,7 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
         error={error}
         pending={pending}
         onEnroll={() => {
+          if (Date.now() >= stage.tokenExpiresAt) { restart('가입 가능 시간이 지났어요. 이메일 인증을 다시 해 주세요.'); return; }
           const problem = nicknameProblem(nickname) ?? (departmentId ? null : '학과를 선택해 주세요.');
           if (problem) {
             show(problem);
@@ -281,7 +293,7 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
               if (errorCode === SIGNUP_ERROR_CODES.nicknameDuplicated) setNicknameStatus({ ok: false, message: NICKNAME_TAKEN });
               const fields = fieldErrorMap(failure);
               if (fields.password) {
-                setStage({ step: 'password', email: stage.email, university: stage.university, signupToken: stage.signupToken });
+                setStage({ step: 'password', email: stage.email, university: stage.university, signupToken: stage.signupToken, tokenExpiresAt: stage.tokenExpiresAt });
                 show(fields.password);
                 return;
               }
@@ -309,6 +321,10 @@ export const ApiSignupPhone: React.FC<ApiSignupPhoneProps> = ({ onGoToCampus, on
     );
   }
 
+  const seconds = tokenExpiresAt === null ? 0 : Math.ceil((tokenExpiresAt - now) / 1000);
+  if (seconds > 0 && seconds <= 300) {
+    content = <>{content}<p className="font-pixel text-[10px] text-[#8b5327]">가입 가능 시간이 {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')} 남았어요. 시간이 지나면 이메일 인증부터 다시 해야 해요.</p></>;
+  }
   if (fullShell) return <PhoneFrame label="회원가입">{content}</PhoneFrame>;
   return (
     <div className="w-full flex flex-col items-center py-2">

@@ -147,12 +147,12 @@ class HiddenUniversityIntegrationTest {
         click(hiddenToken, "hidden-1", 5)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.university.id").value(hiddenUnivId))
-                .andExpect(jsonPath("$.data.university.totalScore").value(5));
+                .andExpect(jsonPath("$.data.university.totalScore").value(50));
         click(publicToken, "public-1", 3).andExpect(status().isOk());
 
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(hiddenUnivId))).isNull();
-        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV_HIDDEN.of(), String.valueOf(hiddenUnivId))).isEqualTo(5.0);
-        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(publicUnivId))).isEqualTo(3.0);
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV_HIDDEN.of(), String.valueOf(hiddenUnivId))).isEqualTo(50.0);
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(publicUnivId))).isEqualTo(30.0);
 
         mockMvc.perform(get("/api/v1/rankings/universities").param("size", "100")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + hiddenToken))
@@ -180,11 +180,11 @@ class HiddenUniversityIntegrationTest {
 
         // 기본 클리커(클릭당 1점): 공격 피해와 지원 점수는 클릭 수의 0.3배 (10 → 3, 20 → 6)
         target("/api/v1/attacks", "attack-1", hiddenUnivId, 10).andExpect(status().isOk());
-        assertThat(hiddenScore()).isEqualTo(7.0);
+        assertThat(hiddenScore()).isEqualTo(70.0);
 
         joinAlliance();
         target("/api/v1/assists", "assist-1", hiddenUnivId, 20).andExpect(status().isOk());
-        assertThat(hiddenScore()).isEqualTo(13.0);
+        assertThat(hiddenScore()).isEqualTo(130.0);
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(hiddenUnivId))).isNull();
     }
 
@@ -196,13 +196,13 @@ class HiddenUniversityIntegrationTest {
         mockMvc.perform(get("/api/v1/universities/{id}", hiddenUnivId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + hiddenToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalScore").value(6))
+                .andExpect(jsonPath("$.data.totalScore").value(60))
                 .andExpect(jsonPath("$.data.rank").doesNotExist())
                 .andExpect(jsonPath("$.data.isMyUniversity").value(true));
 
         scoreFlushService.flush();
         assertThat(jdbcTemplate.queryForObject("SELECT total_score FROM university WHERE id = ?", Long.class,
-                hiddenUnivId)).isEqualTo(6L);
+                hiddenUnivId)).isEqualTo(60L);
     }
 
     @Test

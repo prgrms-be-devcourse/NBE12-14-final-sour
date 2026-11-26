@@ -117,7 +117,7 @@ class MyInfoIntegrationTest {
                 .andExpect(jsonPath("$.data.department.id").value(departmentId))
                 .andExpect(jsonPath("$.data.department.name").value("컴퓨터공학과"))
                 .andExpect(jsonPath("$.data.clicker.level").value(1))
-                .andExpect(jsonPath("$.data.clicker.clickPower").value(1))
+                .andExpect(jsonPath("$.data.clicker.clickPower").value(10))
                 .andExpect(jsonPath("$.data.clicker.nextLevelRequiredScore").value(600))
                 .andExpect(jsonPath("$.data.totalContribScore").value(500))
                 .andExpect(jsonPath("$.data.totalAttackScore").value(7));

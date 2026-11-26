@@ -4,6 +4,7 @@ import { CampusLayoutScene } from '../CampusScene';
 import { PhoneShell } from '../PhoneShell';
 import { TITLE_LAYOUT } from '../../data/campusLayouts';
 import { soundManager } from '../../utils/sound';
+import { extractCodeDigits } from '../../utils/codeDigits';
 import { MOCK_SAMPLE_EMAILS } from '../../data/mockEmailDomains.ts';
 import { INITIAL_CONTRIBUTION } from '../../data/gameRules.ts';
 import { REAL_UNIVERSITIES } from '../../data/universitiesData.ts';
@@ -199,8 +200,21 @@ export const CodeStep: React.FC<CodeStepProps> = ({
 }) => {
   const [digits, setDigits] = useState<string[]>(() => Array.from({ length: 6 }, (_, i) => initialDigits?.[i] ?? ''));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const submitRef = useRef<HTMLButtonElement>(null);
+
+  const distribute = (index: number, raw: string) => {
+    const value = extractCodeDigits(raw);
+    if (!value) return;
+    const start = value.length === 6 ? 0 : index;
+    const next = digits.map((digit, i) => i >= start && i < start + value.length ? value[i - start] : digit);
+    setDigits(next);
+    const empty = next.findIndex((digit) => !digit);
+    if (empty < 0) submitRef.current?.focus();
+    else inputRefs.current[empty]?.focus();
+  };
 
   const change = (index: number, raw: string) => {
+    if (raw.replace(/\D/g, '').length > 1) { distribute(index, raw); return; }
     const value = raw.replace(/\D/g, '').slice(-1);
     setDigits((prev) => prev.map((digit, i) => (i === index ? value : digit)));
     if (value && index < 5) inputRefs.current[index + 1]?.focus();
@@ -251,10 +265,12 @@ export const CodeStep: React.FC<CodeStepProps> = ({
               ref={(el) => { inputRefs.current[idx] = el; }}
               aria-label={`인증 코드 ${idx + 1}번째 자리`}
               inputMode="numeric"
+              autoComplete={idx === 0 ? 'one-time-code' : 'off'}
               type="text"
-              maxLength={1}
+              maxLength={idx === 0 ? 6 : 1}
               value={digit}
               onChange={(e) => change(idx, e.target.value)}
+              onPaste={(event) => { event.preventDefault(); distribute(idx, event.clipboardData.getData('text')); }}
               onKeyDown={(e) => {
                 if (e.key === 'Backspace' && !digits[idx] && idx > 0) inputRefs.current[idx - 1]?.focus();
               }}
@@ -284,7 +300,7 @@ export const CodeStep: React.FC<CodeStepProps> = ({
             이메일 수정
           </button>
         </div>
-        <button type="submit" disabled={pending} className="pixel-plaque plaque-yellow w-full py-2 text-xs font-pixel font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60 disabled:cursor-wait">
+        <button ref={submitRef} type="submit" disabled={pending} className="pixel-plaque plaque-yellow w-full py-2 text-xs font-pixel font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60 disabled:cursor-wait">
           <span>{pending ? PENDING_LABEL : '코드 확인'}</span>
           <Check className="w-4 h-4" />
         </button>

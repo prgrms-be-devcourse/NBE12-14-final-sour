@@ -163,19 +163,19 @@ class ClickIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.acceptedClicks").value(3))
-                .andExpect(jsonPath("$.data.earnedScore").value(3))
+                .andExpect(jsonPath("$.data.earnedScore").value(30))
                 .andExpect(jsonPath("$.data.multiplier").value(1.0))
-                .andExpect(jsonPath("$.data.myContribScore").value(3))
+                .andExpect(jsonPath("$.data.myContribScore").value(30))
                 .andExpect(jsonPath("$.data.university.id").value(universityId))
-                .andExpect(jsonPath("$.data.university.totalScore").value(3))
+                .andExpect(jsonPath("$.data.university.totalScore").value(30))
                 .andExpect(jsonPath("$.data.department.id").value(departmentId))
-                .andExpect(jsonPath("$.data.department.totalScore").value(3))
+                .andExpect(jsonPath("$.data.department.totalScore").value(30))
                 .andExpect(jsonPath("$.data.schoolClicksLastSecond").value(0));
 
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(universityId)))
-                .isEqualTo(3.0);
+                .isEqualTo(30.0);
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(3.0);
+                .isEqualTo(30.0);
         assertThat(redis.opsForSet().isMember(RedisKey.DIRTY_USER.of(), String.valueOf(user.getId()))).isTrue();
     }
 
@@ -192,10 +192,10 @@ class ClickIntegrationTest {
         click(tokenWithOtherDepartment, "sub-1", 3)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.department.id").value(otherDepartmentId))
-                .andExpect(jsonPath("$.data.department.totalScore").value(3));
+                .andExpect(jsonPath("$.data.department.totalScore").value(30));
 
         assertThat(redis.opsForZSet().score(RedisKey.RANK_DEPT.of(universityId), String.valueOf(otherDepartmentId)))
-                .isEqualTo(3.0);
+                .isEqualTo(30.0);
         assertThat(redis.opsForZSet().score(RedisKey.RANK_DEPT.of(universityId), String.valueOf(departmentId)))
                 .isNull();
     }
@@ -209,7 +209,7 @@ class ClickIntegrationTest {
         click(legacyToken, "sub-1", 3)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.department.id").value(departmentId))
-                .andExpect(jsonPath("$.data.department.totalScore").value(3));
+                .andExpect(jsonPath("$.data.department.totalScore").value(30));
     }
 
     @Test
@@ -227,8 +227,8 @@ class ClickIntegrationTest {
 
         click("sub-2", 2)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.earnedScore").value(2))
-                .andExpect(jsonPath("$.data.myContribScore").value(5));
+                .andExpect(jsonPath("$.data.earnedScore").value(20))
+                .andExpect(jsonPath("$.data.myContribScore").value(50));
     }
 
     @Test
@@ -267,7 +267,7 @@ class ClickIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("USER_SUSPENDED"));
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(3.0);
+                .isEqualTo(30.0);
     }
 
     @Test
@@ -301,7 +301,7 @@ class ClickIntegrationTest {
                 .andExpect(jsonPath("$.code").value("CLICK_DUPLICATE_SUBMISSION"));
 
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(3.0);
+                .isEqualTo(30.0);
     }
 
     @Test
@@ -317,7 +317,7 @@ class ClickIntegrationTest {
 
         // 한도에 걸린 요청의 점수는 반영되지 않는다
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(12.0);
+                .isEqualTo(120.0);
     }
 
     @Test
@@ -333,7 +333,7 @@ class ClickIntegrationTest {
                 .andExpect(jsonPath("$.code").value("CLICK_COUNT_EXCEEDED"));
 
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(10.0);
+                .isEqualTo(100.0);
     }
 
     @Test
@@ -357,7 +357,7 @@ class ClickIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.multiplier").value(1.5))
                 // floor(3 * 1 * 1.5) = 4
-                .andExpect(jsonPath("$.data.earnedScore").value(4));
+                .andExpect(jsonPath("$.data.earnedScore").value(45));
     }
 
     @Test
@@ -368,7 +368,7 @@ class ClickIntegrationTest {
         click("sub-1", 3)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.multiplier").value(2.0))
-                .andExpect(jsonPath("$.data.earnedScore").value(6));
+                .andExpect(jsonPath("$.data.earnedScore").value(60));
     }
 
     @Test
@@ -405,13 +405,13 @@ class ClickIntegrationTest {
 
         clickAt("sub-1", 10, LIB_LAT, LIB_LNG)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.earnedScore").value(12)) // 10 * 1 * 1.2
+                .andExpect(jsonPath("$.data.earnedScore").value(120)) // 10 * 1 * 1.2 * 10
                 .andExpect(jsonPath("$.data.multiplier").value(1.2))
                 .andExpect(jsonPath("$.data.libraryBonus").value(true))
-                .andExpect(jsonPath("$.data.university.totalScore").value(12));
+                .andExpect(jsonPath("$.data.university.totalScore").value(120));
 
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(universityId)))
-                .isEqualTo(12.0);
+                .isEqualTo(120.0);
     }
 
     @Test
@@ -421,7 +421,7 @@ class ClickIntegrationTest {
 
         clickAt("sub-1", 10, LIB_LAT + 0.0010, LIB_LNG)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.earnedScore").value(10))
+                .andExpect(jsonPath("$.data.earnedScore").value(100))
                 .andExpect(jsonPath("$.data.multiplier").value(1.0))
                 .andExpect(jsonPath("$.data.libraryBonus").value(false));
     }
@@ -433,7 +433,7 @@ class ClickIntegrationTest {
 
         click("sub-1", 10)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.earnedScore").value(10))
+                .andExpect(jsonPath("$.data.earnedScore").value(100))
                 .andExpect(jsonPath("$.data.libraryBonus").value(false));
     }
 
@@ -443,7 +443,7 @@ class ClickIntegrationTest {
         // 테스트 학교는 좌표 없이 만들어진다
         clickAt("sub-1", 10, LIB_LAT, LIB_LNG)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.earnedScore").value(10))
+                .andExpect(jsonPath("$.data.earnedScore").value(100))
                 .andExpect(jsonPath("$.data.libraryBonus").value(false));
     }
 
@@ -455,7 +455,7 @@ class ClickIntegrationTest {
 
         clickAt("sub-1", 10, LIB_LAT, LIB_LNG)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.earnedScore").value(18)) // 10 * 1 * 1.5 * 1.2
+                .andExpect(jsonPath("$.data.earnedScore").value(180)) // 10 * 1 * 1.5 * 1.2 * 10
                 .andExpect(jsonPath("$.data.multiplier").value(1.8))
                 .andExpect(jsonPath("$.data.libraryBonus").value(true));
     }
@@ -483,7 +483,7 @@ class ClickIntegrationTest {
         click("sub-2", 2).andExpect(status().isOk());   // 두 번째는 캐시에서 연합을 읽는다
 
         assertThat(redis.opsForHash().get(RedisKey.ALLIANCE_SCORE.of(myAlliance), String.valueOf(universityId)))
-                .isEqualTo("5");
+                .isEqualTo("50");
         assertThat(redis.opsForValue().get(RedisKey.UNIV_ALLIANCE.of(universityId)))
                 .isEqualTo(String.valueOf(myAlliance));
         assertThat(redis.getExpire(RedisKey.UNIV_ALLIANCE.of(universityId))).isPositive();
@@ -502,7 +502,7 @@ class ClickIntegrationTest {
         click("sub-1", 3).andExpect(status().isOk());
         click("sub-2", 2).andExpect(status().isOk());   // 두 번째는 캐시에서 대결을 읽는다
 
-        assertThat(redis.opsForHash().get(RedisKey.MATCH_SCORE.of(matchId), "B")).isEqualTo("5");
+        assertThat(redis.opsForHash().get(RedisKey.MATCH_SCORE.of(matchId), "B")).isEqualTo("50");
         assertThat(redis.opsForHash().get(RedisKey.MATCH_SCORE.of(matchId), "A")).isNull();
         assertThat(redis.opsForValue().get(RedisKey.UNIV_MATCH.of(universityId))).isEqualTo(matchId + ":B");
         // 1분 배치가 DB 대결 점수에 반영하도록 표시한다
@@ -510,7 +510,7 @@ class ClickIntegrationTest {
         assertThat(redis.getExpire(RedisKey.UNIV_MATCH.of(universityId))).isPositive();
         // 대결 중에도 연합 점수는 따로 쌓인다
         assertThat(redis.opsForHash().get(RedisKey.ALLIANCE_SCORE.of(myAlliance), String.valueOf(universityId)))
-                .isEqualTo("5");
+                .isEqualTo("50");
     }
 
     @Test

@@ -149,17 +149,17 @@ class AttackIntegrationTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.acceptedClicks").value(10))
                 // floor(10 * 1 * 0.3) = 3
-                .andExpect(jsonPath("$.data.damage").value(3))
+                .andExpect(jsonPath("$.data.damage").value(30))
                 .andExpect(jsonPath("$.data.multiplier").value(1.0))
                 .andExpect(jsonPath("$.data.isRival").value(false))
                 .andExpect(jsonPath("$.data.targetUniversity.id").value(targetUniversityId))
                 .andExpect(jsonPath("$.data.targetUniversity.name").value(TARGET_NAME))
-                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(97))
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(70))
                 .andExpect(jsonPath("$.data.targetUniversity.rank").value(Matchers.greaterThanOrEqualTo(1)))
-                .andExpect(jsonPath("$.data.myAttackScore").value(3));
+                .andExpect(jsonPath("$.data.myAttackScore").value(30));
 
-        assertThat(targetScore()).isEqualTo(97.0);
-        assertThat(myAttackScore()).isEqualTo("3");
+        assertThat(targetScore()).isEqualTo(70.0);
+        assertThat(myAttackScore()).isEqualTo("30");
         assertThat(redis.opsForSet().isMember(RedisKey.DIRTY_UNIV.of(), String.valueOf(targetUniversityId))).isTrue();
     }
 
@@ -185,9 +185,9 @@ class AttackIntegrationTest {
 
         attack("sub-2", targetUniversityId, 20)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.damage").value(6))
-                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(91))
-                .andExpect(jsonPath("$.data.myAttackScore").value(9));
+                .andExpect(jsonPath("$.data.damage").value(60))
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(10))
+                .andExpect(jsonPath("$.data.myAttackScore").value(90));
     }
 
     @Test
@@ -213,11 +213,11 @@ class AttackIntegrationTest {
         attack("sub-1", targetUniversityId, 19)
                 .andExpect(status().isOk())
                 // floor(19 * 1 * 0.3 * 1.1) = floor(6.27) = 6 (경쟁 학교가 아니면 floor(5.7) = 5)
-                .andExpect(jsonPath("$.data.damage").value(6))
+                .andExpect(jsonPath("$.data.damage").value(62))
                 .andExpect(jsonPath("$.data.multiplier").value(1.1))
                 .andExpect(jsonPath("$.data.isRival").value(true))
-                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(94))
-                .andExpect(jsonPath("$.data.myAttackScore").value(6));
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(38))
+                .andExpect(jsonPath("$.data.myAttackScore").value(62));
     }
 
     @Test
@@ -227,7 +227,7 @@ class AttackIntegrationTest {
 
         attack("sub-1", targetUniversityId, 19)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.damage").value(5))
+                .andExpect(jsonPath("$.data.damage").value(57))
                 .andExpect(jsonPath("$.data.multiplier").value(1.0))
                 .andExpect(jsonPath("$.data.isRival").value(false));
     }
@@ -298,8 +298,8 @@ class AttackIntegrationTest {
                                 {"submissionId":"ally-attack","targetUniversityId":%d,"clickCount":10}"""
                                 .formatted(targetUniversityId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(103))
-                .andExpect(jsonPath("$.data.myContribScore").value(21));
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(130))
+                .andExpect(jsonPath("$.data.myContribScore").value(111));
     }
 
     @ParameterizedTest(name = "{0}: 동맹 공격 차단={1}")
@@ -333,7 +333,7 @@ class AttackIntegrationTest {
         attack("ally-attack", targetUniversityId, 10)
                 .andExpect(status().is(blocked ? 400 : 200))
                 .andExpect(jsonPath("$.code").value(blocked ? "ATTACK_ALLY_UNIVERSITY" : "SUCCESS"));
-        assertThat(targetScore()).isEqualTo(blocked ? 100.0 : 97.0);
+        assertThat(targetScore()).isEqualTo(blocked ? 100.0 : 70.0);
     }
 
     @Test
@@ -348,8 +348,8 @@ class AttackIntegrationTest {
 
         attack("ally-attack", targetUniversityId, 10)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.damage").value(3));
-        assertThat(targetScore()).isEqualTo(97.0);
+                .andExpect(jsonPath("$.data.damage").value(30));
+        assertThat(targetScore()).isEqualTo(70.0);
     }
 
     @Test
@@ -374,8 +374,8 @@ class AttackIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CLICK_DUPLICATE_SUBMISSION"));
 
-        assertThat(targetScore()).isEqualTo(97.0);
-        assertThat(myAttackScore()).isEqualTo("3");
+        assertThat(targetScore()).isEqualTo(70.0);
+        assertThat(myAttackScore()).isEqualTo("30");
     }
 
     @Test

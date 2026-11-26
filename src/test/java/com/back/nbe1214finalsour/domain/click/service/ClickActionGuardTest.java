@@ -75,7 +75,7 @@ class ClickActionGuardTest {
         given(stringRedisTemplate.opsForValue()).willReturn(valueOperations);
         given(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(true);
         given(userClickerLevelCache.loadIfAbsent(USER_ID)).willReturn(2L);
-        given(clickerService.getClickerById(2L)).willReturn(new Clicker(2L, 20, 300L));
+        given(clickerService.getClickerById(2L)).willReturn(new Clicker(2L, 20, 600L));
         given(scoreRestoreService.isReady()).willReturn(true);
 
         // when

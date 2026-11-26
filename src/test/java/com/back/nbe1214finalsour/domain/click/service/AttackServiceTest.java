@@ -50,7 +50,7 @@ class AttackServiceTest {
     private static final String TARGET_NAME = "연세대학교";
     private static final String SUBMISSION_ID = "sub-1";
 
-    private static final Clicker CLICKER_LV3 = new Clicker(3L, 10, 1000L);
+    private static final Clicker CLICKER_LV3 = new Clicker(3L, 30, 2400L);
 
     /** apply-attack.lua 반환: damage(실제 깎인 양), univTotal, univRank, myAttackScore */
     private static final List<String> SCRIPT_RESULT = List.of("7", "93", "2", "150");
@@ -216,30 +216,30 @@ class AttackServiceTest {
 
         attackService.attack(USER_ID, UNIVERSITY_ID, request(TARGET_UNIVERSITY_ID, 4));
 
-        // 4 * 10 * 0.3 = 12
-        assertThat(capturedScriptArgs().get(1)).isEqualTo("12");
+        // 4 * 30 * 0.3 = 36
+        assertThat(capturedScriptArgs().get(1)).isEqualTo("36");
     }
 
     @Test
-    @DisplayName("경쟁 학교면 1.1배를 더 곱하고 소수점은 버린다 (명세 예시: 13.2 → 13)")
+    @DisplayName("경쟁 학교면 1.1배를 더 곱하고 소수점은 버린다 (39.6 → 39)")
     void attack_damageWithRival() {
         givenHappyPathBeforeScript(CLICKER_LV3, true);
 
         attackService.attack(USER_ID, UNIVERSITY_ID, request(TARGET_UNIVERSITY_ID, 4));
 
-        // 4 * 10 * 0.3 * 1.1 = 13.2 → 13
-        assertThat(capturedScriptArgs().get(1)).isEqualTo("13");
+        // 4 * 30 * 0.3 * 1.1 = 39.6 → 39
+        assertThat(capturedScriptArgs().get(1)).isEqualTo("39");
     }
 
     @Test
     @DisplayName("소수점이 생기면 버린다 (반올림이 아니다)")
     void attack_damageIsFloored() {
-        givenHappyPathBeforeScript(new Clicker(2L, 3, 300L), false);
+        givenHappyPathBeforeScript(new Clicker(2L, 20, 600L), true);
 
         attackService.attack(USER_ID, UNIVERSITY_ID, request(TARGET_UNIVERSITY_ID, 3));
 
-        // 3 * 3 * 0.3 = 2.7 → 2
-        assertThat(capturedScriptArgs().get(1)).isEqualTo("2");
+        // 3 * 20 * 0.3 * 1.1 = 19.8 → 19 (반올림이면 20). 클릭 세기가 10의 배수라 경쟁 배율이 없으면 소수점이 생기지 않는다
+        assertThat(capturedScriptArgs().get(1)).isEqualTo("19");
     }
 
     // --- 3단계: 스크립트 호출과 응답 매핑 ---
@@ -263,7 +263,7 @@ class AttackServiceTest {
                 "dirty:user"            // KEYS[4]
         );
         // ARGV: targetUniversityId, requestedDamage, userId
-        assertThat(argsCaptor.getAllValues()).containsExactly("9", "12", "1");
+        assertThat(argsCaptor.getAllValues()).containsExactly("9", "36", "1");
     }
 
     @Test
@@ -271,7 +271,7 @@ class AttackServiceTest {
     void attack_mapsScriptResultToResponse() {
         givenHappyPathBeforeScript(CLICKER_LV3, false);
 
-        // 요청 피해량은 12지만 스크립트는 남은 점수만큼인 7만 깎았다고 돌려준다
+        // 요청 피해량은 36이지만 스크립트는 남은 점수만큼인 7만 깎았다고 돌려준다
         AttackResponse response = attackService.attack(USER_ID, UNIVERSITY_ID, request(TARGET_UNIVERSITY_ID, 4));
 
         assertThat(response)

@@ -144,7 +144,7 @@ class AbuseVerificationIntegrationTest {
 
         assertThat(redis.hasKey(RedisKey.SUBMIT_DEDUPE.of(user.getId(), "sub-14"))).isFalse();
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(12.0);
+                .isEqualTo(120.0);
         assertThat(redis.opsForValue().get(RedisKey.RATELIMIT_ACTION.of(user.getId()))).isEqualTo("13");
     }
 

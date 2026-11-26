@@ -146,16 +146,16 @@ class AssistIntegrationTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.acceptedClicks").value(10))
                 // floor(10 * 1 * 0.3) = 3
-                .andExpect(jsonPath("$.data.assistScore").value(3))
+                .andExpect(jsonPath("$.data.assistScore").value(30))
                 .andExpect(jsonPath("$.data.targetUniversity.id").value(allyId))
                 .andExpect(jsonPath("$.data.targetUniversity.name").value(ALLY_NAME))
-                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(103))
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(130))
                 .andExpect(jsonPath("$.data.targetUniversity.rank").isNumber())
-                .andExpect(jsonPath("$.data.myContribScore").value(10));
+                .andExpect(jsonPath("$.data.myContribScore").value(100));
 
-        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(allyId))).isEqualTo(103.0);
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(allyId))).isEqualTo(130.0);
         assertThat(redis.opsForZSet().score(RedisKey.RANK_USER.of(universityId), String.valueOf(user.getId())))
-                .isEqualTo(10.0);
+                .isEqualTo(100.0);
         assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(universityId))).isNull();
         assertThat(redis.hasKey(RedisKey.RANK_DEPT.of(universityId))).isFalse();
         assertThat(redis.opsForSet().isMember(RedisKey.DIRTY_UNIV.of(), String.valueOf(allyId))).isTrue();
@@ -171,8 +171,8 @@ class AssistIntegrationTest {
         assist("sub-1", allyId, 9)
                 .andExpect(status().isOk())
                 // floor(9 * 0.3) = 2, floor(9 * 1.5) = 13
-                .andExpect(jsonPath("$.data.assistScore").value(2))
-                .andExpect(jsonPath("$.data.myContribScore").value(13));
+                .andExpect(jsonPath("$.data.assistScore").value(27))
+                .andExpect(jsonPath("$.data.myContribScore").value(135));
     }
 
     @Test
@@ -221,7 +221,7 @@ class AssistIntegrationTest {
         assist("sub-1", allyId, 10)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CLICK_DUPLICATE_SUBMISSION"));
-        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(allyId))).isEqualTo(103.0);
+        assertThat(redis.opsForZSet().score(RedisKey.RANK_UNIV.of(), String.valueOf(allyId))).isEqualTo(130.0);
     }
 
     @Test
@@ -260,7 +260,7 @@ class AssistIntegrationTest {
 
         // floor(10 * 0.3) = 3, 두 번
         assertThat(redis.opsForHash().get(RedisKey.ALLIANCE_SCORE.of(allianceId), String.valueOf(allyId)))
-                .isEqualTo("6");
+                .isEqualTo("60");
         assertThat(redis.opsForHash().get(RedisKey.ALLIANCE_SCORE.of(allianceId), String.valueOf(universityId)))
                 .isNull();
         assertThat(redis.opsForValue().get(RedisKey.UNIV_ALLIANCE.of(allyId))).isEqualTo(String.valueOf(allianceId));
@@ -285,13 +285,13 @@ class AssistIntegrationTest {
         assist("sub-1", allyId, 10).andExpect(status().isOk());
         assist("sub-2", allyId, 10).andExpect(status().isOk());   // 두 번째는 캐시에서 대결을 읽는다
 
-        assertThat(redis.opsForHash().get(RedisKey.MATCH_SCORE.of(matchId), "A")).isEqualTo("6");
+        assertThat(redis.opsForHash().get(RedisKey.MATCH_SCORE.of(matchId), "A")).isEqualTo("60");
         assertThat(redis.opsForHash().get(RedisKey.MATCH_SCORE.of(matchId), "B")).isNull();
         assertThat(redis.opsForValue().get(RedisKey.UNIV_MATCH.of(allyId))).isEqualTo(matchId + ":A");
         assertThat(redis.opsForSet().isMember(RedisKey.DIRTY_MATCH.of(), String.valueOf(matchId))).isTrue();
         assertThat(redis.getExpire(RedisKey.UNIV_MATCH.of(allyId))).isPositive();
         assertThat(redis.opsForHash().get(RedisKey.ALLIANCE_SCORE.of(allianceId), String.valueOf(allyId)))
-                .isEqualTo("6");
+                .isEqualTo("60");
     }
 
     private void member(long university, String memberStatus) {
