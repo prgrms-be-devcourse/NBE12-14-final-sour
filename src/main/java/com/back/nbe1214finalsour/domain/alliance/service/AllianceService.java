@@ -6,6 +6,8 @@ import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceUniversityRepository;
+import com.back.nbe1214finalsour.domain.chat.entity.AllianceChatRoom;
+import com.back.nbe1214finalsour.domain.chat.repository.AllianceChatRoomRepository;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
@@ -25,6 +27,7 @@ public class AllianceService {
     private static final int MAX_ALLIANCE_SIZE = 2;
 
     private final AllianceRepository allianceRepository;
+    private final AllianceChatRoomRepository allianceChatRoomRepository;
     private final AllianceUniversityRepository allianceUniversityRepository;
     private final UserRepository userRepository;
 
@@ -65,6 +68,7 @@ public class AllianceService {
         }
 
         Alliance savedAlliance = allianceRepository.save(alliance);
+        allianceChatRoomRepository.save(AllianceChatRoom.create(savedAlliance.getId(), savedAlliance.getName()));
 
         AllianceUniversity founder = AllianceUniversity.createFounder(
                 savedAlliance.getId(),

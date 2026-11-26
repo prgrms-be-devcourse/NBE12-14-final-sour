@@ -177,7 +177,9 @@ class RedisKeyTest {
                 "CHAT_ALLIANCE_CHANNEL|chat:alliance:%s|CHANNEL|JSON",
                 // 락
                 "LOCK_SCORE_FLUSH|lock:score-flush|STRING|PLAIN",
-                "LOCK_RANK_SNAPSHOT|lock:rank-snapshot|STRING|PLAIN"
+                "LOCK_RANK_SNAPSHOT|lock:rank-snapshot|STRING|PLAIN",
+                // 레디스 복구
+                "REDIS_READY|redis:ready|STRING|PLAIN"
         );
     }
 }

@@ -7,12 +7,14 @@ import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceQueryService;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
+import com.back.nbe1214finalsour.domain.chat.repository.AllianceChatRoomRepository;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
 
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,12 @@ class AllianceIntegrationTest {
 
     @Autowired
     private AllianceQueryService allianceQueryService;
+
+    @Autowired
+    private AllianceChatRoomRepository allianceChatRoomRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Autowired
     private UserRepository userRepository;
@@ -106,6 +114,14 @@ class AllianceIntegrationTest {
         );
 
         Long allianceId = alliance.getId();
+
+        allianceChatRoomRepository.flush();
+        assertThat(allianceChatRoomRepository.findById(allianceId).orElseThrow().isNew()).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT alliance_name FROM alliance_chat_room WHERE alliance_id = ?",
+                String.class, allianceId)).isEqualTo(alliance.getName());
+        entityManager.clear();
+        assertThat(allianceChatRoomRepository.findById(allianceId).orElseThrow().isNew()).isFalse();
 
         // then 1. 연합 정보 확인
         Alliance savedAlliance =

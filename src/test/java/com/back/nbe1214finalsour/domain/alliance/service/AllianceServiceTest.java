@@ -5,6 +5,8 @@ import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceUniversityRepository;
+import com.back.nbe1214finalsour.domain.chat.entity.AllianceChatRoom;
+import com.back.nbe1214finalsour.domain.chat.repository.AllianceChatRoomRepository;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
@@ -30,6 +32,9 @@ class AllianceServiceTest {
 
     @Mock
     private AllianceRepository allianceRepository;
+
+    @Mock
+    private AllianceChatRoomRepository allianceChatRoomRepository;
 
     @Mock
     private AllianceUniversityRepository allianceUniversityRepository;
@@ -59,6 +64,7 @@ class AllianceServiceTest {
 
         Alliance savedAlliance = mock(Alliance.class);
         when(savedAlliance.getId()).thenReturn(allianceId);
+        when(savedAlliance.getName()).thenReturn("저장된연합");
 
         when(allianceRepository.save(any(Alliance.class)))
                 .thenReturn(savedAlliance);
@@ -72,6 +78,10 @@ class AllianceServiceTest {
 
         // then
         assertThat(result).isSameAs(savedAlliance);
+        ArgumentCaptor<AllianceChatRoom> roomCaptor = ArgumentCaptor.forClass(AllianceChatRoom.class);
+        verify(allianceChatRoomRepository).save(roomCaptor.capture());
+        assertThat(roomCaptor.getValue().getId()).isEqualTo(allianceId);
+        assertThat(roomCaptor.getValue().getAllianceName()).isEqualTo("저장된연합");
 
         ArgumentCaptor<Alliance> allianceCaptor =
                 ArgumentCaptor.forClass(Alliance.class);

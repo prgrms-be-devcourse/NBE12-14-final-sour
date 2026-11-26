@@ -1,5 +1,5 @@
 // SCRUM-133 university room, SCRUM-182 alliance room: ChatMessageResponse / ChatMessagePageResponse. Subscribe and REST
-// history share this schema. The server picks the alliance room from the member's school, so sends carry no room ID.
+// history share this schema with numeric message IDs. The server picks the alliance room from the member's school.
 import type { ApiClient } from './client';
 import { ApiError, CLIENT_ERROR_CODES } from './errors';
 
@@ -20,7 +20,7 @@ export const chatSendDestination = (room: ChatRoom) => ROOM[room.kind].send;
 export const chatRoomId = (room: ChatRoom) => `${ROOM[room.kind].prefix}${room.id}`;
 
 export interface ChatMessage {
-  messageId: string;
+  messageId: number;
   roomId: string;
   userId: number;
   nickname: string;
@@ -28,14 +28,14 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
 }
-export interface ChatPage { items: ChatMessage[]; nextCursor: string | null; hasNext: boolean }
+export interface ChatPage { items: ChatMessage[]; nextCursor: number | null; hasNext: boolean }
 export interface ChatFault { code: string; message: string }
-const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+const positiveSafeInteger = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 export const invalidChatResponse = () => new ApiError({ kind: 'invalid-response', status: null, code: CLIENT_ERROR_CODES.invalidResponse });
 
 export function isChatMessage(value: unknown, room: ChatRoom): value is ChatMessage {
-  return record(value) && typeof value.messageId === 'string' && ULID.test(value.messageId)
+  return record(value) && positiveSafeInteger(value.messageId)
     && value.roomId === chatRoomId(room) && Number.isSafeInteger(value.userId) && Number(value.userId) > 0
     && typeof value.nickname === 'string' && typeof value.universityName === 'string' && typeof value.content === 'string'
     && typeof value.createdAt === 'string' && Number.isFinite(Date.parse(value.createdAt));
@@ -65,18 +65,19 @@ export function validateChatContent(input: string): { content: string } | { prob
   return length < 1 || length > CHAT_MAX_LENGTH ? { problem: '메시지는 공백을 제외한 앞뒤를 정리한 뒤 1~200자로 입력해 주세요.' } : { content };
 }
 
-/** Immutable, server-owned messages only; ULID order is the server's history cursor order. */
+/** Immutable, server-owned messages only; id order (server identity) is the history cursor order. */
 export function mergeChatMessages(current: readonly ChatMessage[], incoming: readonly ChatMessage[]): ChatMessage[] {
   const byId = new Map(current.map((item) => [item.messageId, item]));
   for (const item of incoming) byId.set(item.messageId, item);
-  return [...byId.values()].sort((a, b) => a.messageId < b.messageId ? -1 : a.messageId > b.messageId ? 1 : 0);
+  return [...byId.values()].sort((a, b) => a.messageId - b.messageId);
 }
 
-export async function getChatHistory(client: ApiClient, room: ChatRoom, cursor?: string, signal?: AbortSignal): Promise<ChatPage> {
+export async function getChatHistory(client: ApiClient, room: ChatRoom, cursor?: number, signal?: AbortSignal): Promise<ChatPage> {
   const page = await client.get<unknown>(`/chat/${ROOM[room.kind].path}/${room.id}/messages`, { query: { size: CHAT_PAGE_SIZE, cursor }, signal });
   if (!record(page) || !Array.isArray(page.items) || !page.items.every((item) => isChatMessage(item, room))
-    || typeof page.hasNext !== 'boolean' || !(page.nextCursor === null || typeof page.nextCursor === 'string' && ULID.test(page.nextCursor))
-    || (page.hasNext && (!page.nextCursor || page.nextCursor === cursor))) throw invalidChatResponse();
+    || typeof page.hasNext !== 'boolean' || !(page.nextCursor === null || positiveSafeInteger(page.nextCursor))
+    || (page.hasNext && (page.nextCursor === null || (cursor !== undefined && page.nextCursor >= cursor)))
+    || (page.nextCursor !== null && page.items.at(-1)?.messageId !== page.nextCursor)) throw invalidChatResponse();
   return { items: page.items, nextCursor: page.nextCursor, hasNext: page.hasNext };
 }
 

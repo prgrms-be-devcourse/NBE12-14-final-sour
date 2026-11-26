@@ -33,9 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.*;
 
 /**
  * 공격 검증 순서, 피해량 계산, 스크립트 호출과 응답 매핑을 검증한다.
@@ -81,6 +79,8 @@ class AttackServiceTest {
     private AbuseVerificationService abuseVerificationService;
     @Mock
     private UserClickerLevelCache userClickerLevelCache;
+    @Mock
+    private ScoreRestoreService scoreRestoreService;
 
     private AttackService attackService;
 
@@ -89,8 +89,10 @@ class AttackServiceTest {
         ClickActionGuard clickActionGuard = new ClickActionGuard(
                 stringRedisTemplate, userStatusCache, userRepository,
                 actionRateLimiter, clickCountLimiter, clickerService, abuseVerificationService,
-                userClickerLevelCache);
+                userClickerLevelCache, scoreRestoreService);
         attackService = new AttackService(clickActionGuard, stringRedisTemplate, rivalChecker, universityCache, allianceAllyChecker);
+
+        lenient().when(scoreRestoreService.isReady()).thenReturn(true);
     }
 
     private AttackRequest request(Long targetUniversityId, int clickCount) {
@@ -257,7 +259,8 @@ class AttackServiceTest {
         assertThat(keysCaptor.getValue()).containsExactly(
                 "rank:univ",            // KEYS[1]
                 "dirty:univ",           // KEYS[2]
-                "score:user:attack"     // KEYS[3]
+                "score:user:attack",     // KEYS[3]
+                "dirty:user"            // KEYS[4]
         );
         // ARGV: targetUniversityId, requestedDamage, userId
         assertThat(argsCaptor.getAllValues()).containsExactly("9", "12", "1");

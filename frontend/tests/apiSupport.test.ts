@@ -3,6 +3,7 @@
 // ABUSE_VERIFICATION_FAILED, and shows the hourly limit on 429.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -136,19 +137,19 @@ test('429는 1시간 5건 안내로 끝내고 확인 칸을 닫으며, 그 밖�
 
 test('계약 센서: 문의 경로·요청 필드·봇 확인/한도 오류 코드가 백엔드와 같다', () => {
   const root = new URL('../../src/main/java/com/back/nbe1214finalsour/', import.meta.url);
-  const controller = readFileSync(new URL('domain/support/controller/SupportController.java', root), 'utf8');
+  const controller = readJava(new URL('domain/support/controller/SupportController.java', root));
   assert.match(controller, /@RequestMapping\("\/api\/v1\/supports"\)/);
   assert.match(controller, /@PostMapping\s+@ResponseStatus\(HttpStatus\.CREATED\)/);
-  const request = readFileSync(new URL('domain/support/dto/SupportCreateRequest.java', root), 'utf8');
+  const request = readJava(new URL('domain/support/dto/SupportCreateRequest.java', root));
   const fields = [...request.matchAll(/(?:^|,)\s*(?:@\w+(?:\([^)]*\))?\s+)*String\s+(\w+)/gm)].map((m) => m[1]);
   assert.deepEqual(fields, ['recipientEmail', 'title', 'content', 'attachFileUrl', 'turnstileToken']);
-  const response = readFileSync(new URL('domain/support/dto/SupportCreateResponse.java', root), 'utf8');
-  assert.match(response, /record SupportCreateResponse\(Long supportId, SupportStatus status\)/);
-  const codes = readFileSync(new URL('global/exception/ErrorCode.java', root), 'utf8');
+  const response = readJava(new URL('domain/support/dto/SupportCreateResponse.java', root));
+  assert.match(response, /record SupportCreateResponse\(\s*Long supportId,\s*SupportStatus status\)/);
+  const codes = readJava(new URL('global/exception/ErrorCode.java', root));
   assert.match(codes, /ABUSE_VERIFICATION_REQUIRED\(HttpStatus\.FORBIDDEN, "ABUSE_VERIFICATION_REQUIRED"/);
   assert.match(codes, /ABUSE_VERIFICATION_FAILED\(HttpStatus\.FORBIDDEN, "ABUSE_VERIFICATION_FAILED"/);
   assert.match(codes, /COMMON_TOO_MANY_REQUESTS\(HttpStatus\.TOO_MANY_REQUESTS/);
-  const bot = readFileSync(new URL('domain/support/service/SupportBotCheck.java', root), 'utf8');
+  const bot = readJava(new URL('domain/support/service/SupportBotCheck.java', root));
   assert.match(bot, /GUEST_ACTION = "support_guest"/);
   const screenSource = readFileSync(new URL('../src/components/SupportGuestScreenPhone.tsx', import.meta.url), 'utf8');
   assert.match(screenSource, /useGuestSupportSender\(\)/);

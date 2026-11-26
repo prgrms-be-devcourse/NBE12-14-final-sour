@@ -1,5 +1,6 @@
 package com.back.nbe1214finalsour.domain.alliance.controller;
 
+import com.back.nbe1214finalsour.domain.alliance.controller.docs.AllianceApiDocs;
 import com.back.nbe1214finalsour.domain.alliance.dto.AllianceApplicationResponse;
 import com.back.nbe1214finalsour.domain.alliance.dto.AllianceCreateRequest;
 import com.back.nbe1214finalsour.domain.alliance.dto.AllianceResponse;
@@ -16,12 +17,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/alliances")
-public class AllianceController {
+public class AllianceController implements AllianceApiDocs {
 
     private final AllianceService allianceService;
     private final AllianceQueryService allianceQueryService;
 
     // 내 학교의 연합. 소속 연합이 없으면 data가 null이다
+    @Override
     @GetMapping("/me")
     public ApiResponse<AllianceResponse> getMyAlliance(@AuthenticationPrincipal AuthUser authUser) {
         return ApiResponse.ok(allianceQueryService.findCurrentAlliance(authUser.universityId())
@@ -30,6 +32,7 @@ public class AllianceController {
     }
 
     // 기존 연합 상세 조회
+    @Override
     @GetMapping("/{allianceId}")
     public ApiResponse<AllianceResponse> getAlliance(
             @PathVariable Long allianceId
@@ -42,6 +45,7 @@ public class AllianceController {
     }
 
     // 기존 연합 생성
+    @Override
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AllianceResponse> createAlliance(
@@ -60,6 +64,7 @@ public class AllianceController {
     }
 
     // 연합 가입 신청
+    @Override
     @PostMapping("/{allianceId}/applications")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AllianceApplicationResponse> applyToAlliance(
@@ -77,6 +82,7 @@ public class AllianceController {
     }
 
     // 연합 가입 승인
+    @Override
     @PatchMapping("/applications/{applicationId}/approve")
     public ApiResponse<AllianceApplicationResponse> approveApplication(
             @AuthenticationPrincipal AuthUser authUser,
@@ -93,6 +99,7 @@ public class AllianceController {
     }
 
     // 연합 가입 거절
+    @Override
     @PatchMapping("/applications/{applicationId}/reject")
     public ApiResponse<AllianceApplicationResponse> rejectApplication(
             @AuthenticationPrincipal AuthUser authUser,

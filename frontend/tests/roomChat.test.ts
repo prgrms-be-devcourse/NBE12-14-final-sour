@@ -68,7 +68,7 @@ test('과거 메시지는20개 커서로 중복 요청 없이 읽고 hasNext=fal
   f.ready(); await flush();
   const older = f.chat.loadOlder();
   await f.chat.loadOlder();
-  assert.deepEqual(cursors, [null, message(21).messageId]);
+  assert.deepEqual(cursors, [null, '21']);
   finish(success(page(range(20, 1))));
   await older;
   await f.chat.loadOlder();
@@ -86,8 +86,8 @@ test('재연결 공백이20개를 넘어도 완료 경계까지 모두 복구하
     cursors.push(cursor);
     if (!recovering) return success(page(range(20, 1), true));
     if (!cursor) return success(page(range(65, 46), true));
-    if (cursor === message(46).messageId) return success(page(range(45, 26), true));
-    assert.equal(cursor, message(26).messageId);
+    if (cursor === '46') return success(page(range(45, 26), true));
+    assert.equal(cursor, '26');
     return success(page(range(25, 6), true));
   });
   f.ready(); await flush();
@@ -96,7 +96,7 @@ test('재연결 공백이20개를 넘어도 완료 경계까지 모두 복구하
   recovering = true;
   f.callbacks[0].onMessage(message(65)); // It overlaps the next page, but is NOT the recovery boundary.
   f.ready(); await flush();
-  assert.deepEqual(cursors, [null, null, message(46).messageId, message(26).messageId]);
+  assert.deepEqual(cursors, [null, null, '46', '26']);
   assert.deepEqual(f.ids(), range(65, 1).reverse());
   assert.equal(f.chat.getSnapshot().cursor, message(1).messageId, '재연결이 과거 페이지 커서를 덮지 않는다');
   assert.equal(f.chat.getSnapshot().syncing, false);

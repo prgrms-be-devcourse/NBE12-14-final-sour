@@ -7,16 +7,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.chat.entity.ChatMessage;
-import com.back.nbe1214finalsour.domain.chat.entity.ChatRoomId;
 import com.back.nbe1214finalsour.domain.chat.repository.ChatMessageRepository;
+import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
+import com.back.nbe1214finalsour.global.crypto.EmailHasher;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,9 +30,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** 대학 채팅 이전 메시지 조회 API (SCRUM-131). 저장소는 floci DynamoDB를 실제로 쓴다 */
+/** 대학 채팅 이전 메시지 조회 API (SCRUM-131). PostgreSQL 저장소를 사용한다. */
 @IntegrationTest
 @AutoConfigureMockMvc
+@Transactional
 class ChatHistoryIntegrationTest {
 
     private static final int MESSAGE_COUNT = 45;
@@ -46,25 +47,29 @@ class ChatHistoryIntegrationTest {
     @Autowired
     private JsonMapper jsonMapper;
 
+    @Autowired private JdbcTemplate jdbc;
+    @Autowired private UserRepository users;
+    @Autowired private EmailHasher hasher;
+    private ChatRecipientFixture recipient;
     private long universityId;
     /** 저장한 messageId. 오래된 것부터 */
     private final List<String> savedIds = new ArrayList<>();
 
-    // 테스트끼리 같은 DynamoDB 테이블을 쓰므로 방(학교 ID)을 매번 새로 정한다
+    // 테스트용 학교와 방을 생성하고 트랜잭션 롤백으로 정리한다.
     @BeforeEach
     void setUp() {
-        this.universityId = ThreadLocalRandom.current().nextLong(1_000_000_000L, 2_000_000_000L);
-        Instant start = Instant.now().minusSeconds(MESSAGE_COUNT * 2L);
+        this.recipient = ChatRecipientFixture.create(jdbc, users, hasher);
+        this.universityId = recipient.universityId();
+        jdbc.update("INSERT INTO chat_room (university_id, university_name) VALUES (?, '테스트대학교')", universityId);
         for (int i = 0; i < MESSAGE_COUNT; i++) {
-            ChatMessage message = ChatMessage.create(ChatRoomId.university(this.universityId), 7L, "닉네임",
-                    "테스트대학교", "메시지-" + i, start.plusSeconds(i), Duration.ofDays(7));
+            ChatMessage message = ChatMessage.toUniversity(universityId, recipient.userId(), "닉네임", "테스트대학교", "메시지-" + i);
             this.chatMessageRepository.save(message);
-            this.savedIds.add(message.getMessageId());
+            this.savedIds.add(message.getId().toString());
         }
     }
 
     private String token(long universityId) {
-        return this.jwtProvider.createAccessToken(new AuthUser(7L, universityId, 1L, Role.USER), null);
+        return this.jwtProvider.createAccessToken(new AuthUser(recipient.userId(), universityId, recipient.departmentId(), Role.USER), null);
     }
 
     private ResultActions request(@Nullable String cursor, @Nullable String size) throws Exception {
@@ -127,6 +132,29 @@ class ChatHistoryIntegrationTest {
     }
 
     @Test
+    @DisplayName("남은 메시지가 size와 같으면 다음 페이지와 커서가 없다")
+    void exactlySizeHasNoNext() throws Exception {
+        request(savedIds.get(5), "5")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(5))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.nextCursor").hasJsonPath())
+                .andExpect(jsonPath("$.data.nextCursor").isEmpty());
+    }
+
+    @Test
+    @DisplayName("메시지가 없는 방은 빈 페이지와 hasNext=false를 반환한다")
+    void emptyRoomHasNoNext() throws Exception {
+        jdbc.update("DELETE FROM chat_message WHERE chat_room_id = ?", universityId);
+        request(null, "5")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(0))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.nextCursor").hasJsonPath())
+                .andExpect(jsonPath("$.data.nextCursor").isEmpty());
+    }
+
+    @Test
     @DisplayName("size가 20을 넘거나 1보다 작으면 400 COMMON_INVALID_INPUT")
     void sizeOutOfRange() throws Exception {
         for (String size : List.of("21", "0")) {
@@ -137,9 +165,9 @@ class ChatHistoryIntegrationTest {
     }
 
     @Test
-    @DisplayName("ULID 형식이 아닌 cursor는 400 COMMON_INVALID_INPUT")
+    @DisplayName("양의 정수가 아닌 cursor는 400 COMMON_INVALID_INPUT")
     void invalidCursor() throws Exception {
-        for (String cursor : List.of("abc", this.savedIds.getFirst().toLowerCase())) {
+        for (String cursor : List.of("abc", "0", "-1")) {
             request(cursor, null)
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("COMMON_INVALID_INPUT"));

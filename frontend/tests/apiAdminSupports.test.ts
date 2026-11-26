@@ -1,7 +1,7 @@
 // SCRUM-173: the admin inquiry list (status filter, pages), the detail and the answer form. Completion criterion:
 // after an answer the inquiry shows as answered and the pending count drops.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -291,19 +291,19 @@ test('validateSupportAnswer는 서버 @NotBlank·@Size와 같은 경계를 쓴�
 
 test('계약 센서: 관리자 문의 상세·답변 DTO와 오류 코드가 바뀌면 화면을 다시 확인한다', () => {
   const main = new URL('../../src/main/java/com/back/nbe1214finalsour/', import.meta.url);
-  const read = (path: string) => readFileSync(new URL(path, main), 'utf8');
+  const read = (path: string) => readJava(new URL(path, main));
   const fix = 'admin.ts 타입과 AdminSupportsPanel 화면을 백엔드 계약에 맞춰 고친 뒤 이 센서를 갱신하세요.';
   const controller = read('domain/support/controller/AdminSupportController.java');
   assert.match(controller, /@GetMapping\("\/\{supportId\}"\)\s*public ApiResponse<AdminSupportDetailResponse>/, fix);
   assert.match(controller, /@PostMapping\("\/\{supportId\}\/answer"\)/, fix);
   const detail = read('domain/support/dto/AdminSupportDetailResponse.java');
   assert.match(detail, /Long supportId,\s*String title,\s*String content,\s*@Nullable String attachFileUrl,\s*String recipientEmail,\s*boolean isMember,\s*SupportStatus status,\s*SupportDetailResponse\.@Nullable Answer answer,\s*OffsetDateTime createdAt/, fix);
-  assert.match(read('domain/support/dto/SupportDetailResponse.java'), /record Answer\(String title, String content\)/, fix);
+  assert.match(read('domain/support/dto/SupportDetailResponse.java'), /record Answer\(\s*String title,\s*String content\)/, fix);
   assert.match(read('domain/support/dto/AdminSupportListItem.java'), /Long supportId,\s*String title,\s*String recipientEmail,\s*boolean isMember,\s*SupportStatus status,\s*OffsetDateTime createdAt/, fix);
   const request = read('domain/support/dto/SupportAnswerRequest.java');
   assert.match(request, /@NotBlank @Size\(max = 100\) String answerTitle/, fix);
   assert.match(request, /@NotBlank @Size\(max = 5000\) String answerContent/, fix);
-  assert.match(read('domain/support/dto/SupportAnswerResponse.java'), /record SupportAnswerResponse\(Long supportId, SupportStatus status\)/, fix);
+  assert.match(read('domain/support/dto/SupportAnswerResponse.java'), /record SupportAnswerResponse\(\s*Long supportId,\s*SupportStatus status\)/, fix);
   const errors = read('global/exception/ErrorCode.java');
   assert.match(errors, /SUPPORT_ALREADY_ANSWERED\(HttpStatus\.CONFLICT, "SUPPORT_ALREADY_ANSWERED"/, fix);
   assert.match(errors, /SUPPORT_NOT_FOUND\(HttpStatus\.NOT_FOUND, "SUPPORT_NOT_FOUND"/, fix);

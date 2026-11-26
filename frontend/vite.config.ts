@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {defineConfig, loadEnv, type ProxyOptions} from 'vite';
+import { resolveApiOrigin } from './src/api/origin';
 
 // Same folder as Vite's injected __dirname, but also defined when tests import this file as plain ESM.
 const configDir = path.dirname(fileURLToPath(import.meta.url));
@@ -28,11 +29,21 @@ export function apiProxy(target: string): Record<string, ProxyOptions> {
   };
 }
 
+export function checkDeployApiOrigin(env: Readonly<Record<string, string | undefined>>,
+  options: { command: 'build' | 'serve'; testBuild: boolean; isPreview?: boolean }): void {
+  const value = env.VITE_API_ORIGIN;
+  if (options.command === 'build' && value?.trim()) resolveApiOrigin({ VITE_API_ORIGIN: value });
+  if (env.VERCEL === '1' && options.command === 'build' && !options.testBuild && !options.isPreview && !value?.trim()) {
+    throw new Error('Vercel Production 환경 변수에 VITE_API_ORIGIN=https://api.<도메인>을 설정하세요.');
+  }
+}
+
 export default defineConfig(({command, mode, isPreview}) => {
   const testBuild = command === 'build' && mode === 'campus-test';
   const localDev = command === 'serve' && !isPreview;
   // API_PROXY_TARGET has no VITE_ prefix: it configures the dev server only and never reaches the browser bundle.
   const env = loadEnv(mode, configDir, '');
+  checkDeployApiOrigin(env, { command, testBuild, isPreview });
   const proxy = apiProxy(env.API_PROXY_TARGET || DEFAULT_API_PROXY_TARGET);
   return {
     plugins: [react(), tailwindcss()],

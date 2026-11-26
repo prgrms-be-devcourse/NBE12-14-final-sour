@@ -97,7 +97,12 @@ public class RankSnapshotService {
             return Map.of();
         }
         List<Long> ids = new ArrayList<>(new LinkedHashSet<>(members));
-        List<Long> hiddenIds = hidden.stream().filter(id -> !ids.contains(id)).toList();
+        Set<Long> hiddenIds = new LinkedHashSet<>(hidden);
+        // 비공개 회원은 조회 대상에서 제외하되, 이전 순위 보정에는 포함한다.
+        ids.removeAll(hiddenIds);
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
         List<Object> asked = new ArrayList<>(ids);
         asked.addAll(hiddenIds);
         List<Double> scores = this.redisTemplate.opsForZSet().score(snapshotKey, asked.toArray());

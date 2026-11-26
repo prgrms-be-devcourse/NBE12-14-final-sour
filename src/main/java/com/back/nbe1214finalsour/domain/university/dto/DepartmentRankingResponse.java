@@ -1,5 +1,7 @@
 package com.back.nbe1214finalsour.domain.university.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
@@ -14,6 +16,7 @@ public record DepartmentRankingResponse(
         boolean hasNext,
         MyDepartment myDepartment
 ) {
+    @Schema(name = "DepartmentRankingItem")
     public record Item(
             long rank,
             long departmentId,

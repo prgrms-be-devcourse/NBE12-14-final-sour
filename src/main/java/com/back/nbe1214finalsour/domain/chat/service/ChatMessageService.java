@@ -3,7 +3,8 @@ package com.back.nbe1214finalsour.domain.chat.service;
 import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
 import com.back.nbe1214finalsour.domain.chat.dto.ChatMessageResponse;
 import com.back.nbe1214finalsour.domain.chat.entity.ChatMessage;
-import com.back.nbe1214finalsour.domain.chat.entity.ChatRoomId;
+import com.back.nbe1214finalsour.domain.chat.repository.ChatRoomRepository;
+import com.back.nbe1214finalsour.domain.chat.repository.AllianceChatRoomRepository;
 import com.back.nbe1214finalsour.domain.chat.relay.ChatMessagePublisher;
 import com.back.nbe1214finalsour.domain.chat.repository.ChatMessageRepository;
 import com.back.nbe1214finalsour.domain.forbiddenword.service.ForbiddenWordFilter;
@@ -15,15 +16,16 @@ import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.AuthUser;
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 대학·연합 채팅 메시지 보내기 (SCRUM-130, SCRUM-182, 계획 §5 4단계).
@@ -49,7 +51,9 @@ public class ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatMessagePublisher chatMessagePublisher;
     private final StringRedisTemplate redisTemplate;
-    private final Clock clock;
+    private final TransactionTemplate transactionTemplate;
+    private final ChatRoomRepository chatRoomRepository;
+    private final AllianceChatRoomRepository allianceChatRoomRepository;
     private final AllianceChatMembership allianceChatMembership;
 
     /**
@@ -64,15 +68,14 @@ public class ChatMessageService {
         acquireSendSlot(authUser.userId());
 
         long universityId = authUser.universityId();
-        ChatMessage message = ChatMessage.create(ChatRoomId.university(universityId), user.getId(), user.getNickname(),
-                this.universityCache.getName(universityId), this.forbiddenWordFilter.mask(text),
-                this.clock.instant(), UNIVERSITY_RETENTION);
+        ChatMessage message = ChatMessage.toUniversity(universityId, user.getId(), user.getNickname(),
+                this.universityCache.getName(universityId), this.forbiddenWordFilter.mask(text));
         return saveAndPublish(message, response -> this.chatMessagePublisher.publishToUniversity(universityId, response));
     }
 
     /**
      * 내 학교가 지금 속한 연합 방으로 보낸다 (SCRUM-182). 방은 요청이 아니라 DB의 현재 소속으로 정한다.
-     * 소속 검사를 1초 한도 앞에 두어, 연합이 없는 회원의 요청이 한도를 쓰지 않게 한다. 메시지는 연합 만료 시각에 지워진다(TTL).
+     * 소속 검사를 1초 한도 앞에 두어, 연합이 없는 회원의 요청이 한도를 쓰지 않게 한다.
      *
      * @throws BusinessException {@code CHAT_INVALID_CONTENT}, {@code USER_SUSPENDED}, {@code CHAT_NOT_MEMBER},
      *                           {@code CHAT_TOO_FREQUENT}, 저장 실패 {@code COMMON_INTERNAL_ERROR}(D18)
@@ -84,29 +87,37 @@ public class ChatMessageService {
         acquireSendSlot(authUser.userId());
 
         long allianceId = alliance.getId();
-        Instant now = this.clock.instant();
-        ChatMessage message = ChatMessage.create(ChatRoomId.alliance(allianceId), user.getId(), user.getNickname(),
-                this.universityCache.getName(authUser.universityId()), this.forbiddenWordFilter.mask(text),
-                now, Duration.between(now, alliance.getExpiredAt().toInstant()));
+        ChatMessage message = ChatMessage.toAlliance(allianceId, user.getId(), user.getNickname(),
+                this.universityCache.getName(authUser.universityId()), this.forbiddenWordFilter.mask(text));
         return saveAndPublish(message, response -> this.chatMessagePublisher.publishToAlliance(allianceId, response));
     }
 
     private ChatMessageResponse saveAndPublish(ChatMessage message, Consumer<ChatMessageResponse> publish) {
         try {
-            this.chatMessageRepository.save(message);
+            return this.transactionTemplate.execute(status -> {
+                ChatMessage saved = this.chatMessageRepository.save(message);
+                if (saved.getChatRoomId() != null) {
+                    this.chatRoomRepository.updateLastContent(saved.getChatRoomId(), saved.getContent(), saved.getCreatedAt());
+                } else {
+                    this.allianceChatRoomRepository.updateLastContent(saved.getAllianceChatRoomId(), saved.getContent(), saved.getCreatedAt());
+                }
+                ChatMessageResponse response = ChatMessageResponse.from(saved);
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            publish.accept(response);
+                        } catch (RuntimeException e) {
+                            log.error("채팅 메시지 발행 실패 roomId={} messageId={}", saved.roomId(), saved.getId(), e);
+                        }
+                    }
+                });
+                return response;
+            });
         } catch (RuntimeException e) {
-            log.error("채팅 메시지 저장 실패 roomId={} userId={}", message.getRoomId(), message.getUserId(), e);
+            log.error("채팅 메시지 저장 실패 roomId={} userId={}", message.roomId(), message.getUserId(), e);
             throw new BusinessException(ErrorCode.COMMON_INTERNAL_ERROR);
         }
-
-        ChatMessageResponse response = ChatMessageResponse.from(message);
-        try {
-            publish.accept(response);
-        } catch (RuntimeException e) {
-            // 저장은 됐으므로 보낸 사람에게 에러를 보내지 않는다. 다른 사람은 이전 메시지 조회로 본다 (D22)
-            log.error("채팅 메시지 발행 실패 roomId={} messageId={}", message.getRoomId(), message.getMessageId(), e);
-        }
-        return response;
     }
 
     private static String validContent(@Nullable String content) {

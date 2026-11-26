@@ -107,7 +107,7 @@ file:
   # 로고 이미지를 올리는 버킷. 기본값은 로컬·테스트 에뮬레이터용 (운영은 FILE_LOGO_BUCKET 필수)
   logo-bucket: ${FILE_LOGO_BUCKET:local-logo-bucket}
   # 로고 이미지 주소의 앞부분. 기본값은 로컬 Floci 주소(compose의 4566 포트 + 경로 방식)라 로컬 브라우저에서 바로 열린다
-  # 운영은 application-prod.yaml에서 CloudFront 주소(file.public-base-url)를 따른다
+  # 운영은 application-prod.yaml에서 cdn 도메인 주소(file.public-base-url)를 따른다
   logo-public-base-url: ${FILE_LOGO_PUBLIC_BASE_URL:http://localhost:4566/${file.logo-bucket}}
 cors:
   # 쉼표로 구분한 origin 목록. 기본값은 로컬 프론트 개발 서버 (frontend/package.json의 vite --port=3000)
@@ -117,6 +117,7 @@ cors:
 scheduling:
   enabled: true
   score-flush-delay: 60s
+  chat-retention-delay: 10m
 
 # 라이벌
 rivals:

@@ -1,6 +1,7 @@
 package com.back.nbe1214finalsour.domain.alliance.service;
 
 import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
+import com.back.nbe1214finalsour.domain.alliance.entity.AllianceStatus;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
@@ -9,6 +10,8 @@ import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +47,12 @@ class AllianceServiceApplicationTest {
 
     @InjectMocks
     private AllianceService allianceService;
+
+    // 추가된 가입 신청·승인·거절 예외 검증용 고정 ID
+    private static final Long USER_ID = 1L;
+    private static final Long ALLIANCE_ID = 10L;
+    private static final Long APPLICATION_ID = 20L;
+    private static final Long UNIVERSITY_ID = 100L;
 
     // ===== 가입 신청 테스트 =====
 
@@ -596,5 +605,276 @@ class AllianceServiceApplicationTest {
         // 락 획득 후 신청 조회
         when(allianceUniversityRepository.findById(applicationId))
                 .thenReturn(Optional.of(application));
+    }
+
+    // ===== 추가된 가입 신청·승인·거절 예외 시나리오 =====
+
+    // ── 가입 신청: 기존 테스트에 없는 조회 실패 및 연합 상태 검증 ──
+
+    @Test
+    @DisplayName("가입 신청: 존재하지 않는 회원은 거부한다")
+    void apply_missingUser() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.USER_NOT_FOUND, () -> allianceService.applyToAlliance(USER_ID, ALLIANCE_ID));
+        verify(allianceRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    @DisplayName("가입 신청: 비활성 회원은 거부한다")
+    void apply_inactiveUser() {
+        givenUser(USER_ID, UserStatus.WITHDRAWN);
+
+        assertError(ErrorCode.ALLY_USER_NOT_ACTIVE, () -> allianceService.applyToAlliance(USER_ID, ALLIANCE_ID));
+        verify(allianceRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    @DisplayName("가입 신청: 없는 연합은 거부한다")
+    void apply_missingAlliance() {
+        User user = givenUser(USER_ID, UserStatus.ACTIVE);
+        when(user.getUniversityId()).thenReturn(UNIVERSITY_ID);
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_NOT_FOUND, () -> allianceService.applyToAlliance(USER_ID, ALLIANCE_ID));
+    }
+
+    @Test
+    @DisplayName("가입 신청: 대결 중인 연합에는 신청할 수 없다")
+    void apply_inMatchAlliance() {
+        givenActiveApplicant();
+        Alliance alliance = mock(Alliance.class);
+        when(alliance.getStatus()).thenReturn(AllianceStatus.IN_MATCH);
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.of(alliance));
+
+        assertError(ErrorCode.ALLY_NOT_ACTIVE, () -> allianceService.applyToAlliance(USER_ID, ALLIANCE_ID));
+        verify(allianceUniversityRepository, never()).save(any(AllianceUniversity.class));
+    }
+
+    @Test
+    @DisplayName("가입 신청: 삭제된 연합에는 신청할 수 없다")
+    void apply_deletedAlliance() {
+        givenActiveApplicant();
+        Alliance alliance = mock(Alliance.class);
+        when(alliance.getStatus()).thenReturn(AllianceStatus.ACTIVE);
+        when(alliance.getDeletedAt()).thenReturn(OffsetDateTime.now());
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.of(alliance));
+
+        assertError(ErrorCode.ALLY_NOT_ACTIVE, () -> allianceService.applyToAlliance(USER_ID, ALLIANCE_ID));
+    }
+
+    @Test
+    @DisplayName("가입 신청: 만료 시각이 지난 연합에는 신청할 수 없다")
+    void apply_expiredAlliance() {
+        givenActiveApplicant();
+        Alliance alliance = Alliance.create("만료된 연합", 6, OffsetDateTime.now().minusDays(2));
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.of(alliance));
+
+        assertError(ErrorCode.ALLY_NOT_ACTIVE, () -> allianceService.applyToAlliance(USER_ID, ALLIANCE_ID));
+    }
+
+    // ── 가입 승인: 누락된 조회/상태 경로 ──
+
+    @Test
+    @DisplayName("가입 승인: 승인자가 없으면 거부한다")
+    void approve_missingUser() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.USER_NOT_FOUND, () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 승인: 승인자가 비활성이면 거부한다")
+    void approve_inactiveUser() {
+        givenUser(USER_ID, UserStatus.WITHDRAWN);
+
+        assertError(ErrorCode.ALLY_USER_NOT_ACTIVE, () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 승인: 신청 ID로 연합을 찾지 못하면 거부한다")
+    void approve_missingAllianceIdByApplication() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        when(allianceUniversityRepository.findAllianceIdByApplicationId(APPLICATION_ID))
+                .thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_APPLICATION_NOT_FOUND,
+                () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 승인: 잠금 조회한 연합이 없으면 거부한다")
+    void approve_missingAlliance() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        givenAllianceIdByApplication();
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_NOT_FOUND, () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 승인: 잠금 후 신청이 사라졌으면 거부한다")
+    void approve_missingApplicationAfterLock() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        givenAllianceIdByApplication();
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.of(activeAlliance()));
+        when(allianceUniversityRepository.findById(APPLICATION_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_APPLICATION_NOT_FOUND,
+                () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 승인: 삭제된 신청은 승인하지 않는다")
+    void approve_deletedApplication() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        AllianceUniversity application = mock(AllianceUniversity.class);
+        when(application.getDeletedAt()).thenReturn(OffsetDateTime.now());
+        givenLockedApplication(application);
+
+        assertError(ErrorCode.ALLY_APPLICATION_NOT_PENDING,
+                () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 승인: 신청 학교가 다른 연합에 이미 가입했으면 거부한다")
+    void approve_alreadyJoinedElsewhere() {
+        User approver = givenUser(USER_ID, UserStatus.ACTIVE);
+        when(approver.getUniversityId()).thenReturn(UNIVERSITY_ID);
+        AllianceUniversity application = AllianceUniversity.createApplication(ALLIANCE_ID, 200L, 2L);
+        AllianceUniversity founder = AllianceUniversity.createFounder(ALLIANCE_ID, UNIVERSITY_ID, USER_ID);
+        givenLockedApplication(application);
+        when(allianceUniversityRepository.findByAllianceIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
+                ALLIANCE_ID, AllianceUniversityStatus.ACCEPTED)).thenReturn(List.of(founder));
+        when(allianceUniversityRepository.existsByUniversityIdAndStatusAndDeletedAtIsNull(
+                200L, AllianceUniversityStatus.ACCEPTED)).thenReturn(true);
+
+        assertError(ErrorCode.ALLY_UNIVERSITY_ALREADY_JOINED,
+                () -> allianceService.approveApplication(USER_ID, APPLICATION_ID));
+        assertThat(application.getStatus()).isEqualTo(AllianceUniversityStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("가입 승인: 정원 마감 시 이미 처리된 대기 항목은 건드리지 않는다")
+    void approve_autoRejectSkipsHandledEntries() {
+        User approver = givenUser(USER_ID, UserStatus.ACTIVE);
+        when(approver.getUniversityId()).thenReturn(UNIVERSITY_ID);
+        AllianceUniversity founder = AllianceUniversity.createFounder(ALLIANCE_ID, UNIVERSITY_ID, USER_ID);
+        AllianceUniversity application = AllianceUniversity.createApplication(ALLIANCE_ID, 200L, 2L);
+        AllianceUniversity alreadyRejected = AllianceUniversity.createApplication(ALLIANCE_ID, 300L, 3L);
+        alreadyRejected.reject();
+        AllianceUniversity otherPending = AllianceUniversity.createApplication(ALLIANCE_ID, 400L, 4L);
+        givenLockedApplication(application);
+        when(allianceUniversityRepository.findByAllianceIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
+                ALLIANCE_ID, AllianceUniversityStatus.ACCEPTED)).thenReturn(List.of(founder));
+        // 동시 요청으로 조회 결과에 현재 신청이나 이미 처리된 항목이 섞였다고 가정한다.
+        when(allianceUniversityRepository.findByAllianceIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
+                ALLIANCE_ID, AllianceUniversityStatus.PENDING))
+                .thenReturn(List.of(application, alreadyRejected, otherPending));
+
+        AllianceUniversity result = allianceService.approveApplication(USER_ID, APPLICATION_ID);
+
+        assertThat(result).isSameAs(application);
+        assertThat(application.getStatus()).isEqualTo(AllianceUniversityStatus.ACCEPTED);
+        assertThat(alreadyRejected.getStatus()).isEqualTo(AllianceUniversityStatus.REJECTED);
+        assertThat(otherPending.getStatus()).isEqualTo(AllianceUniversityStatus.REJECTED);
+    }
+
+    // ── 가입 거절: 누락된 조회/상태 경로 ──
+
+    @Test
+    @DisplayName("가입 거절: 거절자가 없으면 거부한다")
+    void reject_missingUser() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.USER_NOT_FOUND, () -> allianceService.rejectApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 거절: 거절자가 비활성이면 거부한다")
+    void reject_inactiveUser() {
+        givenUser(USER_ID, UserStatus.WITHDRAWN);
+
+        assertError(ErrorCode.ALLY_USER_NOT_ACTIVE, () -> allianceService.rejectApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 거절: 신청 ID로 연합을 찾지 못하면 거부한다")
+    void reject_missingAllianceIdByApplication() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        when(allianceUniversityRepository.findAllianceIdByApplicationId(APPLICATION_ID))
+                .thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_APPLICATION_NOT_FOUND,
+                () -> allianceService.rejectApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 거절: 잠금 조회한 연합이 없으면 거부한다")
+    void reject_missingAlliance() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        givenAllianceIdByApplication();
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_NOT_FOUND, () -> allianceService.rejectApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 거절: 잠금 후 신청이 사라졌으면 거부한다")
+    void reject_missingApplicationAfterLock() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        givenAllianceIdByApplication();
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.of(activeAlliance()));
+        when(allianceUniversityRepository.findById(APPLICATION_ID)).thenReturn(Optional.empty());
+
+        assertError(ErrorCode.ALLY_APPLICATION_NOT_FOUND,
+                () -> allianceService.rejectApplication(USER_ID, APPLICATION_ID));
+    }
+
+    @Test
+    @DisplayName("가입 거절: 삭제된 신청은 거절하지 않는다")
+    void reject_deletedApplication() {
+        givenUser(USER_ID, UserStatus.ACTIVE);
+        AllianceUniversity application = mock(AllianceUniversity.class);
+        when(application.getDeletedAt()).thenReturn(OffsetDateTime.now());
+        givenLockedApplication(application);
+
+        assertError(ErrorCode.ALLY_APPLICATION_NOT_PENDING,
+                () -> allianceService.rejectApplication(USER_ID, APPLICATION_ID));
+    }
+
+    // ── 공통 ──
+
+    private User givenUser(Long userId, UserStatus status) {
+        User user = mock(User.class);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(user.getStatus()).thenReturn(status);
+        return user;
+    }
+
+    private void givenActiveApplicant() {
+        User user = givenUser(USER_ID, UserStatus.ACTIVE);
+        when(user.getUniversityId()).thenReturn(UNIVERSITY_ID);
+    }
+
+    private Alliance activeAlliance() {
+        return Alliance.create("정상 연합", 24, OffsetDateTime.now());
+    }
+
+    private void givenAllianceIdByApplication() {
+        when(allianceUniversityRepository.findAllianceIdByApplicationId(APPLICATION_ID))
+                .thenReturn(Optional.of(ALLIANCE_ID));
+    }
+
+    private void givenLockedApplication(AllianceUniversity application) {
+        givenAllianceIdByApplication();
+        when(allianceRepository.findByIdForUpdate(ALLIANCE_ID)).thenReturn(Optional.of(activeAlliance()));
+        when(allianceUniversityRepository.findById(APPLICATION_ID)).thenReturn(Optional.of(application));
+    }
+
+    private static void assertError(ErrorCode expected, ThrowingCallable action) {
+        assertThatThrownBy(action)
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", expected);
     }
 }

@@ -1,7 +1,7 @@
 // SCRUM-174: member status change (suspend, ban, lift) and the abuse ranking. The server revokes a suspended member's
 // session; the frontend only has to send the right PATCH after an explicit confirmation.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -236,13 +236,13 @@ test('parseUserStatusTarget은 양의 안전한 정수만 받고 관리자 자�
 
 test('계약 센서: 회원 상태 변경과 어뷰징 순위 계약이 바뀌면 화면을 다시 확인한다', () => {
   const main = new URL('../../src/main/java/com/back/nbe1214finalsour/', import.meta.url);
-  const read = (path: string) => readFileSync(new URL(path, main), 'utf8');
+  const read = (path: string) => readJava(new URL(path, main));
   const fix = 'admin.ts 타입과 AdminUsersPanel 화면을 백엔드 계약에 맞춰 고친 뒤 이 센서를 갱신하세요.';
   const users = read('domain/user/controller/AdminUserController.java');
   assert.match(users, /@RequestMapping\("\/api\/v1\/admin\/users"\)/, fix);
   assert.match(users, /@PatchMapping\("\/\{userId\}\/status"\)/, fix);
-  assert.match(read('domain/user/dto/AdminUserStatusRequest.java'), /record AdminUserStatusRequest\(@NotNull UserStatus status\)/, fix);
-  assert.match(read('domain/user/dto/AdminUserStatusResponse.java'), /record AdminUserStatusResponse\(Long userId, UserStatus status\)/, fix);
+  assert.match(read('domain/user/dto/AdminUserStatusRequest.java'), /record AdminUserStatusRequest\(\s*@NotNull UserStatus status\)/, fix);
+  assert.match(read('domain/user/dto/AdminUserStatusResponse.java'), /record AdminUserStatusResponse\(\s*Long userId,\s*UserStatus status\)/, fix);
   assert.match(read('domain/user/entity/UserStatus.java'), /ACTIVE,[\s\S]*SUSPENDED,[\s\S]*BANNED,[\s\S]*WITHDRAWN\s*\}/, fix);
   const service = read('domain/user/service/AdminUserService.java');
   assert.match(service, /userId\.equals\(adminId\)[\s\S]*COMMON_INVALID_INPUT/, fix);
@@ -252,7 +252,7 @@ test('계약 센서: 회원 상태 변경과 어뷰징 순위 계약이 바뀌�
   assert.match(abuse, /@Min\(1\) @Max\(100\) int size/, fix);
   const ranking = read('domain/click/dto/AbuseRankingResponse.java');
   assert.match(ranking, /List<AbuseRankingItem> content,\s*int page,\s*int size,\s*long totalElements,\s*boolean hasNext/, fix);
-  assert.match(ranking, /record AbuseRankingItem\(long rank, Long userId, String nickname, long abuseCount\)/, fix);
+  assert.match(ranking, /record AbuseRankingItem\(\s*long rank,\s*Long userId,\s*String nickname,\s*long abuseCount\s*\)/, fix);
   assert.match(read('domain/click/service/AbuseRankingService.java'), /RANK_DAYS = 3;/, fix);
   assert.match(read('global/exception/ErrorCode.java'), /USER_NOT_FOUND\(HttpStatus\.NOT_FOUND, "USER_NOT_FOUND"/, fix);
 });

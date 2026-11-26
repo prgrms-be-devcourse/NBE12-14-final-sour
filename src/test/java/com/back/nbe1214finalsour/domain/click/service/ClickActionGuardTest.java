@@ -7,6 +7,8 @@ import com.back.nbe1214finalsour.domain.clicker.service.ClickerService;
 import com.back.nbe1214finalsour.domain.user.entity.UserStatus;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.domain.user.repository.UserStatusCache;
+import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +22,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -58,6 +61,9 @@ class ClickActionGuardTest {
     @Mock
     private UserClickerLevelCache userClickerLevelCache;
 
+    @Mock
+    private ScoreRestoreService scoreRestoreService;
+
     @InjectMocks
     private ClickActionGuard clickActionGuard;
 
@@ -70,6 +76,7 @@ class ClickActionGuardTest {
         given(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).willReturn(true);
         given(userClickerLevelCache.loadIfAbsent(USER_ID)).willReturn(2L);
         given(clickerService.getClickerById(2L)).willReturn(new Clicker(2L, 20, 300L));
+        given(scoreRestoreService.isReady()).willReturn(true);
 
         // when
         long score = clickActionGuard.verifyAndGetBaseScore(USER_ID, "sub-1", 5);
@@ -77,5 +84,21 @@ class ClickActionGuardTest {
         // then
         assertThat(score).isEqualTo(100L);
         then(valueOperations).should(never()).set(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Redis 복구가 끝나지 않았으면 RESTORE_SCORE_RESTORING 예외, 제출 ID와 요청 한도는 쓰지 않는다")
+    void verifyAndGetBaseScore_rejectsWhileRestoring() {
+        // given
+        given(scoreRestoreService.isReady()).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> clickActionGuard.verifyAndGetBaseScore(USER_ID, "sub-1", 5))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.RESTORE_SCORE_RESTORING);
+        then(stringRedisTemplate).shouldHaveNoInteractions();
+        then(actionRateLimiter).shouldHaveNoInteractions();
+        then(clickCountLimiter).shouldHaveNoInteractions();
     }
 }

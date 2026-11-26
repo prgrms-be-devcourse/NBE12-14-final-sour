@@ -54,10 +54,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
-    // 채팅 메시지 저장소 (SCRUM-127). 로컬·테스트는 S3와 같은 Floci 에뮬레이터를 쓴다
-    implementation("io.awspring.cloud:spring-cloud-aws-starter-dynamodb")
-    // 채팅 메시지 ID(ULID). 시간순으로 정렬되어 DynamoDB 정렬 키와 커서로 쓴다
-    implementation("com.github.f4b6a3:ulid-creator:5.2.4")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     runtimeOnly("org.postgresql:postgresql")
     // API 문서화, Swagger

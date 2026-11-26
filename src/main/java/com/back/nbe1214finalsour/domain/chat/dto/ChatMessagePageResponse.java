@@ -15,8 +15,8 @@ import org.jspecify.annotations.Nullable;
 public record ChatMessagePageResponse(
         @Schema(description = "최신순 채팅 메시지 목록")
         List<ChatMessageResponse> items,
-        @Schema(description = "다음 요청에 사용할 ULID 커서. 다음 페이지가 없으면 null", example = "01ARZ3NDEKTSV4RRFFQ69G5FAV")
-        @Nullable String nextCursor,
+        @Schema(description = "다음 요청에 사용할 양의 정수 커서. 다음 페이지가 없으면 null", example = "123")
+        @Nullable Long nextCursor,
         @Schema(description = "다음 페이지 여부", example = "true")
         boolean hasNext) {
 

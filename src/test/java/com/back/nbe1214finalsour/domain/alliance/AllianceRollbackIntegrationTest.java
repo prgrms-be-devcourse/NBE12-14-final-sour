@@ -4,6 +4,7 @@ import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceUniversityRepository;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
+import com.back.nbe1214finalsour.domain.chat.repository.AllianceChatRoomRepository;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
@@ -31,6 +32,9 @@ class AllianceRollbackIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AllianceChatRoomRepository allianceChatRoomRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -105,6 +109,10 @@ class AllianceRollbackIntegrationTest {
                         );
 
                         assertThat(count).isEqualTo(1L);
+                        allianceChatRoomRepository.flush();
+                        assertThat(jdbcTemplate.queryForObject(
+                                "SELECT COUNT(*) FROM alliance_chat_room WHERE alliance_name = ?",
+                                Long.class, allianceName)).isEqualTo(1L);
 
                         throw new IllegalStateException(
                                 "테스트용 학교 가입 저장 실패"
@@ -132,6 +140,9 @@ class AllianceRollbackIntegrationTest {
             );
 
             assertThat(allianceCount).isEqualTo(0L);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM alliance_chat_room WHERE alliance_name = ?",
+                    Long.class, allianceName)).isZero();
 
         } finally {
             // 테스트 데이터 정리

@@ -59,7 +59,8 @@ public class AttackService {
         List<String> keys = List.of(
                 RedisKey.univRank(universityCache.isHidden(targetUniversityId)),
                 RedisKey.DIRTY_UNIV.of(),
-                RedisKey.SCORE_USER_ATTACK.of()
+                RedisKey.SCORE_USER_ATTACK.of(),
+                RedisKey.DIRTY_USER.of()
         );
 
         List<String> r = stringRedisTemplate.execute(

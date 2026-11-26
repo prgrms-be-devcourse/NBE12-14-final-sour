@@ -14,7 +14,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -92,6 +94,26 @@ class ApiDocsCoverageIntegrationTest {
             softly.assertThat(foundPublicOperations).as("%s: 공개 API가 문서에 없음", operation).contains(operation);
         }
         softly.assertAll();
+    }
+
+    @Test
+    @DisplayName("채팅 태그에 이력 조회 요약과 별도 STOMP 명세 링크가 있다")
+    void chatTagSummarizesHistoryAndLinksStompGuide() throws Exception {
+        // given: 별도 준비 데이터 없음
+
+        // when
+        var result = mockMvc.perform(get("/v3/api-docs"));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.tags[?(@.name == '채팅')].description",
+                        contains("학교·연합 채팅 이전 메시지 조회")))
+                .andExpect(jsonPath("$.tags[?(@.name == '채팅')].externalDocs.url", contains(
+                        "https://github.com/prgrms-be-devcourse/NBE12-14-final-sour/blob/dev/docs/chat-stomp.md")))
+                .andExpect(jsonPath("$.paths['/api/v1/chat/universities/{universityId}/messages'].get.tags",
+                        contains("채팅")))
+                .andExpect(jsonPath("$.paths['/api/v1/chat/alliances/{allianceId}/messages'].get.tags",
+                        contains("채팅")));
     }
 
     @Test

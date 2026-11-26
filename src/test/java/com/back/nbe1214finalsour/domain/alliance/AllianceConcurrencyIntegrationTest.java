@@ -170,6 +170,10 @@ class AllianceConcurrencyIntegrationTest {
             );
 
             jdbcTemplate.update(
+                    "DELETE FROM alliance_chat_room WHERE alliance_id IN (SELECT id FROM alliance WHERE name IN (?, ?))",
+                    nameA, nameB
+            );
+            jdbcTemplate.update(
                     "DELETE FROM alliance WHERE name IN (?, ?)",
                     nameA,
                     nameB

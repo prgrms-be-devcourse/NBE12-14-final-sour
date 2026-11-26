@@ -65,6 +65,21 @@ test('로그인 상태면 Authorization: Bearer 토큰을 보내고, anonymous �
   assert.deepEqual(calls.map((c) => c.authorization), ['Bearer token-1', null, null]);
 });
 
+test('별도 origin에서 GET과 재발급에 credentials를 포함한다', async () => {
+  const calls: { url: string; credentials?: RequestCredentials }[] = [];
+  const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(input), credentials: init?.credentials });
+    return ok(String(input).endsWith(REISSUE_PATH) ? { accessToken: 'new', expiresInSeconds: 3600 } : null);
+  }) as typeof globalThis.fetch;
+  const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetch });
+  await client.get('/users/me');
+  await client.reissue();
+  assert.deepEqual(calls, [
+    { url: 'https://api.example.com/api/v1/users/me', credentials: 'include' },
+    { url: 'https://api.example.com/api/v1/auth/reissue', credentials: 'include' },
+  ]);
+});
+
 test('토큰은 메모리에만 있고 브라우저 저장소를 쓰지 않는다', () => {
   for (const file of ['session.ts', 'client.ts', 'ApiProvider.tsx']) {
     const code = readFileSync(new URL(`../src/api/${file}`, import.meta.url), 'utf8')
@@ -84,7 +99,7 @@ test('COMMON_EXPIRED_TOKEN이면 재발급 후 새 토큰으로 한 번 다시 �
     [REISSUE_PATH, 'POST', null],
     ['/users/me', 'GET', 'Bearer new'],
   ]);
-  assert.equal(calls[1].credentials, 'same-origin', '재발급은 refresh 쿠키를 보낸다');
+  assert.equal(calls[1].credentials, 'include', '재발급은 refresh 쿠키를 보낸다');
   assert.deepEqual(session.getState(), { status: 'signed-in', accessToken: 'new' });
 });
 

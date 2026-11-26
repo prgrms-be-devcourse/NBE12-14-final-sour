@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type SubmitEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApiClient, useAuthSession } from '../api/ApiProvider';
+import { API_BASE_PATH } from '../api/client';
+import { API_ORIGIN } from '../api/origin';
 import { errorMessage, fieldErrorMap, isApiError } from '../api/errors';
 import { getMySupports, getSupportDetail, safeSupportAttachment, supportKeys, type MemberSupportRequest, type SupportStatus } from '../api/supports';
 import { useMyInfo, type MyInfo } from '../api/users';
@@ -81,7 +83,7 @@ function SupportMemberForm({ form, onChange, sender, onSent }: {
   const update = (key: keyof MemberSupportRequest, value: string) => {
     onChange({ ...form, [key]: value }); setProblem(null); sender.clearValidationError();
   };
-  return <form action="/api/v1/supports" method="post" noValidate onSubmit={(event) => void submit(event)}
+  return <form action={`${API_ORIGIN}${API_BASE_PATH}/supports`} method="post" noValidate onSubmit={(event) => void submit(event)}
     aria-label="회원 문의 작성" aria-busy={sender.phase === 'sending'} className={`${BOX} flex flex-col gap-3`}>
     <p>답변은 내 문의 상세와 받을 이메일에서 확인할 수 있어요. 회원별 1시간에 5건까지 접수할 수 있어요.</p>
     <label htmlFor={`${id}-email`} className="font-bold">받을 이메일 (필수)</label>

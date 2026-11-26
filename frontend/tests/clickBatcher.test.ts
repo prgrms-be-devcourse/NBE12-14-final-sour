@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { test } from 'node:test';
 import { CLICK_BATCH_WINDOW_MS, MAX_CLICK_BATCH_SIZE, submitClicks, type ClickCoordinates, type ClickRequest, type ClickResponse } from '../src/api/clicks';
 import { createApiClient } from '../src/api/client';
@@ -374,7 +374,7 @@ test('POST /clicks에는 인증 토큰과 DTO 두 필드만 보내고 만료 토
 
 test('클릭 응답 필드·입력 상한·중복 TTL 센서: Java 계약 변경 시 프론트 배치 정책을 재검토한다', () => {
   const javaRoot = new URL('../../src/main/java/com/back/nbe1214finalsour/domain/click/', import.meta.url);
-  const source = readFileSync(new URL('dto/ClickResponse.java', javaRoot), 'utf8');
+  const source = readJava(new URL('dto/ClickResponse.java', javaRoot));
   const records = new Map([...source.matchAll(/record (\w+)\(([^)]*)\)/g)].map((m) => [
     m[1], m[2].split(',').map((part) => part.trim().split(/\s+/).at(-1)),
   ]));
@@ -382,12 +382,12 @@ test('클릭 응답 필드·입력 상한·중복 TTL 센서: Java 계약 변경
   assert.deepEqual(records.get('ClickResponse'), Object.keys(response), fix);
   assert.deepEqual(records.get('ClickUniversityResponse'), Object.keys(response.university), fix);
   assert.deepEqual(records.get('ClickDepartmentResponse'), Object.keys(response.department), fix);
-  const requestSource = readFileSync(new URL('dto/ClickRequest.java', javaRoot), 'utf8');
+  const requestSource = readJava(new URL('dto/ClickRequest.java', javaRoot));
   assert.match(requestSource, new RegExp(`@Max\\(value = ${MAX_CLICK_BATCH_SIZE},`), fix);
   assert.match(requestSource, /@Min\(value = 1,/, fix);
   // Location remains optional: declining it must not block ordinary clicks.
   assert.match(requestSource, /Integer clickCount,\s*Double latitude,\s*Double longitude\s*\)/, fix);
   assert.equal(CLICK_BATCH_WINDOW_MS, 1000);
-  assert.match(readFileSync(new URL('service/ClickActionGuard.java', javaRoot), 'utf8'), /Duration.ofSeconds\(10L\)/,
+  assert.match(readJava(new URL('service/ClickActionGuard.java', javaRoot)), /Duration.ofSeconds\(10L\)/,
     '중복 방지 TTL이 바뀌면 clickBatcher의 재시도 안전 시간도 재검토하세요');
 });

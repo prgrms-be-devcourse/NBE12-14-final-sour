@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, afterEach, test } from 'node:test';
 import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import type { ApiFaults } from '../src/api/faults';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -228,12 +229,14 @@ test('HTTP 전 지연 중 세션이 끝나면 이전 내역 GET이 새 계정 �
 
 test('계약 센서: 내역 DTO·페이지 범위·서버 최신순과 API 전용 진입 경로를 유지한다', () => {
   const root = new URL('../../src/main/java/com/back/nbe1214finalsour/domain/', import.meta.url);
-  const dto = readFileSync(new URL('item/dto/PurchaseHistoryResponse.java', root), 'utf8');
+  const dto = readJava(new URL('item/dto/PurchaseHistoryResponse.java', root));
   for (const name of ['items', 'page', 'size', 'totalCount', 'hasNext', 'userItemId', 'item', 'price', 'createdAt', 'expiredAt']) assert.match(dto, new RegExp(`\\b${name}\\b`));
-  const controller = readFileSync(new URL('item/controller/ItemController.java', root), 'utf8');
+  const controller = readJava(new URL('item/controller/ItemController.java', root));
   assert.match(controller, /@GetMapping\("\/me\/history"\)/);
-  assert.match(controller, /@RequestParam\(defaultValue = "20"\) @Min\(1\) @Max\(100\)/);
-  const service = readFileSync(new URL('item/service/PurchaseHistoryService.java', root), 'utf8');
+  assert.match(controller, /@RequestParam\(defaultValue = "20"\)\s+int size/);
+  assert.match(controller, /implements ItemApiDocs/);
+  assert.match(readJava(new URL('item/controller/docs/ItemApiDocs.java', root)), /getItemHistory\(AuthUser user,\s*@Min\(0\) int page,\s*@Min\(1\) @Max\(100\) int size\)/);
+  const service = readJava(new URL('item/service/PurchaseHistoryService.java', root));
   assert.match(service, /findAllByUserIdOrderByCreatedAtDescIdDesc\(userId, PageRequest.of\(page, size\)\)/);
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   assert.match(app, /onOpenPurchaseHistory=\{\(\) => setViewMode\('purchase_history'\)\}/);

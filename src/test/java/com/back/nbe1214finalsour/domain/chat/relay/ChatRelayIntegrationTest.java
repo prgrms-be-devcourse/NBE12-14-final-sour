@@ -99,7 +99,7 @@ class ChatRelayIntegrationTest {
     }
 
     private ChatMessageResponse message(long universityId, String content) {
-        return new ChatMessageResponse("01JTEST" + this.sequence.incrementAndGet(), ChatRoomId.university(universityId),
+        return new ChatMessageResponse((long) this.sequence.incrementAndGet(), ChatRoomId.university(universityId),
                 7L, "닉네임", "테스트대학교", content, OffsetDateTime.of(2026, 11, 17, 18, 30, 0, 0, ZoneOffset.ofHours(9)));
     }
 
@@ -149,7 +149,7 @@ class ChatRelayIntegrationTest {
             assertThat(frame).contains("\ndestination:" + ChatDestinations.university(this.universityId) + "\n");
             assertThat(frame).contains("\ncontent-type:application/json");
             var json = this.jsonMapper.readTree(body(frame));
-            assertThat(json.get("messageId").asString()).isEqualTo(sent.messageId());
+            assertThat(json.get("messageId").asLong()).isEqualTo(sent.messageId());
             assertThat(json.get("roomId").asString()).isEqualTo("UNIV#" + this.universityId);
             assertThat(json.get("userId").asLong()).isEqualTo(7L);
             assertThat(json.get("nickname").asString()).isEqualTo("닉네임");

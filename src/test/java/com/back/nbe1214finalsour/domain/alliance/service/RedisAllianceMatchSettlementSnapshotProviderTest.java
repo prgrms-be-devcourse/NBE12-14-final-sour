@@ -13,6 +13,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -114,6 +115,151 @@ class RedisAllianceMatchSettlementSnapshotProviderTest {
         assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("bUniversity1Contribution");
+    }
+
+
+    @Test
+    @DisplayName("대결 ID가 null 또는 0 이하이면 Redis에 접근하지 않는다")
+    void loadFinalSnapshot_rejectsInvalidMatchIdWithoutRedisAccess() {
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("대결 ID");
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(0L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("대결 ID");
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(-1L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("대결 ID");
+
+        verifyNoInteractions(redisTemplate);
+    }
+
+    @Test
+    @DisplayName("Redis에 정산 스냅샷 자체가 없으면 거부한다")
+    void loadFinalSnapshot_rejectsNullHashEntries() {
+        stubSnapshot(99L, null);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("최종 확정");
+    }
+
+    @Test
+    @DisplayName("finalized가 0인 미확정 정산 스냅샷은 거부한다")
+    void loadFinalSnapshot_rejectsFinalizedZero() {
+        var fields = validFields();
+        fields.put("finalized", "0");
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("최종 확정");
+    }
+
+    @Test
+    @DisplayName("학교 ID가 0이면 양수 조건을 위반하여 거부한다")
+    void loadFinalSnapshot_rejectsZeroUniversityId() {
+        var fields = validFields();
+        fields.put("aUniversity1Id", "0");
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("aUniversity1Id");
+    }
+
+    @Test
+    @DisplayName("학교 ID 필드가 누락되면 거부한다")
+    void loadFinalSnapshot_rejectsMissingUniversityId() {
+        var fields = validFields();
+        fields.remove("aUniversity2Id");
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("aUniversity2Id");
+    }
+
+    @Test
+    @DisplayName("필드 값이 문자열이 아니라면 숫자로 변환하지 않고 거부한다")
+    void loadFinalSnapshot_rejectsNonStringField() {
+        var fields = validFields();
+        fields.put("bScore", 200L);
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("bScore");
+    }
+
+    @Test
+    @DisplayName("숫자가 아닌 문자열은 정산 스냅샷으로 허용하지 않는다")
+    void loadFinalSnapshot_rejectsMalformedNumber() {
+        var fields = validFields();
+        fields.put("aScore", "not-a-number");
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("aScore")
+                .hasCauseInstanceOf(NumberFormatException.class);
+    }
+
+    @Test
+    @DisplayName("Long 범위를 넘어선 정수 문자열은 정산하지 않는다")
+    void loadFinalSnapshot_rejectsLongOverflow() {
+        var fields = validFields();
+        fields.put("aScore", "9223372036854775808");
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("aScore")
+                .hasCauseInstanceOf(NumberFormatException.class);
+    }
+
+    @Test
+    @DisplayName("학교별 기여도가 음수이면 정산하지 않는다")
+    void loadFinalSnapshot_rejectsNegativeContribution() {
+        var fields = validFields();
+        fields.put("aUniversity2Contribution", "-42");
+        stubSnapshot(99L, fields);
+
+        assertThatThrownBy(() -> provider().loadFinalSnapshot(99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("aUniversity2Contribution");
+    }
+
+    @Test
+    @DisplayName("정확하게 표현할 수 있는 최대 정수는 허용한다")
+    void loadFinalSnapshot_acceptsMaxExactRedisInteger() {
+        var fields = validFields();
+        fields.put("aScore", "9007199254740991");
+        fields.put("bUniversity2Contribution", "9007199254740991");
+        stubSnapshot(99L, fields);
+
+        var snapshot = provider().loadFinalSnapshot(99L);
+
+        assertThat(snapshot.aScore()).isEqualTo(9_007_199_254_740_991L);
+        assertThat(snapshot.bUniversity2Contribution()).isEqualTo(9_007_199_254_740_991L);
+    }
+
+    @Test
+    @DisplayName("0점 및 0 기여도는 유효한 정산 값으로 허용한다")
+    void loadFinalSnapshot_acceptsZeroScoresAndContributions() {
+        var fields = validFields();
+        fields.put("aScore", "0");
+        fields.put("bScore", "0");
+        fields.put("aUniversity1Contribution", "0");
+        fields.put("bUniversity2Contribution", "0");
+        stubSnapshot(99L, fields);
+
+        var snapshot = provider().loadFinalSnapshot(99L);
+
+        assertThat(snapshot.aScore()).isZero();
+        assertThat(snapshot.bScore()).isZero();
+        assertThat(snapshot.aUniversity1Contribution()).isZero();
+        assertThat(snapshot.bUniversity2Contribution()).isZero();
     }
 
     private RedisAllianceMatchSettlementSnapshotProvider provider() {

@@ -16,12 +16,14 @@ test('실시간과 이력을 ID로 병합해 오름차순 표시하고 입력 �
   const current = [message(3), message(2)];
   assert.deepEqual(mergeChatMessages(current, [message(1), message(3)]), [message(1), message(2), message(3)]);
   assert.deepEqual(current, [message(3), message(2)]);
+  assert.deepEqual(mergeChatMessages([message(10)], [message(9)]).map((item) => item.messageId), [9, 10]);
 });
 
 test('다른 학교·잘못된 프레임은 거절하고 raw 오류 내용을 노출하지 않는다', () => {
   assert.deepEqual(parseChatMessage(JSON.stringify(message(1)), universityRoom(1)), message(1));
   for (const body of ['broken', JSON.stringify(message(1, { roomId: 'UNIV#2' })), JSON.stringify({ content: '<script>' }),
-    JSON.stringify(message(1, { createdAt: 'bad' })), JSON.stringify(message(1, { messageId: 'bad' }))]) {
+    JSON.stringify(message(1, { createdAt: 'bad' })),
+    ...['1', 0, -1, 1.5, 2 ** 53].map((messageId) => JSON.stringify({ ...message(1), messageId }))]) {
     assert.throws(() => parseChatMessage(body, universityRoom(1)), /서버 응답을 읽지/);
   }
   assert.deepEqual(parseChatFault('{"code":"CHAT_TOO_FREQUENT","message":"잠시 뒤 보내세요"}'), { code: 'CHAT_TOO_FREQUENT', message: '잠시 뒤 보내세요' });
@@ -41,7 +43,9 @@ test('이력은 인증 헤더·size20·cursor·중단 신호를 공통 클라이
 });
 
 test('깨진 페이지·반복 커서·다른 학교 이력은 무한 조회하지 않고 실패한다', async () => {
-  for (const data of [{ ...page([1], true), nextCursor: null }, { ...page([1], true), nextCursor: message(3).messageId },
+  for (const data of [{ ...page([1], true), nextCursor: null }, page([3], true),
+    page([4], true), { ...page([1], true), nextCursor: 2 },
+    { ...page([1], true), nextCursor: '1' },
     { ...page([1]), items: [message(1, { roomId: 'UNIV#2' })] }, {}]) {
     const client = createApiClient({ fetch: async () => success(data) });
     await assert.rejects(getChatHistory(client, universityRoom(1), message(3).messageId), /서버 응답을 읽지/);
@@ -89,6 +93,8 @@ test('채팅 계약 센서: 경로·스키마·페이지·오류 변경 시 어�
   assert.match(read('domain/alliance/controller/AllianceController.java'), /@GetMapping\("\/me"\)/, fix);
   assert.match(read('domain/chat/service/ChatHistoryService.java'), new RegExp(`MAX_PAGE_SIZE = ${CHAT_PAGE_SIZE};`), fix);
   const dto = read('domain/chat/dto/ChatMessageResponse.java');
+  assert.match(dto, /\bLong\s+messageId\b/, fix);
+  assert.match(read('domain/chat/dto/ChatMessagePageResponse.java'), /\bLong\s+nextCursor\b/, fix);
   for (const field of ['messageId', 'roomId', 'userId', 'nickname', 'universityName', 'content', 'createdAt']) assert.match(dto, new RegExp(`\\b${field}\\b`), fix);
   assert.match(read('domain/forbiddenword/dto/ForbiddenWordsResponse.java'), /List<String> words/, fix);
 });

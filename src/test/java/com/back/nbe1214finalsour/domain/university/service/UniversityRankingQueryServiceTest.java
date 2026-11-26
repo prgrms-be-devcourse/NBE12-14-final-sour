@@ -116,4 +116,26 @@ class UniversityRankingQueryServiceTest {
 
         assertThat(result.items().get(0).rankChange()).isNull();
     }
+
+    @Test
+    @DisplayName("조회 범위를 벗어난 페이지에서도 내 학교 순위와 순위 변동을 반환한다")
+    void getUniversities_emptyPageKeepsMyUniversity() {
+        given(rankingService.getUniversityCount()).willReturn(3L);
+        given(rankingService.getUniversitiesRange(4, 2)).willReturn(List.of());
+        given(universityRepository.findAllById(List.of())).willReturn(List.of());
+        given(rankSnapshotService.previousRanks("rank:snapshot:univ", List.of(11L), List.of()))
+                .willReturn(Map.of(11L, 3L));
+        given(rankingService.getUniversityRank(11L)).willReturn(OptionalLong.of(2L));
+        given(rankingService.getUniversityScore(11L)).willReturn(OptionalDouble.of(500.0));
+
+        var result = queryService.getUniversities(2, 2, 11L);
+
+        assertThat(result.items()).isEmpty();
+        assertThat(result.totalCount()).isEqualTo(3L);
+        assertThat(result.page()).isEqualTo(2);
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.myUniversity()).isEqualTo(
+                new UniversityRankingResponse.MyUniversity(2L, 11L, 500L, 1L));
+    }
 }

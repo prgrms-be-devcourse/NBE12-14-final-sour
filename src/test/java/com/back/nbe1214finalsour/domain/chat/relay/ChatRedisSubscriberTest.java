@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -12,8 +13,6 @@ import com.back.nbe1214finalsour.domain.chat.entity.ChatMessage;
 import com.back.nbe1214finalsour.domain.chat.entity.ChatRoomId;
 import com.back.nbe1214finalsour.global.time.ClockConfig;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.TimeZone;
@@ -35,7 +34,7 @@ class ChatRedisSubscriberTest {
     private static final byte[] PATTERN = ChatRedisSubscriber.UNIVERSITY_CHANNEL_PATTERN.getBytes(StandardCharsets.UTF_8);
 
     private ChatMessageResponse message(long universityId) {
-        return new ChatMessageResponse("01JTEST", ChatRoomId.university(universityId), 7L, "닉네임", "테스트대학교", "안녕",
+        return new ChatMessageResponse(1L, ChatRoomId.university(universityId), 7L, "닉네임", "테스트대학교", "안녕",
                 OffsetDateTime.of(2026, 11, 17, 18, 30, 0, 0, ZoneOffset.ofHours(9)));
     }
 
@@ -74,7 +73,7 @@ class ChatRedisSubscriberTest {
     @DisplayName("연합 채널의 메시지를 그 연합 방 목적지로 보낸다. 패턴은 연합 채널 이름(RedisKey.CHAT_ALLIANCE_CHANNEL)의 모든 연합이다")
     void forwardsToAllianceTopic() {
         assertThat(ChatRedisSubscriber.ALLIANCE_CHANNEL_PATTERN).isEqualTo("chat:alliance:*");
-        ChatMessageResponse message = new ChatMessageResponse("01JTEST", ChatRoomId.alliance(5L), 7L, "닉네임", "테스트대학교",
+        ChatMessageResponse message = new ChatMessageResponse(1L, ChatRoomId.alliance(5L), 7L, "닉네임", "테스트대학교",
                 "연합 안녕", OffsetDateTime.of(2026, 11, 17, 18, 30, 0, 0, ZoneOffset.ofHours(9)));
 
         receive("chat:alliance:5", this.jsonMapper.writeValueAsString(message));
@@ -87,7 +86,7 @@ class ChatRedisSubscriberTest {
     @DisplayName("연합 ID 형식이 아닌 채널은 버린다")
     void dropsInvalidAllianceChannel(String channel) {
         receive(channel, this.jsonMapper.writeValueAsString(
-                new ChatMessageResponse("01JTEST", ChatRoomId.alliance(5L), 7L, "닉네임", "테스트대학교", "안녕", null)));
+                new ChatMessageResponse(1L, ChatRoomId.alliance(5L), 7L, "닉네임", "테스트대학교", "안녕", null)));
 
         verify(this.messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
     }
@@ -97,7 +96,7 @@ class ChatRedisSubscriberTest {
     void dropsRoomKindMismatch() {
         receive("chat:alliance:42", this.jsonMapper.writeValueAsString(message(42L)));
         receive("chat:univ:42", this.jsonMapper.writeValueAsString(
-                new ChatMessageResponse("01JTEST", ChatRoomId.alliance(42L), 7L, "닉네임", "테스트대학교", "안녕", null)));
+                new ChatMessageResponse(1L, ChatRoomId.alliance(42L), 7L, "닉네임", "테스트대학교", "안녕", null)));
 
         verify(this.messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
     }
@@ -121,8 +120,8 @@ class ChatRedisSubscriberTest {
     @Test
     @DisplayName("응답의 createdAt은 저장 시각을 한국 시간 오프셋으로 바꾼 값이다")
     void responseCreatedAtIsKst() {
-        ChatMessage saved = ChatMessage.create(ChatRoomId.university(42L), 7L, "닉네임", "테스트대학교", "안녕",
-                Instant.parse("2026-11-17T09:30:00Z"), Duration.ofDays(7));
+        ChatMessage saved = mock(ChatMessage.class);
+        when(saved.getCreatedAt()).thenReturn(OffsetDateTime.parse("2026-11-17T09:30:00Z"));
 
         assertThat(ChatMessageResponse.from(saved).createdAt())
                 .isEqualTo(OffsetDateTime.of(2026, 11, 17, 18, 30, 0, 0, ZoneOffset.ofHours(9)));

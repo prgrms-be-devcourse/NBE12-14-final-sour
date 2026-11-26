@@ -131,6 +131,7 @@ class HiddenUniversityIntegrationTest {
             redis.opsForSet().remove(RedisKey.DIRTY_ALLIANCE.of(), String.valueOf(allianceId));
             redis.opsForSet().remove(RedisKey.DIRTY_ALLIANCE.of() + ":flushing", String.valueOf(allianceId));
             jdbcTemplate.update("DELETE FROM alliance_university WHERE alliance_id = ?", allianceId);
+            jdbcTemplate.update("DELETE FROM alliance_chat_room WHERE alliance_id = ?", allianceId);
             jdbcTemplate.update("DELETE FROM alliance WHERE id = ?", allianceId);
         }
 

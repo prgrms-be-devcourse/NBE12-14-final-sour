@@ -1,9 +1,13 @@
 package com.back.nbe1214finalsour;
 
+import com.back.nbe1214finalsour.global.redis.RedisKey;
 import io.floci.testcontainers.FlociContainer;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -37,5 +41,10 @@ class TestcontainersConfiguration {
         // S3 대신 쓰는 AWS 에뮬레이터 (로고 이미지 업로드). 인증 토큰 없이 쓸 수 있다
         @ServiceConnection
         FlociContainer FLOCI = new FlociContainer(DockerImageName.parse("floci/floci:latest"));
+    }
+
+    @Bean
+    ApplicationRunner markRedisReady(StringRedisTemplate redis) {
+        return args -> redis.opsForValue().set(RedisKey.REDIS_READY.of(), "test");
     }
 }

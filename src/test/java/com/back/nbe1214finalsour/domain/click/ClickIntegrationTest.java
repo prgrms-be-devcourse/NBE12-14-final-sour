@@ -147,6 +147,7 @@ class ClickIntegrationTest {
         // 연합 행은 회원(applicant/approver)을 참조하므로 회원보다 먼저 지운다
         jdbcTemplate.update("DELETE FROM alliance_match WHERE alliance_a_id IN (SELECT id FROM alliance WHERE name = '클릭테스트연합')");
         jdbcTemplate.update("DELETE FROM alliance_university WHERE university_id = ?", universityId);
+        jdbcTemplate.update("DELETE FROM alliance_chat_room WHERE alliance_id IN (SELECT id FROM alliance WHERE name = '클릭테스트연합')");
         jdbcTemplate.update("DELETE FROM alliance WHERE name = '클릭테스트연합'");
 
         jdbcTemplate.update("DELETE FROM users WHERE university_id = ?", universityId);

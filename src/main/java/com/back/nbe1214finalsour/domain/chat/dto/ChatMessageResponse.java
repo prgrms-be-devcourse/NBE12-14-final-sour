@@ -11,8 +11,8 @@ import java.time.OffsetDateTime;
  * @param createdAt 서버 시각. 한국 시간 오프셋({@code +09:00})으로 나간다
  */
 public record ChatMessageResponse(
-        @Schema(description = "메시지 ULID", example = "01ARZ3NDEKTSV4RRFFQ69G5FAV")
-        String messageId,
+        @Schema(description = "메시지 ID", example = "123")
+        Long messageId,
         @Schema(description = "채팅방 ID", example = "UNIV#1")
         String roomId,
         @Schema(description = "작성자 ID", example = "1")
@@ -29,12 +29,12 @@ public record ChatMessageResponse(
 
     public static ChatMessageResponse from(ChatMessage message) {
         return new ChatMessageResponse(
-                message.getMessageId(),
-                message.getRoomId(),
+                message.getId(),
+                message.roomId(),
                 message.getUserId(),
                 message.getNickname(),
                 message.getUniversityName(),
                 message.getContent(),
-                message.getCreatedAt().atZone(ClockConfig.KST).toOffsetDateTime());
+                message.getCreatedAt().atZoneSameInstant(ClockConfig.KST).toOffsetDateTime());
     }
 }

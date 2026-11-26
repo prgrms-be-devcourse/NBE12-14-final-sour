@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.click.scheduler.ScoreFlushScheduler;
 import com.back.nbe1214finalsour.domain.click.service.ScoreFlushService;
+import com.back.nbe1214finalsour.domain.click.service.ScoreRestoreService;
 import com.back.nbe1214finalsour.global.redis.RedisKey;
 import java.time.Duration;
 import java.util.List;
@@ -34,6 +35,8 @@ class ScoreFlushSchedulerIntegrationTest {
     private ScoreFlushService scoreFlushService;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private ScoreRestoreService scoreRestoreService;
 
     @AfterEach
     void cleanUpRedis() {
@@ -48,7 +51,7 @@ class ScoreFlushSchedulerIntegrationTest {
         stringRedisTemplate.opsForSet().add(DIRTY_KEY, UNKNOWN_UNIV_ID);
 
         // when
-        new ScoreFlushScheduler(scoreFlushService, stringRedisTemplate).run();
+        new ScoreFlushScheduler(scoreFlushService, stringRedisTemplate, scoreRestoreService).run();
 
         // then
         assertThat(stringRedisTemplate.opsForSet().members(DIRTY_KEY)).containsExactly(UNKNOWN_UNIV_ID);
@@ -62,7 +65,7 @@ class ScoreFlushSchedulerIntegrationTest {
         stringRedisTemplate.opsForSet().add(DIRTY_KEY, UNKNOWN_UNIV_ID);
 
         // when
-        new ScoreFlushScheduler(scoreFlushService, stringRedisTemplate).run();
+        new ScoreFlushScheduler(scoreFlushService, stringRedisTemplate, scoreRestoreService).run();
 
         // then
         assertThat(stringRedisTemplate.hasKey(DIRTY_KEY)).isFalse();
@@ -77,7 +80,7 @@ class ScoreFlushSchedulerIntegrationTest {
         doThrow(new IllegalStateException("DB 장애")).when(failingService).flush();
 
         // when
-        new ScoreFlushScheduler(failingService, stringRedisTemplate).run();
+        new ScoreFlushScheduler(failingService, stringRedisTemplate, scoreRestoreService).run();
 
         // then
         assertThat(stringRedisTemplate.hasKey(LOCK_KEY)).isFalse();
@@ -94,7 +97,7 @@ class ScoreFlushSchedulerIntegrationTest {
         }).when(slowService).flush();
 
         // when
-        new ScoreFlushScheduler(slowService, stringRedisTemplate).run();
+        new ScoreFlushScheduler(slowService, stringRedisTemplate, scoreRestoreService).run();
 
         // then
         assertThat(stringRedisTemplate.opsForValue().get(LOCK_KEY)).isEqualTo("other-server");

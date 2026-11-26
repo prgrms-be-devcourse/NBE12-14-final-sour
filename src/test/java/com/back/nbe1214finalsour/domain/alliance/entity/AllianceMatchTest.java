@@ -1,7 +1,11 @@
 package com.back.nbe1214finalsour.domain.alliance.entity;
 
+import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.OffsetDateTime;
 
@@ -171,5 +175,55 @@ class AllianceMatchTest {
 
         assertThat(match.getStartedAt()).isNull();
         assertThat(match.getEndedAt()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "1, 1, 3, 4",
+            "1, 2, 1, 4",
+            "1, 2, 3, 0"
+    })
+    @DisplayName("참가 학교가 중복되거나 유효하지 않으면 대결을 시작하지 않는다")
+    void startWithRoster_rejectsInvalidMembers(long a1, long a2, long b1, long b2) {
+        // given: 시작 가능한 대결 신청
+        OffsetDateTime now = OffsetDateTime.parse("2026-11-16T13:00:00+09:00");
+        AllianceMatch match = AllianceMatch.request(1L, 2L, 6, now.plusHours(12));
+
+        // when & then: 잘못된 참가 학교 명단으로 시작 시도
+        assertThatThrownBy(() -> match.startWithRoster(now, a1, a2, b1, b2))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        ex -> assertThat(ex.getErrorCode())
+                                .isEqualTo(ErrorCode.MATCH_MEMBERS_INCOMPLETE));
+
+        // 대결 상태, 시각, 참가 학교 명단 모두 변경되지 않음
+        assertThat(match.getStatus()).isEqualTo(AllianceMatchStatus.REQUESTED);
+        assertThat(match.getStartedAt()).isNull();
+        assertThat(match.getEndedAt()).isNull();
+        assertThat(match.getAUniversity1Id()).isNull();
+        assertThat(match.getAUniversity2Id()).isNull();
+        assertThat(match.getBUniversity1Id()).isNull();
+        assertThat(match.getBUniversity2Id()).isNull();
+    }
+
+    @Test
+    @DisplayName("시작된 대결의 참가 학교 명단과 시작·종료 시각은 다시 변경할 수 없다")
+    void startWithRoster_preservesConfirmedMembersOnRestart() {
+        // given: 참가 학교 네 곳이 확정된 대결
+        OffsetDateTime now = OffsetDateTime.parse("2026-11-16T13:00:00+09:00");
+        AllianceMatch match = AllianceMatch.request(1L, 2L, 6, now.plusHours(12));
+        match.startWithRoster(now, 1L, 2L, 3L, 4L);
+
+        // when & then: 다른 참가 학교 명단으로 다시 시작 시도
+        assertThatThrownBy(() -> match.startWithRoster(now.plusHours(1), 5L, 6L, 7L, 8L))
+                .isInstanceOf(IllegalStateException.class);
+
+        // 최초 확정된 정산 대상과 대결 시각 유지
+        assertThat(match.getStatus()).isEqualTo(AllianceMatchStatus.IN_PROGRESS);
+        assertThat(match.getStartedAt()).isEqualTo(now);
+        assertThat(match.getEndedAt()).isEqualTo(now.plusHours(6));
+        assertThat(match.getAUniversity1Id()).isEqualTo(1L);
+        assertThat(match.getAUniversity2Id()).isEqualTo(2L);
+        assertThat(match.getBUniversity1Id()).isEqualTo(3L);
+        assertThat(match.getBUniversity2Id()).isEqualTo(4L);
     }
 }

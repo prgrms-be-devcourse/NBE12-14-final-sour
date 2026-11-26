@@ -1,13 +1,16 @@
 package com.back.nbe1214finalsour.domain.chat.service;
 
 import com.back.nbe1214finalsour.domain.chat.dto.ChatMessagePageResponse;
-import com.back.nbe1214finalsour.domain.chat.entity.ChatRoomId;
+import com.back.nbe1214finalsour.domain.chat.entity.ChatMessage;
 import com.back.nbe1214finalsour.domain.chat.repository.ChatMessageRepository;
+import com.back.nbe1214finalsour.domain.chat.repository.ChatMessageSlice;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.security.AuthUser;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /** 채팅 이전 메시지 조회 (SCRUM-131, 계획 D8) */
@@ -26,13 +29,16 @@ public class ChatHistoryService {
      *
      * @throws BusinessException {@code CHAT_NOT_MEMBER}
      */
-    public ChatMessagePageResponse getUniversityMessages(AuthUser authUser, long universityId, @Nullable String cursor,
+    public ChatMessagePageResponse getUniversityMessages(AuthUser authUser, long universityId, @Nullable Long cursor,
                                                          int size) {
         if (authUser.universityId() == null || authUser.universityId() != universityId) {
             throw new BusinessException(ErrorCode.CHAT_NOT_MEMBER);
         }
-        return ChatMessagePageResponse.from(
-                this.chatMessageRepository.findLatest(ChatRoomId.university(universityId), cursor, size));
+        var page = PageRequest.of(0, size + 1);
+        List<ChatMessage> found = cursor == null
+                ? chatMessageRepository.findByChatRoomIdOrderByIdDesc(universityId, page)
+                : chatMessageRepository.findByChatRoomIdAndIdLessThanOrderByIdDesc(universityId, cursor, page);
+        return toPage(found, size);
     }
 
     /**
@@ -40,10 +46,19 @@ public class ChatHistoryService {
      *
      * @throws BusinessException {@code CHAT_NOT_MEMBER}
      */
-    public ChatMessagePageResponse getAllianceMessages(AuthUser authUser, long allianceId, @Nullable String cursor,
+    public ChatMessagePageResponse getAllianceMessages(AuthUser authUser, long allianceId, @Nullable Long cursor,
                                                        int size) {
         this.allianceChatMembership.requireMember(authUser, allianceId);
-        return ChatMessagePageResponse.from(
-                this.chatMessageRepository.findLatest(ChatRoomId.alliance(allianceId), cursor, size));
+        var page = PageRequest.of(0, size + 1);
+        List<ChatMessage> found = cursor == null
+                ? chatMessageRepository.findByAllianceChatRoomIdOrderByIdDesc(allianceId, page)
+                : chatMessageRepository.findByAllianceChatRoomIdAndIdLessThanOrderByIdDesc(allianceId, cursor, page);
+        return toPage(found, size);
+    }
+
+    private static ChatMessagePageResponse toPage(List<ChatMessage> found, int size) {
+        boolean hasNext = found.size() > size;
+        List<ChatMessage> items = hasNext ? found.subList(0, size) : found;
+        return ChatMessagePageResponse.from(new ChatMessageSlice(items, hasNext ? items.getLast().getId() : null, hasNext));
     }
 }

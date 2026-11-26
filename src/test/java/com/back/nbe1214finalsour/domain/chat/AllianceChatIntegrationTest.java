@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.chat.entity.ChatMessage;
-import com.back.nbe1214finalsour.domain.chat.entity.ChatRoomId;
 import com.back.nbe1214finalsour.domain.chat.repository.ChatMessageRepository;
 import com.back.nbe1214finalsour.domain.chat.websocket.ChatDestinations;
 import com.back.nbe1214finalsour.domain.chat.websocket.RawStompClient;
@@ -44,7 +43,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 연합 채팅 (SCRUM-182, 채팅 2단계). 실제 서버에 STOMP로 연결하고 DynamoDB(floci)·Redis·PostgreSQL을 실제로 쓴다.
+ * 연합 채팅 (SCRUM-182, 채팅 2단계). 실제 서버에 STOMP로 연결하고 Redis·PostgreSQL을 실제로 쓴다.
  * 학교 A·B는 같은 연합, 학교 C는 연합이 없다. 연합 행은 상태를 직접 바꾸려고 SQL로 만든다.
  */
 @IntegrationTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -98,6 +97,7 @@ class AllianceChatIntegrationTest {
         this.allianceId = this.jdbcTemplate.queryForObject("""
                 INSERT INTO alliance (name, duration_hours, expired_at) VALUES ('채팅연합', 24, ?) RETURNING id
                 """, Long.class, this.expiredAt);
+        this.jdbcTemplate.update("INSERT INTO alliance_chat_room (alliance_id, alliance_name) VALUES (?, '채팅연합')", this.allianceId);
         for (Member member : List.of(this.a, this.b)) {
             this.jdbcTemplate.update("""
                     INSERT INTO alliance_university (alliance_id, university_id, applicant_user_id, approver_user_id, status)
@@ -111,7 +111,9 @@ class AllianceChatIntegrationTest {
         for (RawStompClient client : this.clients) {
             client.close();
         }
+        this.jdbcTemplate.update("DELETE FROM chat_message WHERE alliance_chat_room_id = ?", this.allianceId);
         this.jdbcTemplate.update("DELETE FROM alliance_university WHERE alliance_id = ?", this.allianceId);
+        this.jdbcTemplate.update("DELETE FROM alliance_chat_room WHERE alliance_id = ?", this.allianceId);
         this.jdbcTemplate.update("DELETE FROM alliance WHERE id = ?", this.allianceId);
         for (Member member : List.of(this.a, this.b, this.c)) {
             this.redis.delete(RedisKey.RATELIMIT_CHAT.of(member.user().getId()));
@@ -189,11 +191,11 @@ class AllianceChatIntegrationTest {
     }
 
     private List<ChatMessage> stored() {
-        return this.chatMessageRepository.findLatest(ChatRoomId.alliance(this.allianceId), null, 20).items();
+        return this.chatMessageRepository.findByAllianceChatRoomIdOrderByIdDesc(this.allianceId, org.springframework.data.domain.PageRequest.of(0, 20));
     }
 
     @Test
-    @DisplayName("같은 연합의 다른 학교 회원끼리 주고받고, 연합 만료 시각을 TTL로 저장한다")
+    @DisplayName("같은 연합의 다른 학교 회원끼리 주고받는다")
     void membersOfDifferentUniversitiesExchangeMessages() throws Exception {
         RawStompClient fromA = joined(this.a);
         RawStompClient fromB = joined(this.b);
@@ -210,7 +212,13 @@ class AllianceChatIntegrationTest {
         }
         assertThat(stored()).singleElement().satisfies(saved -> {
             assertThat(saved.getContent()).isEqualTo("오늘 안에 연합 1등 가자 **");
-            assertThat(saved.getTtl()).isEqualTo(this.expiredAt.toEpochSecond());
+            assertThat(saved.getAllianceChatRoomId()).isEqualTo(this.allianceId);
+            assertThat(this.jdbcTemplate.queryForObject(
+                    "SELECT last_content FROM alliance_chat_room WHERE alliance_id = ?", String.class, this.allianceId))
+                    .isEqualTo("오늘 안에 연합 1등 가자 **");
+            assertThat(this.jdbcTemplate.queryForObject(
+                    "SELECT last_content_at FROM alliance_chat_room WHERE alliance_id = ?", OffsetDateTime.class, this.allianceId))
+                    .isEqualTo(saved.getCreatedAt());
         });
 
         send(fromB, "좋아요");
@@ -333,7 +341,7 @@ class AllianceChatIntegrationTest {
     void history() throws Exception {
         RawStompClient fromA = joined(this.a);
         send(fromA, "기록될 메시지");
-        String messageId = next(fromA, "room").get("messageId").asString();
+        long messageId = next(fromA, "room").get("messageId").asLong();
 
         this.mockMvc.perform(get("/api/v1/chat/alliances/{id}/messages", this.allianceId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token(this.b)))

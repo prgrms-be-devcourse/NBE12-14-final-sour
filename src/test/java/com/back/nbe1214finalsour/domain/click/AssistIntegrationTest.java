@@ -128,6 +128,7 @@ class AssistIntegrationTest {
 
         jdbcTemplate.update("DELETE FROM alliance_university WHERE university_id IN (?, ?, ?)",
                 universityId, allyId, strangerId);
+        jdbcTemplate.update("DELETE FROM alliance_chat_room WHERE alliance_id IN (SELECT id FROM alliance WHERE name LIKE '지원테스트%')");
         jdbcTemplate.update("DELETE FROM alliance WHERE name LIKE '지원테스트%'");
         jdbcTemplate.update("DELETE FROM users WHERE university_id = ?", universityId);
         jdbcTemplate.update("DELETE FROM department WHERE university_id = ?", universityId);

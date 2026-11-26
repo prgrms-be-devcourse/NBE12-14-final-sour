@@ -95,6 +95,8 @@ class ClickServiceTest {
     private AllianceStandingResolver allianceStandingResolver;
     @Mock
     private UniversityCache universityCache;
+    @Mock
+    private ScoreRestoreService scoreRestoreService;
 
     private ClickService clickService;
 
@@ -103,11 +105,12 @@ class ClickServiceTest {
         ClickActionGuard clickActionGuard = new ClickActionGuard(
                 stringRedisTemplate, userStatusCache, userRepository,
                 actionRateLimiter, clickCountLimiter, clickerService, abuseVerificationService,
-                userClickerLevelCache);
+                userClickerLevelCache, scoreRestoreService);
         clickService = new ClickService(stringRedisTemplate, userRepository, redisHandler, clickActionGuard,
                 libraryBonusChecker, allianceStandingResolver, universityCache);
         lenient().when(allianceStandingResolver.resolve(UNIVERSITY_ID))
                 .thenReturn(AllianceStandingResolver.AllianceStanding.NONE);
+        lenient().when(scoreRestoreService.isReady()).thenReturn(true);
     }
 
     private ClickRequest request(int clickCount) {

@@ -228,6 +228,7 @@ class AllianceMatchConcurrencyIntegrationTest {
             jdbc.update("DELETE FROM alliance_match WHERE alliance_a_id = ? OR alliance_b_id = ?", id, id);
         }
         for (Long id : allianceIds) jdbc.update("DELETE FROM alliance_university WHERE alliance_id = ?", id);
+        for (Long id : allianceIds) jdbc.update("DELETE FROM alliance_chat_room WHERE alliance_id = ?", id);
         for (Long id : allianceIds) jdbc.update("DELETE FROM alliance WHERE id = ?", id);
         for (Long id : userIds) jdbc.update("DELETE FROM users WHERE id = ?", id);
         for (Long id : departmentIds) jdbc.update("DELETE FROM department WHERE id = ?", id);

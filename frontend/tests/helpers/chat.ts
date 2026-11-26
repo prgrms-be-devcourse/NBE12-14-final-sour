@@ -1,7 +1,7 @@
 import type { ChatMessage, ChatPage } from '../../src/api/chat';
 
 export const message = (id: number, overrides: Partial<ChatMessage> = {}): ChatMessage => ({
-  messageId: id.toString().padStart(26, '0'), roomId: 'UNIV#1', userId: 5, nickname: '학생', universityName: '한양대학교',
+  messageId: id, roomId: 'UNIV#1', userId: 5, nickname: '학생', universityName: '한양대학교',
   content: `메시지 ${id}`, createdAt: '2026-11-19T13:00:00+09:00', ...overrides,
 });
 export const page = (ids: number[], hasNext = false): ChatPage => ({

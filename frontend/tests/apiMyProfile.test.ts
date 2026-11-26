@@ -2,6 +2,7 @@
 // the game's player (ApiPlayerSync, the HUD's source) without the answer's scores; 409 shows the duplicate notice.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -173,12 +174,12 @@ test('로그인된 계정 화면의 "내 정보" 버튼이 내 정보 화면을 
 
 test('계약 센서: PATCH /users/me는 닉네임만 받고 내 정보 형식으로 답하며, 중복은 409다', () => {
   const root = new URL('../../src/main/java/com/back/nbe1214finalsour/', import.meta.url);
-  const controller = readFileSync(new URL('domain/user/controller/UserController.java', root), 'utf8');
+  const controller = readJava(new URL('domain/user/controller/UserController.java', root));
   assert.match(controller, /@RequestMapping\("\/api\/v1\/users"\)/);
   assert.match(controller, /@PatchMapping\("\/me"\)\s+public ApiResponse<MyInfoResponse> updateProfile/);
-  const request = readFileSync(new URL('domain/user/dto/UpdateProfileRequest.java', root), 'utf8');
-  assert.match(request, /record UpdateProfileRequest\(@Nickname String nickname\)/, '학과·이미지 필드가 생기면 화면도 바꾼다');
-  const codes = readFileSync(new URL('global/exception/ErrorCode.java', root), 'utf8');
+  const request = readJava(new URL('domain/user/dto/UpdateProfileRequest.java', root));
+  assert.match(request, /record UpdateProfileRequest\(\s*@Nickname String nickname\)/, '학과·이미지 필드가 생기면 화면도 바꾼다');
+  const codes = readJava(new URL('global/exception/ErrorCode.java', root));
   assert.match(codes, /USER_NICKNAME_DUPLICATED\(HttpStatus\.CONFLICT, "USER_NICKNAME_DUPLICATED"/);
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   assert.match(app, /<MyInfoScreenPhone /);

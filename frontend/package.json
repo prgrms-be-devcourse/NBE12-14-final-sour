@@ -7,6 +7,7 @@
     "dev": "vite --port=3000 --host=0.0.0.0 --mode api",
     "dev:mock": "vite --port=3000 --host=0.0.0.0 --mode mock",
     "build": "vite build",
+    "build:vercel": "node --import tsx scripts/vercel-build.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",

@@ -1,11 +1,12 @@
 // The one HTTP client every API call goes through (SCRUM-147, SCRUM-148). Plan:
-// .agents/01-PLAN/261118-1021-frontend_prototype_migration_plan.md §5 단계 0-3·0-4. It calls the same origin (the
-// Vite proxy forwards /api/, SCRUM-146), unwraps ApiResponse, turns every failure into ApiError, sends the access
+// .agents/01-PLAN/261118-1021-frontend_prototype_migration_plan.md §5 단계 0-3·0-4. It calls VITE_API_ORIGIN
+// when set, otherwise the same origin (Vite proxy), unwraps ApiResponse, turns every failure into ApiError, sends the access
 // token and reissues it once when it expires.
 
 import { ApiError, CLIENT_ERROR_CODES, isApiError, parseFieldErrors } from './errors';
 import { createApiFaults, type ApiFaults } from './faults';
 import { createAuthSession, sessionEndReason, type AuthSession } from './session';
+import { API_ORIGIN } from './origin';
 
 /** Every endpoint is under /api/v1 (decision 2026-11-12); paths passed to the client start after it. */
 export const API_BASE_PATH = '/api/v1';
@@ -117,7 +118,7 @@ function awaitShared<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 
 export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const doFetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
-  const baseUrl = options.baseUrl ?? API_BASE_PATH;
+  const baseUrl = options.baseUrl ?? `${API_ORIGIN}${API_BASE_PATH}`;
   const faults = options.faults ?? createApiFaults();
   const session = options.session ?? createAuthSession();
   let reissuing: Promise<string> | null = null;
@@ -132,8 +133,8 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 
     let response: Response;
     try {
-      // same-origin: the refresh cookie (Path=/api/v1/auth, SameSite=Strict) goes only to our own origin.
-      response = await doFetch(url, { method, headers, body: encoded.body, signal, credentials: 'same-origin' });
+      // Include the refresh cookie even when the API is on another origin of the same site (api.<domain>).
+      response = await doFetch(url, { method, headers, body: encoded.body, signal, credentials: 'include' });
     } catch (error) {
       if (signal?.aborted) throw signal.reason;
       throw new ApiError({ kind: 'network', status: null, code: CLIENT_ERROR_CODES.network, cause: error });

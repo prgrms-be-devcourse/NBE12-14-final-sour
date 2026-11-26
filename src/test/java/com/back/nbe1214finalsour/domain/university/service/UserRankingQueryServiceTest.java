@@ -5,6 +5,7 @@ import com.back.nbe1214finalsour.domain.university.repository.UniversityReposito
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.redis.RedisHandler;
+import com.back.nbe1214finalsour.global.redis.RedisKey;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -191,6 +192,47 @@ class UserRankingQueryServiceTest {
         assertThatThrownBy(() -> queryService.getUsers(12L, 0, 1, null, null))
                 .isInstanceOfSatisfying(BusinessException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.COMMON_INTERNAL_ERROR));
+    }
+
+    @Test
+    @DisplayName("여러 비공개 회원이 섞여 있어도 두 번째 페이지의 공개 순위와 회원 목록을 정확히 반환한다")
+    void getUsers_multipleExcludedAcrossPages() {
+        given(universityRepository.existsById(12L)).willReturn(true);
+        given(rankingService.getContributorCount(12L)).willReturn(8L);
+        given(contributorReader.findExcludedUserIds(12L)).willReturn(List.of(106L, 101L, 104L));
+        given(rankingService.getContributorPosition(12L, 101L)).willReturn(OptionalLong.of(0L));
+        given(rankingService.getContributorPosition(12L, 104L)).willReturn(OptionalLong.of(3L));
+        given(rankingService.getContributorPosition(12L, 106L)).willReturn(OptionalLong.of(5L));
+        given(rankingService.getContributorScore(12L, 101L)).willReturn(OptionalDouble.of(900.0));
+        given(rankingService.getContributorScore(12L, 104L)).willReturn(OptionalDouble.of(600.0));
+        given(rankingService.getContributorScore(12L, 106L)).willReturn(OptionalDouble.of(400.0));
+
+        given(rankingService.getContributorsRange(12L, 4L, 3L))
+                .willReturn(List.of(
+                        new RedisHandler.RankEntry(105L, 500.0),
+                        new RedisHandler.RankEntry(106L, 400.0),
+                        new RedisHandler.RankEntry(107L, 300.0)
+                ));
+        given(contributorReader.findRankingProfiles(12L, List.of(105L, 106L, 107L)))
+                .willReturn(Map.of(
+                        105L, new UniversityContributorReader.RankingProfile(105L, "정상C", null, 301L, "학과"),
+                        107L, new UniversityContributorReader.RankingProfile(107L, "정상D", null, 301L, "학과")
+                ));
+        given(rankingService.getContributorRank(12L, 105L)).willReturn(OptionalLong.of(5L));
+        given(rankingService.getContributorRank(12L, 107L)).willReturn(OptionalLong.of(7L));
+
+        given(rankSnapshotService.previousRanks(
+                RedisKey.RANK_USER_SNAPSHOT.of(12L), List.of(105L, 106L, 107L), List.of(106L, 101L, 104L)))
+                .willReturn(Map.of());
+
+        var result = queryService.getUsers(12L, 1, 2, null, null);
+
+        assertThat(result.items()).extracting(item -> item.userId())
+                .containsExactly(105L, 107L);
+        assertThat(result.items()).extracting(item -> item.rank())
+                .containsExactly(3L, 4L);
+        assertThat(result.totalCount()).isEqualTo(5L);
+        assertThat(result.hasNext()).isTrue();
     }
 
     @Test

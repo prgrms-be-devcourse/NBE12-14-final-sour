@@ -2,6 +2,7 @@
 // SCRUM-184: the server's rankChange (against 00:00 KST) becomes the ▲▼ badge, and the main HUD reads myUniversity.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -191,7 +192,7 @@ test('목업 모드 순위 화면은 기존 표본 문구와 10개 단위 더보
 
 test('Java 계약 센서: 순위 DTO 필드와 경로가 바뀌면 api/rankings.ts와 useRankingBoard를 재검토한다', () => {
   const root = new URL('../../src/main/java/com/back/nbe1214finalsour/domain/university/', import.meta.url);
-  const records = (file: string) => Object.fromEntries([...readFileSync(new URL(`dto/${file}.java`, root), 'utf8')
+  const records = (file: string) => Object.fromEntries([...readJava(new URL(`dto/${file}.java`, root))
     .matchAll(/record (\w+)\(([^)]*)\)/g)].map(([, name, body]) => [name, body.split(',').map((part) => part.trim().split(/\s+/).at(-1))]));
   const fix = 'api/rankings.ts의 DTO 타입과 useRankingBoard의 행 변환을 Java 계약과 맞추세요';
   const page = ['items', 'page', 'size', 'totalCount', 'hasNext'];
@@ -208,12 +209,15 @@ test('Java 계약 센서: 순위 DTO 필드와 경로가 바뀌면 api/rankings.
   assert.deepEqual(user.Item, Object.keys(USER_PAGE.items[0]), fix);
   assert.deepEqual(user.DepartmentInfo, ['id', 'name'], fix);
   assert.deepEqual(user.Me, Object.keys(USER_PAGE.me!), fix);
-  const controller = readFileSync(new URL('controller/RankingController.java', root), 'utf8');
+  const controller = readJava(new URL('controller/RankingController.java', root));
   assert.match(controller, /@RequestMapping\("\/api\/v1\/rankings"\)/, fix);
   for (const path of ['/universities', '/universities/{universityId}/departments', '/universities/{universityId}/users']) {
     assert.ok(controller.includes(`@GetMapping("${path}")`), `${fix}: ${path}`);
   }
-  assert.match(controller, /defaultValue = "20"\) @Min\(1\) @Max\(100\) int size/, fix);
+  assert.match(controller, /defaultValue = "20"\)\s+int size/, fix);
+  assert.match(controller, /implements RankingApiDocs/, fix);
+  const docs = readJava(new URL('controller/docs/RankingApiDocs.java', root));
+  assert.equal([...docs.matchAll(/@Min\(1\) @Max\(100\) int size/g)].length, 3, fix);
 });
 
 test('연결 센서: 두 순위 화면은 목업 순위를 직접 읽지 않고 useRankingBoard를 쓴다', () => {

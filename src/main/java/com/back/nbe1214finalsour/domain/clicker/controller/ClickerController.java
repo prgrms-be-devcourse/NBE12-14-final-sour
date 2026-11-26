@@ -1,8 +1,8 @@
 package com.back.nbe1214finalsour.domain.clicker.controller;
 
+import com.back.nbe1214finalsour.domain.clicker.controller.docs.ClickerApiDocs;
 import com.back.nbe1214finalsour.domain.clicker.dto.ClickerResponse;
 import com.back.nbe1214finalsour.domain.clicker.dto.ClickerUpgradeResponse;
-import com.back.nbe1214finalsour.domain.clicker.entity.Clicker;
 import com.back.nbe1214finalsour.domain.clicker.service.ClickerService;
 import com.back.nbe1214finalsour.domain.clicker.service.ClickerUpgradeResult;
 import com.back.nbe1214finalsour.domain.clicker.service.ClickerUpgradeService;
@@ -20,7 +20,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/clickers")
-public class ClickerController {
+public class ClickerController implements ClickerApiDocs {
 
     private final ClickerService clickerService;
     private final ClickerUpgradeService clickerUpgradeService;

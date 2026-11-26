@@ -1,7 +1,7 @@
 // SCRUM-167: password change and withdrawal on my account screen. A 204 closes this browser's session with the
 // reason, the session watcher opens the login screen, and the login form shows why.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React, { useState } from 'react';
@@ -176,15 +176,15 @@ test('회원 탈퇴: 정지 회원(403 USER_SUSPENDED)은 정지 안내와 함�
 
 test('계약 센서: 비밀번호 변경·탈퇴 경로, 요청 필드, 204와 쿠키 만료, 오류 코드가 백엔드와 같다', () => {
   const root = new URL('../../src/main/java/com/back/nbe1214finalsour/', import.meta.url);
-  const controller = readFileSync(new URL('domain/user/controller/UserController.java', root), 'utf8');
+  const controller = readJava(new URL('domain/user/controller/UserController.java', root));
   assert.match(controller, /@PatchMapping\("\/me\/password"\)\s+public ResponseEntity<Void> changePassword/);
   assert.match(controller, /@PostMapping\("\/me\/withdrawal"\)\s+public ResponseEntity<Void> withdraw/);
   assert.equal(controller.match(/ResponseEntity\.noContent\(\)\s+\.header\(HttpHeaders\.SET_COOKIE, RefreshTokenCookies\.expire\(\)/g)?.length, 2);
-  const change = readFileSync(new URL('domain/user/dto/ChangePasswordRequest.java', root), 'utf8');
+  const change = readJava(new URL('domain/user/dto/ChangePasswordRequest.java', root));
   assert.match(change, /record ChangePasswordRequest\(\s*@NotBlank @Size\(max = 64\) String currentPassword,\s*@Password String newPassword\)/);
-  const leave = readFileSync(new URL('domain/user/dto/WithdrawalRequest.java', root), 'utf8');
-  assert.match(leave, /record WithdrawalRequest\(@NotBlank @Size\(max = 64\) String password\)/);
-  const codes = readFileSync(new URL('global/exception/ErrorCode.java', root), 'utf8');
+  const leave = readJava(new URL('domain/user/dto/WithdrawalRequest.java', root));
+  assert.match(leave, /record WithdrawalRequest\(\s*@NotBlank @Size\(max = 64\) String password\)/);
+  const codes = readJava(new URL('global/exception/ErrorCode.java', root));
   assert.match(codes, /USER_INVALID_PASSWORD\(HttpStatus\.BAD_REQUEST, "USER_INVALID_PASSWORD"/);
   assert.match(codes, /USER_SUSPENDED\(HttpStatus\.FORBIDDEN, "USER_SUSPENDED"/);
 });

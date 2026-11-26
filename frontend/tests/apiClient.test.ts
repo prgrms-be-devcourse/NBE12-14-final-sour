@@ -49,7 +49,7 @@ test('URL은 /api/v1 아래에 붙고, null·undefined 쿼리는 빠지며 한�
   assert.throws(() => buildUrl('/api/v1', 'universities'), /\/로 시작/);
 });
 
-test('성공 응답은 data만 돌려주고, GET은 본문 없이 같은 출처 쿠키로 보낸다', async () => {
+test('성공 응답은 data만 돌려주고, GET은 본문 없이 쿠키를 포함해 보낸다', async () => {
   const schools = [{ id: 7, name: '한양대학교', logoUrl: null }];
   const { fetch, calls } = fakeFetch(ok(schools));
   const client = createApiClient({ fetch });
@@ -58,7 +58,7 @@ test('성공 응답은 data만 돌려주고, GET은 본문 없이 같은 출처 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/v1/universities?keyword=%ED%95%9C%EC%96%91&size=20');
   assert.equal(calls[0].init.method, 'GET');
-  assert.equal(calls[0].init.credentials, 'same-origin');
+  assert.equal(calls[0].init.credentials, 'include');
   assert.equal(calls[0].init.body, undefined);
   assert.deepEqual(calls[0].init.headers, { Accept: 'application/json' });
 });

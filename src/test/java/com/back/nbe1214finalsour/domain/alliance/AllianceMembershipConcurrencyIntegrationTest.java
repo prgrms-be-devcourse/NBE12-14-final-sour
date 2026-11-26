@@ -288,6 +288,7 @@ class AllianceMembershipConcurrencyIntegrationTest {
 
         // 연합 삭제
         for (Long allianceId : allianceIds) {
+            jdbcTemplate.update("DELETE FROM alliance_chat_room WHERE alliance_id = ?", allianceId);
             jdbcTemplate.update(
                     "DELETE FROM alliance WHERE id = ?",
                     allianceId

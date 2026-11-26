@@ -99,6 +99,19 @@ test('테스트 파일은 DOM 노드를 assert.equal 등에 직접 넘기지 않
   assert.deepEqual(offenders, [], 'assertAbsent(node) 또는 assertSameNode(a, b)로 바꾸세요. 실패 시 노드를 출력하며 메모리가 폭주합니다.');
 });
 
+test('복구한 계약 센서는 Java 파일을 readJava로 읽는다', () => {
+  // Other historical sensors still use direct reads; expand this list when migrating them.
+  const names = ['apiAccountSecurity', 'apiAdmin', 'apiAdminSupports', 'apiAdminUsers', 'apiMap', 'apiMyInfo',
+    'apiMyProfile', 'apiPurchaseHistory', 'apiRankings', 'apiSupport', 'clickBatcher'];
+  const directJavaRead = /readFileSync\s*\(\s*new URL\s*\(\s*['`][^'`]*\.java['`]/;
+  assert.equal(directJavaRead.test("readFileSync(new URL('dto/Test.java', root), 'utf8')"), true);
+  for (const name of names) {
+    const source = readFileSync(new URL(`${name}.test.ts`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, directJavaRead, `${name}: Java 파일은 readJava를 사용하세요`);
+    assert.match(source, /\breadJava\b/, `${name}: Java 계약 센서를 유지하세요`);
+  }
+});
+
 test('npm test는 이 센서를 먼저 따로 실행한다 (병렬 실행 중 다른 파일이 메모리를 터뜨리기 전에 멈춘다)', () => {
   const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { scripts: Record<string, string> };
   assert.equal(scripts.pretest, 'node --import tsx --test tests/testHygiene.test.ts');

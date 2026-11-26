@@ -2,6 +2,7 @@
 // that school's visit screen.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -132,13 +133,14 @@ test('지도 조회가 실패하면 서버 문구와 다시 시도를 보이고,
 
 test('계약 센서: 지도 DTO 필드와 경로·상한이 백엔드와 같고, 지도 화면은 모드별 훅을 쓴다', () => {
   const root = new URL('../../src/main/java/com/back/nbe1214finalsour/domain/university/', import.meta.url);
-  const dto = readFileSync(new URL('dto/UniversityMapResponse.java', root), 'utf8');
+  const dto = readJava(new URL('dto/UniversityMapResponse.java', root));
   const fields = [...dto.matchAll(/^\s+(?:long|String|BigDecimal)\s+(\w+)/gm)].map((match) => match[1]);
   assert.deepEqual(fields, ['rank', 'universityId', 'name', 'logoUrl', 'totalScore', 'latitude', 'longitude']);
-  const controller = readFileSync(new URL('controller/UniversityMapController.java', root), 'utf8');
+  const controller = readJava(new URL('controller/UniversityMapController.java', root));
   assert.match(controller, /@RequestMapping\("\/api\/v1\/map"\)/);
   assert.match(controller, /@GetMapping\("\/universities"\)/);
-  assert.match(controller, new RegExp(`@Max\\(${MAP_UNIVERSITY_LIMIT}\\)`));
+  assert.match(controller, /implements UniversityMapApiDocs/);
+  assert.match(readJava(new URL('controller/docs/UniversityMapApiDocs.java', root)), new RegExp(`@Max\\(${MAP_UNIVERSITY_LIMIT}\\)`));
   const phone = readFileSync(new URL('../src/components/MapScreenPhone.tsx', import.meta.url), 'utf8');
   assert.match(phone, /useMapSchools\(\)/);
   assert.doesNotMatch(phone, /useSchoolViews\(/);

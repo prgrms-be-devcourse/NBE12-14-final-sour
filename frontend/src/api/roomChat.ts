@@ -11,7 +11,7 @@ export interface ChatSnapshot {
   syncing: boolean;
   loadingOlder: boolean;
   hasOlder: boolean;
-  cursor: string | null;
+  cursor: number | null;
   error: string | null;
   historyError: string | null;
 }
@@ -24,7 +24,7 @@ export function createRoomChat(api: ApiClient, room: ChatRoom, connect: ChatConn
   let running = false;
   let generation = 0;
   let socketVersion = 0;
-  let recoveryBoundary: string | null = null;
+  let recoveryBoundary: number | null = null;
   let pending: AbortController | null = null;
   let connection: ChatConnection | null = null;
   let unsubscribe: (() => void) | null = null;
@@ -43,8 +43,8 @@ export function createRoomChat(api: ApiClient, room: ChatRoom, connect: ChatConn
     const firstLoad = !state.initialized;
     patch({ syncing: true, loadingOlder: false, historyError: null });
     try {
-      let cursor: string | undefined;
-      const seenCursors = new Set<string>();
+      let cursor: number | undefined;
+      const seenCursors = new Set<number>();
       do {
         const page = await getChatHistory(api, room, cursor, request.signal);
         if (!active(version)) return;

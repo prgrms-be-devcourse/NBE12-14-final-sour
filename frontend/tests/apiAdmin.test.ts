@@ -2,6 +2,7 @@
 // own role check (403 COMMON_FORBIDDEN while the access token still carries the old role).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -176,15 +177,15 @@ test('isAdminForbidden은 403 COMMON_FORBIDDEN만 권한 거절로 본다', () =
 
 test('계약 센서: 관리자 경로 권한, 거절 코드, 문의 목록 응답 필드와 진입 연결을 유지한다', () => {
   const main = new URL('../../src/main/java/com/back/nbe1214finalsour/', import.meta.url);
-  const security = readFileSync(new URL('global/security/SecurityConfig.java', main), 'utf8');
+  const security = readJava(new URL('global/security/SecurityConfig.java', main));
   assert.match(security, /requestMatchers\("\/api\/v1\/admin\/\*\*"\)\.hasRole\(Role\.ADMIN\.name\(\)\)/);
-  const denied = readFileSync(new URL('global/security/ApiAccessDeniedHandler.java', main), 'utf8');
+  const denied = readJava(new URL('global/security/ApiAccessDeniedHandler.java', main));
   assert.match(denied, /ErrorCode\.COMMON_FORBIDDEN/);
-  const controller = readFileSync(new URL('domain/support/controller/AdminSupportController.java', main), 'utf8');
+  const controller = readJava(new URL('domain/support/controller/AdminSupportController.java', main));
   assert.match(controller, /@RequestMapping\("\/api\/v1\/admin\/supports"\)/);
   assert.match(controller, /SupportStatus status/);
-  const list = readFileSync(new URL('domain/support/dto/AdminSupportListResponse.java', main), 'utf8');
-  assert.match(list, /List<AdminSupportListItem> items, int page, int size, long totalCount, boolean hasNext/);
+  const list = readJava(new URL('domain/support/dto/AdminSupportListResponse.java', main));
+  assert.match(list, /List<AdminSupportListItem> items,\s*int page,\s*int size,\s*long totalCount,\s*boolean hasNext/);
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   assert.match(app, /onOpenAdmin=\{\(\) => setViewMode\('admin'\)\}/);
 });

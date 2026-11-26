@@ -10,5 +10,5 @@ import java.util.List;
  * @param nextCursor 다음(더 오래된) 페이지를 읽을 커서. 마지막 항목의 messageId이며, 다음 페이지가 없으면 null
  * @param hasNext    더 오래된 메시지가 있는지
  */
-public record ChatMessageSlice(List<ChatMessage> items, String nextCursor, boolean hasNext) {
+public record ChatMessageSlice(List<ChatMessage> items, Long nextCursor, boolean hasNext) {
 }

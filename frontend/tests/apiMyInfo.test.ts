@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readJava } from './helpers/javaSource';
 import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
@@ -129,7 +129,7 @@ test('게임에 넘기는 값: 학교 ID·학교 이름·학과 이름·닉네�
 // Sensor: MyInfo copies MyInfoResponse by hand; a field added, renamed or removed there must be copied here.
 test('MyInfo 필드는 MyInfoResponse.java 레코드와 같고, 상태 값은 UserStatus.java와 같다', () => {
   const javaRoot = new URL('../../src/main/java/com/back/nbe1214finalsour/domain/user/', import.meta.url);
-  const source = readFileSync(new URL('dto/MyInfoResponse.java', javaRoot), 'utf8');
+  const source = readJava(new URL('dto/MyInfoResponse.java', javaRoot));
   const records = new Map([...source.matchAll(/record (\w+)\(([^)]*)\)/g)].map((m) => [
     m[1],
     m[2].split(',').map((part) => part.trim().split(/\s+/).at(-1)),
@@ -140,7 +140,7 @@ test('MyInfo 필드는 MyInfoResponse.java 레코드와 같고, 상태 값은 Us
   assert.deepEqual(records.get('DepartmentInfo'), Object.keys(STUDENT.department), fix);
   assert.deepEqual(records.get('ClickerInfo'), Object.keys(STUDENT.clicker), fix);
 
-  const statuses = [...readFileSync(new URL('entity/UserStatus.java', javaRoot), 'utf8').matchAll(/^\s+([A-Z_]+)[,;(]/gm)].map((m) => m[1]);
+  const statuses = [...readJava(new URL('entity/UserStatus.java', javaRoot)).matchAll(/^\s+([A-Z_]+)[,;(]/gm)].map((m) => m[1]);
   assert.deepEqual(statuses, [...USER_STATUSES], 'src/api/users.ts의 USER_STATUSES를 UserStatus.java에 맞추세요');
 });
 

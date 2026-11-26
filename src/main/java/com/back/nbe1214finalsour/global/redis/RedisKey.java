@@ -142,6 +142,10 @@ public enum RedisKey {
     LOCK_SCORE_FLUSH("lock:score-flush", Structure.STRING, ValueFormat.PLAIN),
     /** 순위 복사본 만들기 락. 여러 서버가 같은 날 한 번만 만든다 */
     LOCK_RANK_SNAPSHOT("lock:rank-snapshot", Structure.STRING, ValueFormat.PLAIN),
+
+    // 레디스 복구
+    /** Redis가 준비되었다는 표시. 없으면 Redis 복구를 실행한다. */
+    REDIS_READY("redis:ready", Structure.STRING, ValueFormat.PLAIN),
     ;
 
     private final String pattern;

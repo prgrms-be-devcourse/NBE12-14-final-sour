@@ -3,7 +3,6 @@ package com.back.nbe1214finalsour.domain.chat;
 import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.chat.dto.ChatMessageResponse;
 import com.back.nbe1214finalsour.domain.chat.entity.ChatMessage;
-import com.back.nbe1214finalsour.domain.chat.entity.ChatRoomId;
 import com.back.nbe1214finalsour.domain.chat.relay.ChatMessagePublisher;
 import com.back.nbe1214finalsour.domain.chat.repository.ChatMessageRepository;
 import com.back.nbe1214finalsour.domain.chat.websocket.ChatDestinations;
@@ -24,11 +23,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -45,7 +44,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * 대학 채팅 보내기 (SCRUM-130). 실제 서버에 STOMP로 연결해 보내고, 방 구독과 에러 큐로 결과를 받는다.
- * 저장소(DynamoDB, floci)와 Redis도 실제로 쓴다. 저장·발행 실패만 스파이로 만든다.
+ * PostgreSQL 저장소와 Redis도 실제로 쓴다. 저장·발행 실패만 스파이로 만든다.
  */
 @IntegrationTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class ChatSendIntegrationTest {
@@ -91,6 +90,7 @@ class ChatSendIntegrationTest {
         this.universityId = this.jdbcTemplate.queryForObject(
                 "INSERT INTO university (name, logo_url) VALUES (?, 'https://cdn.test/u/logo.png') RETURNING id",
                 Long.class, "채팅테스트대" + suffix);
+        this.jdbcTemplate.update("INSERT INTO chat_room (university_id, university_name) SELECT id, name FROM university WHERE id = ?", this.universityId);
         // 학교 이름은 앱이 뜰 때 읽어 두므로, 테스트가 만든 학교를 넣으려면 다시 읽는다
         this.universityCache.load();
         Long departmentId = this.jdbcTemplate.queryForObject(
@@ -106,6 +106,8 @@ class ChatSendIntegrationTest {
     void tearDown() throws Exception {
         this.client.close();
         this.redis.delete(RedisKey.RATELIMIT_CHAT.of(this.user.getId()));
+        this.jdbcTemplate.update("DELETE FROM chat_message WHERE chat_room_id = ?", this.universityId);
+        this.jdbcTemplate.update("DELETE FROM chat_room WHERE university_id = ?", this.universityId);
         this.jdbcTemplate.update("DELETE FROM users WHERE id = ?", this.user.getId());
         this.jdbcTemplate.update("DELETE FROM department WHERE university_id = ?", this.universityId);
         this.jdbcTemplate.update("DELETE FROM university WHERE id = ?", this.universityId);
@@ -169,7 +171,7 @@ class ChatSendIntegrationTest {
     }
 
     private List<ChatMessage> stored() {
-        return this.chatMessageRepository.findLatest(ChatRoomId.university(this.universityId), null, 20).items();
+        return this.chatMessageRepository.findByChatRoomIdOrderByIdDesc(this.universityId, org.springframework.data.domain.PageRequest.of(0, 20));
     }
 
     private void resetRateLimit() {
@@ -191,7 +193,7 @@ class ChatSendIntegrationTest {
         assertThat(message.get("createdAt").asString()).endsWith("+09:00");
 
         assertThat(stored()).singleElement().satisfies(saved -> {
-            assertThat(saved.getMessageId()).isEqualTo(message.get("messageId").asString());
+            assertThat(saved.getId()).isEqualTo(message.get("messageId").asLong());
             assertThat(saved.getContent()).isEqualTo("오늘 안에 2등 가자");
         });
         assertNoMoreFrames();
@@ -206,6 +208,12 @@ class ChatSendIntegrationTest {
         assertThat(stored()).singleElement().satisfies(saved -> {
             assertThat(saved.getContent()).isEqualTo("너 **야 **");
             assertThat(saved.getContent()).doesNotContain("바보").doesNotContainIgnoringCase("badword");
+            assertThat(this.jdbcTemplate.queryForObject(
+                    "SELECT last_content FROM chat_room WHERE university_id = ?", String.class, this.universityId))
+                    .isEqualTo("너 **야 **");
+            assertThat(this.jdbcTemplate.queryForObject(
+                    "SELECT last_content_at FROM chat_room WHERE university_id = ?", OffsetDateTime.class, this.universityId))
+                    .isEqualTo(saved.getCreatedAt());
         });
     }
 
@@ -270,7 +278,7 @@ class ChatSendIntegrationTest {
     @Test
     @DisplayName("저장에 실패하면 보낸 사람에게만 COMMON_INTERNAL_ERROR이고 발행하지 않는다")
     void saveFails() throws Exception {
-        doThrow(SdkClientException.create("DynamoDB 연결 실패")).when(this.chatMessageRepository).save(any());
+        doThrow(new DataAccessResourceFailureException("메시지 저장소 연결 실패")).when(this.chatMessageRepository).save(any());
 
         sendContent("저장 실패");
 

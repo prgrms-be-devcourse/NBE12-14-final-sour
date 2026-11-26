@@ -22,6 +22,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -187,9 +189,10 @@ class RankChangeIntegrationTest {
                 .andExpect(jsonPath("$.data.myDepartment.rankChange").value(1));
     }
 
-    @Test
-    @DisplayName("개인 순위: 비공개가 된 회원은 어제 순위에서도 빼고 센다")
-    void userRankChangeSkipsExcludedMembers() throws Exception {
+    @ParameterizedTest(name = "라이벌의 현재 점수: {0}")
+    @ValueSource(doubles = {600.0, 1200.0})
+    @DisplayName("개인 순위: 비공개 회원이 조회 범위 안에 있어도 어제 순위에서 제외한다")
+    void userRankChangeSkipsExcludedMembers(double rivalScore) throws Exception {
         University univ = universityRepository.saveAndFlush(new University("변동개인테스트대학교"));
         Department dept = departmentRepository.saveAndFlush(new Department(univ, "변동개인학과"));
         User leaver = user(univ, dept, "변동차단예정", "rank-change-leaver@test.ac.kr");
@@ -205,7 +208,8 @@ class RankChangeIntegrationTest {
         // 어제 공개 순위: 나 1위, 라이벌 2위 (오늘 차단된 회원을 빼면)
         rankSnapshotService.snapshotIfMissing();
         jdbcTemplate.update("update users set status = 'BANNED' where id = ?", leaver.getId());
-        redis.opsForZSet().add(key, rival.getId().toString(), 600);
+        // 600점이면 비공개 회원이 조회 범위 앞에, 1200점이면 조회 범위 중간에 위치한다.
+        redis.opsForZSet().add(key, rival.getId().toString(), rivalScore);
 
         String token = token(univ.getId(), dept.getId(), me.getId());
         mockMvc.perform(get("/api/v1/rankings/universities/{id}/users", univ.getId())

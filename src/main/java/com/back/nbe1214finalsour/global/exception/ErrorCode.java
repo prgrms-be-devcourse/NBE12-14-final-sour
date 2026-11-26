@@ -107,6 +107,7 @@ public enum ErrorCode {
 
     // ===== CLICKER / ITEM / PAY (4번) =====
     PAY_ALREADY_PROCESSED(HttpStatus.CONFLICT, "PAY_ALREADY_PROCESSED", "이미 처리된 결제입니다."),
+    PAY_INVALID_AMOUNT(HttpStatus.BAD_REQUEST, "PAY_INVALID_AMOUNT", "허용되지 않은 충전 금액입니다."),
     CLICKER_MAX_LEVEL(HttpStatus.BAD_REQUEST, "CLICKER_MAX_LEVEL", "이미 최고 레벨입니다."),
     CLICKER_NOT_ENOUGH_SCORE(HttpStatus.BAD_REQUEST, "CLICKER_NOT_ENOUGH_SCORE", "업그레이드에 필요한 기여도가 부족합니다."),
     CLICKER_UPGRADE_CONFLICT(HttpStatus.CONFLICT, "CLICKER_UPGRADE_CONFLICT", "다른 업그레이드 요청이 먼저 처리되었습니다. 다시 시도해주세요."),
@@ -132,6 +133,9 @@ public enum ErrorCode {
     CHAT_TOO_FREQUENT(HttpStatus.TOO_MANY_REQUESTS, "CHAT_TOO_FREQUENT", "메시지를 너무 빨리 보내고 있습니다."),
     /** 본문이 비었거나 200자를 넘음 (계획 D13, SCRUM-130) */
     CHAT_INVALID_CONTENT(HttpStatus.BAD_REQUEST, "CHAT_INVALID_CONTENT", "메시지는 1~200자로 입력해주세요."),
+
+    // ===== RESTORE (복구) =====
+    RESTORE_SCORE_RESTORING(HttpStatus.SERVICE_UNAVAILABLE, "RESTORE_SCORE_RESTORING", "Redis 재시작으로 점수를 복구하는 중입니다."),
     ;
 
     private final HttpStatus status;

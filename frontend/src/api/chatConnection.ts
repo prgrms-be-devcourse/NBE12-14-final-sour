@@ -3,6 +3,7 @@ import type { ApiClient } from './client';
 import { EXPIRED_TOKEN_CODE } from './client';
 import { ApiError, CLIENT_ERROR_CODES } from './errors';
 import { sessionEndReason } from './session';
+import { API_ORIGIN } from './origin';
 import { CHAT_ERROR_DESTINATION, chatSendDestination, chatTopic, parseChatFault, parseChatMessage, type ChatMessage, type ChatRoom } from './chat';
 
 export type ChatConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'blocked';
@@ -16,6 +17,11 @@ export interface ChatConnection { send(content: string): boolean; stop(): void }
 export type ChatConnectionFactory = (api: ApiClient, room: ChatRoom, callbacks: ChatCallbacks) => ChatConnection;
 type StompPort = Pick<Client, 'activate' | 'deactivate' | 'publish' | 'subscribe' | 'connected' | 'connectHeaders'>;
 
+export function chatSocketOrigin(apiOrigin: string, pageHref: string): string {
+  return apiOrigin || pageHref;
+}
+
+/** The base address is the API origin when configured, otherwise the page URL. */
 export function chatSocketUrl(origin: string): string {
   const url = new URL('/ws', origin);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -38,7 +44,7 @@ export function createChatConnection(api: ApiClient, room: ChatRoom, callbacks: 
     return fault;
   };
   const socket = (options.createClient ?? ((config) => new Client(config)))({
-    brokerURL: chatSocketUrl(options.origin ?? window.location.href),
+    brokerURL: chatSocketUrl(options.origin ?? chatSocketOrigin(API_ORIGIN, window.location.href)),
     heartbeatIncoming: 10_000, heartbeatOutgoing: 10_000, connectionTimeout: 10_000,
     reconnectDelay: 1_000, maxReconnectDelay: 30_000, reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
     debug: () => {}, logRawCommunication: false,

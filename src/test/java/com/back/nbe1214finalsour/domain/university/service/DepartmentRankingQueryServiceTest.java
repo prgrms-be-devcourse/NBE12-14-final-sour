@@ -1,10 +1,12 @@
 package com.back.nbe1214finalsour.domain.university.service;
 
+import com.back.nbe1214finalsour.domain.university.dto.DepartmentRankingResponse;
 import com.back.nbe1214finalsour.domain.university.entity.Department;
 import com.back.nbe1214finalsour.domain.university.repository.DepartmentRepository;
 import com.back.nbe1214finalsour.domain.university.repository.UniversityRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.redis.RedisHandler;
+import com.back.nbe1214finalsour.global.redis.RedisKey;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
 
@@ -113,5 +116,26 @@ class DepartmentRankingQueryServiceTest {
         assertThat(result.items()).isEmpty();
         assertThat(result.totalCount()).isZero();
         assertThat(result.myDepartment()).isNull();
+    }
+
+    @Test
+    @DisplayName("조회 범위를 벗어난 페이지에서도 내 학과 순위와 순위 변동을 반환한다")
+    void getDepartments_emptyPageKeepsMyDepartment() {
+        given(universityRepository.existsById(12L)).willReturn(true);
+        given(rankingService.getDepartmentCount(12L)).willReturn(3L);
+        given(rankingService.getDepartmentsRange(12L, 4L, 2)).willReturn(List.of());
+        given(rankSnapshotService.previousRanks(
+                RedisKey.RANK_DEPT_SNAPSHOT.of(12L), List.of(301L), List.of()))
+                .willReturn(Map.of(301L, 3L));
+        given(rankingService.getDepartmentRank(12L, 301L)).willReturn(OptionalLong.of(2L));
+        given(rankingService.getDepartmentScore(12L, 301L)).willReturn(OptionalDouble.of(500.0));
+
+        var result = queryService.getDepartments(12L, 2, 2, 12L, 301L);
+
+        assertThat(result.items()).isEmpty();
+        assertThat(result.totalCount()).isEqualTo(3L);
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.myDepartment()).isEqualTo(
+                new DepartmentRankingResponse.MyDepartment(2L, 301L, 500L, 1L));
     }
 }

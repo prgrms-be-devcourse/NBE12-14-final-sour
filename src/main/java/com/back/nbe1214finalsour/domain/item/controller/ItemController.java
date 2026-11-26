@@ -1,5 +1,6 @@
 package com.back.nbe1214finalsour.domain.item.controller;
 
+import com.back.nbe1214finalsour.domain.item.controller.docs.ItemApiDocs;
 import com.back.nbe1214finalsour.domain.item.dto.ActiveEffectResponse;
 import com.back.nbe1214finalsour.domain.item.dto.ItemPurchaseResponse;
 import com.back.nbe1214finalsour.domain.item.dto.ItemResponse;
@@ -7,8 +8,6 @@ import com.back.nbe1214finalsour.domain.item.dto.PurchaseHistoryResponse;
 import com.back.nbe1214finalsour.domain.item.service.*;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
 import com.back.nbe1214finalsour.global.security.AuthUser;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,7 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/items")
 @RequiredArgsConstructor
-public class ItemController {
+public class ItemController implements ItemApiDocs {
 
     private final ItemService itemService;
     private final ItemPurchaseService itemPurchaseService;
@@ -49,8 +48,8 @@ public class ItemController {
     @GetMapping("/me/history")
     public ApiResponse<PurchaseHistoryResponse> getItemHistory(
             @AuthenticationPrincipal AuthUser user,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
         return ApiResponse.ok(PurchaseHistoryResponse.from(
                 this.purchaseHistoryService.findHistory(user.userId(), page, size)

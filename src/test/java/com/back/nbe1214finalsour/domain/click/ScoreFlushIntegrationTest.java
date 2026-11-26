@@ -65,12 +65,17 @@ class ScoreFlushIntegrationTest {
             RedisKey.DIRTY_ALLIANCE.of() + ":flushing", RedisKey.DIRTY_MATCH.of() + ":flushing"));
     /** {@code rank:univ}는 키가 하나뿐이라 통째로 지우지 않고 테스트가 넣은 학교만 뺀다. */
     private final List<String> addedUnivRankMembers = new ArrayList<>();
+    /** {@code score:user:attack}도 Hash 하나를 모두가 같이 쓰므로 테스트가 넣은 회원 필드만 뺀다. */
+    private final List<String> addedAttackFields = new ArrayList<>();
 
     @AfterEach
     void cleanUpRedis() {
         stringRedisTemplate.delete(usedKeys);
         if (!addedUnivRankMembers.isEmpty()) {
             stringRedisTemplate.opsForZSet().remove(RedisKey.RANK_UNIV.of(), addedUnivRankMembers.toArray());
+        }
+        if (!addedAttackFields.isEmpty()) {
+            stringRedisTemplate.opsForHash().delete(RedisKey.SCORE_USER_ATTACK.of(), addedAttackFields.toArray());
         }
     }
 
@@ -92,6 +97,79 @@ class ScoreFlushIntegrationTest {
 
         // then
         assertThat(contribScoreOf(user.getId())).isEqualTo(500L);
+    }
+
+    @Test
+    @DisplayName("공격만 한 회원은 Redis 공격 점수로 DB 공격 점수를 덮어쓰고, 기여도는 그대로 둔다")
+    void flushesAttackScoreOfAttackOnlyUser() {
+        // given: 기여도 순위(rank:user)에는 없고 공격 점수만 있다
+        University university = universityRepository.saveAndFlush(new University("배치테스트대학교"));
+        Department department = departmentRepository.saveAndFlush(new Department(university, "배치학과"));
+        User user = saveUser(university, department, "공격회원", "flush-attack@test.ac.kr");
+        givenDbScores(user.getId(), 100, 5);
+
+        stringRedisTemplate.opsForSet().add(RedisKey.DIRTY_USER.of(), String.valueOf(user.getId()));
+        givenAttackScore(user.getId(), 70);
+
+        // when
+        scoreFlushService.flush();
+
+        // then
+        assertThat(attackScoreOf(user.getId())).isEqualTo(70L);
+        assertThat(contribScoreOf(user.getId())).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("클릭만 한 회원은 기여도만 덮어쓰고, Redis에 공격 점수가 없어도 DB 공격 점수를 지우지 않는다")
+    void keepsAttackScoreOfClickOnlyUser() {
+        // given: 공격 점수 Hash에는 없고 기여도만 있다
+        University university = universityRepository.saveAndFlush(new University("배치테스트대학교"));
+        Department department = departmentRepository.saveAndFlush(new Department(university, "배치학과"));
+        User user = saveUser(university, department, "클릭회원", "flush-click@test.ac.kr");
+        givenDbScores(user.getId(), 100, 5);
+
+        String rankKey = RedisKey.RANK_USER.of(university.getId());
+        usedKeys.add(rankKey);
+        stringRedisTemplate.opsForSet().add(RedisKey.DIRTY_USER.of(), String.valueOf(user.getId()));
+        stringRedisTemplate.opsForZSet().add(rankKey, String.valueOf(user.getId()), 400);
+
+        // when
+        scoreFlushService.flush();
+
+        // then
+        assertThat(contribScoreOf(user.getId())).isEqualTo(400L);
+        assertThat(attackScoreOf(user.getId())).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("기여도와 공격 점수가 모두 있으면 둘 다 덮어쓰고, 다른 회원의 점수와 섞이지 않는다")
+    void flushesBothScoresWithoutMixingUsers() {
+        // given: 같은 학교에 둘 다 있는 회원, 기여도만 있는 회원, 공격 점수만 있는 회원
+        University university = universityRepository.saveAndFlush(new University("배치테스트대학교"));
+        Department department = departmentRepository.saveAndFlush(new Department(university, "배치학과"));
+        User both = saveUser(university, department, "둘다회원", "flush-both@test.ac.kr");
+        User clickOnly = saveUser(university, department, "클릭만회원", "flush-click-only@test.ac.kr");
+        User attackOnly = saveUser(university, department, "공격만회원", "flush-attack-only@test.ac.kr");
+        givenDbScores(both.getId(), 1, 1);
+        givenDbScores(clickOnly.getId(), 2, 2);
+        givenDbScores(attackOnly.getId(), 3, 3);
+
+        String rankKey = RedisKey.RANK_USER.of(university.getId());
+        usedKeys.add(rankKey);
+        stringRedisTemplate.opsForSet().add(RedisKey.DIRTY_USER.of(),
+                String.valueOf(both.getId()), String.valueOf(clickOnly.getId()), String.valueOf(attackOnly.getId()));
+        stringRedisTemplate.opsForZSet().add(rankKey, String.valueOf(both.getId()), 1000);
+        stringRedisTemplate.opsForZSet().add(rankKey, String.valueOf(clickOnly.getId()), 2000);
+        givenAttackScore(both.getId(), 10);
+        givenAttackScore(attackOnly.getId(), 30);
+
+        // when
+        scoreFlushService.flush();
+
+        // then
+        assertThat(List.of(contribScoreOf(both.getId()), attackScoreOf(both.getId()))).containsExactly(1000L, 10L);
+        assertThat(List.of(contribScoreOf(clickOnly.getId()), attackScoreOf(clickOnly.getId()))).containsExactly(2000L, 2L);
+        assertThat(List.of(contribScoreOf(attackOnly.getId()), attackScoreOf(attackOnly.getId()))).containsExactly(3L, 30L);
     }
 
     @Test
@@ -652,6 +730,24 @@ class ScoreFlushIntegrationTest {
     private Long contribScoreOf(Long userId) {
         return jdbcTemplate.queryForObject(
                 "SELECT total_contrib_score FROM users WHERE id = ?", Long.class, userId);
+    }
+
+    private Long attackScoreOf(Long userId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT total_attack_score FROM users WHERE id = ?", Long.class, userId);
+    }
+
+    /** 배치 전 DB 값. 배치가 덮어쓰지 않아야 할 값이 0이 아니어야 "지우지 않았다"를 구분할 수 있다. */
+    private void givenDbScores(Long userId, long contribScore, long attackScore) {
+        jdbcTemplate.update("UPDATE users SET total_contrib_score = ?, total_attack_score = ? WHERE id = ?",
+                contribScore, attackScore, userId);
+    }
+
+    /** apply-attack.lua처럼 score:user:attack Hash의 회원 필드에 공격 점수를 둔다. */
+    private void givenAttackScore(Long userId, long attackScore) {
+        String field = String.valueOf(userId);
+        addedAttackFields.add(field);
+        stringRedisTemplate.opsForHash().put(RedisKey.SCORE_USER_ATTACK.of(), field, String.valueOf(attackScore));
     }
 
     private Long universityScoreOf(Long universityId) {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Client, FrameImpl, ReconnectionTimeMode, type messageCallbackType } from '@stomp/stompjs';
 import { createApiClient } from '../src/api/client';
-import { chatSocketUrl, createChatConnection, type ChatConnectionStatus } from '../src/api/chatConnection';
+import { chatSocketOrigin, chatSocketUrl, createChatConnection, type ChatConnectionStatus } from '../src/api/chatConnection';
 import { CHAT_ERROR_DESTINATION, allianceRoom, chatTopic, universityRoom, type ChatRoom } from '../src/api/chat';
 import { flush, message, success } from './helpers/chat';
 
@@ -32,7 +32,15 @@ function setup(fetch?: typeof globalThis.fetch, room: ChatRoom = universityRoom(
     counts: () => ({ ready, activates, deactivates }), offline: () => { online = false; } };
 }
 
-test('same origin ws/wss, 토큰은 CONNECT 헤더만, 백오프·heartbeat는 라이브러리에 맡긴다', async () => {
+test('API origin이 있으면 채팅 기준으로 쓰고 없으면 페이지 주소를 쓴다', () => {
+  assert.equal(chatSocketUrl('https://api.example.com'), 'wss://api.example.com/ws');
+  assert.equal(chatSocketOrigin('https://api.example.com', 'https://app.example.com/screen'), 'https://api.example.com');
+  const fallback = chatSocketOrigin('', 'https://app.example.com/screen');
+  assert.equal(fallback, 'https://app.example.com/screen');
+  assert.equal(chatSocketUrl(fallback), 'wss://app.example.com/ws');
+});
+
+test('ws/wss, 토큰은 CONNECT 헤더만, 백오프·heartbeat는 라이브러리에 맡긴다', async () => {
   assert.equal(chatSocketUrl('http://localhost:3000/path'), 'ws://localhost:3000/ws');
   const f = setup();
   assert.equal(f.socket.brokerURL, 'wss://campus.example/ws');

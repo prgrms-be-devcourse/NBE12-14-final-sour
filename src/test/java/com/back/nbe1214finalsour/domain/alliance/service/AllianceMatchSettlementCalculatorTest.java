@@ -142,6 +142,46 @@ class AllianceMatchSettlementCalculatorTest {
     }
 
     @Test
+    @DisplayName("패배 학교 B의 기여도가 음수이면 정산 계산을 거부한다")
+    void calculate_rejectsNegativeSecondContribution() {
+        assertThatThrownBy(() ->
+                AllianceMatchSettlementCalculator.calculate(
+                        100L, -1L, 500L, 400L
+                )
+        )
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("정산 점수는 음수일 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("패배 학교 A의 현재 점수가 음수이면 정산 계산을 거부한다")
+    void calculate_rejectsNegativeFirstCurrentScore() {
+        assertThatThrownBy(() ->
+                AllianceMatchSettlementCalculator.calculate(
+                        100L, 200L, -1L, 400L
+                )
+        )
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("정산 점수는 음수일 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("차감 총액이 홀수이면 승리 학교 B에 나머지 1점을 지급한다")
+    void calculate_distributesOddDeductionWithoutLosingPoint() {
+        AllianceMatchSettlementCalculator.Settlement result =
+                AllianceMatchSettlementCalculator.calculate(
+                        1L, 2L, 10L, 10L
+                );
+
+        assertThat(result.loserADeduction()).isEqualTo(1L);
+        assertThat(result.loserBDeduction()).isEqualTo(2L);
+        assertThat(result.winnerAReward()).isEqualTo(1L);
+        assertThat(result.winnerBReward()).isEqualTo(2L);
+        assertThat(result.winnerAReward() + result.winnerBReward())
+                .isEqualTo(result.loserADeduction() + result.loserBDeduction());
+    }
+
+    @Test
     @DisplayName("실제 차감 총액이 long 범위를 초과하면 예외가 발생한다")
     void calculate_rejectsScoreOverflow() {
         // given: 두 학교의 차감 총액이 long 최댓값을 초과하는 상황

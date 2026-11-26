@@ -29,8 +29,13 @@ public class ClickActionGuard {
     private final ClickerService clickerService;
     private final AbuseVerificationService abuseVerificationService;
     private final UserClickerLevelCache userClickerLevelCache;
+    private final ScoreRestoreService scoreRestoreService;
 
     public long verifyAndGetBaseScore(Long userId, String submissionId, int clickCount) {
+        if (!scoreRestoreService.isReady()) {
+            throw new BusinessException(ErrorCode.RESTORE_SCORE_RESTORING);
+        }
+
         try {
             checkActive(userId);
             // 어뷰징 의심 표시가 있으면 봇 확인 전까지 막는다 (SCRUM-118). 중복 제출 확인보다 앞이라 막힌 요청은 submissionId를 쓰지 않는다

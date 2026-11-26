@@ -1,5 +1,6 @@
 package com.back.nbe1214finalsour.domain.university.controller;
 
+import com.back.nbe1214finalsour.domain.university.controller.docs.RankingApiDocs;
 import com.back.nbe1214finalsour.domain.university.dto.DepartmentRankingResponse;
 import com.back.nbe1214finalsour.domain.university.dto.UniversityRankingResponse;
 import com.back.nbe1214finalsour.domain.university.dto.UserRankingResponse;
@@ -8,8 +9,6 @@ import com.back.nbe1214finalsour.domain.university.service.UniversityRankingQuer
 import com.back.nbe1214finalsour.domain.university.service.UserRankingQueryService;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
 import com.back.nbe1214finalsour.global.security.AuthUser;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -17,16 +16,17 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/rankings")
-public class RankingController {
+public class RankingController implements RankingApiDocs {
 
     private final UniversityRankingQueryService rankingQueryService;
     private final DepartmentRankingQueryService departmentRankingQueryService;
     private final UserRankingQueryService userRankingQueryService;
 
+    @Override
     @GetMapping("/universities")
     public ApiResponse<UniversityRankingResponse> getUniversities(
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthUser authUser
     ) {
         Long myUniversityId = authUser != null
@@ -42,11 +42,12 @@ public class RankingController {
         );
     }
 
+    @Override
     @GetMapping("/universities/{universityId}/departments")
     public ApiResponse<DepartmentRankingResponse> getDepartmentRankings(
             @PathVariable Long universityId,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthUser authUser
     ) {
         Long myUniversityId = authUser != null
@@ -68,11 +69,12 @@ public class RankingController {
         );
     }
 
+    @Override
     @GetMapping("/universities/{universityId}/users")
     public ApiResponse<UserRankingResponse> getUserRankings(
             @PathVariable Long universityId,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthUser authUser
     ) {
         Long myUniversityId = authUser != null

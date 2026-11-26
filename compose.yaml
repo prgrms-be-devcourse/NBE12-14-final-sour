@@ -16,7 +16,7 @@ services:
   floci:
     image: 'floci/floci:latest'
     environment:
-      # Spring Cloud AWS가 이 세 값을 읽어 S3·DynamoDB 클라이언트에 넣는다 (에뮬레이터라 키는 아무 값이나 됨)
+      # Spring Cloud AWS가 이 세 값을 S3 클라이언트에 넣는다 (에뮬레이터라 키는 아무 값이나 됨)
       - 'AWS_DEFAULT_REGION=ap-northeast-2'
       - 'AWS_ACCESS_KEY_ID=test'
       - 'AWS_SECRET_ACCESS_KEY=test'

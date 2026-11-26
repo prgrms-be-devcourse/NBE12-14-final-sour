@@ -269,15 +269,22 @@ public class ScoreFlushService {
 
         List<Long> ids = new ArrayList<>();
         List<Long> scores = new ArrayList<>();
+        List<Long> attackScores = new ArrayList<>();
         usersByUniv.forEach((univId, userIds) -> {
-            String key = RedisKey.RANK_USER.of(univId);
-            List<Double> values = stringRedisTemplate.opsForZSet()
-                    .score(key, userIds.stream().map(String::valueOf).toArray());
+            List<String> members = userIds.stream().map(String::valueOf).toList();
+            List<Double> contributions = stringRedisTemplate.opsForZSet()
+                    .score(RedisKey.RANK_USER.of(univId), members.toArray());
+            List<Object> attacks = stringRedisTemplate.opsForHash()
+                    .multiGet(RedisKey.SCORE_USER_ATTACK.of(), new ArrayList<>(members));
+
             for (int i = 0; i < userIds.size(); i++) {
-                Double v = values.get(i);
-                if (v == null) continue;
+                Double c = contributions.get(i);
+                Object a = attacks.get(i);
+                if (c == null && a == null) continue;
                 ids.add(userIds.get(i));
-                scores.add(v.longValue());
+
+                scores.add(c != null ? c.longValue() : null);
+                attackScores.add(a != null ? Long.parseLong((String) a) : null);
             }
         });
 
@@ -285,10 +292,12 @@ public class ScoreFlushService {
 
         jdbcTemplate.update("""
                 update users as u 
-                set total_contrib_score = x.score
-                from unnest(?::bigint[], ?::bigint[]) AS x(id, score)
+                set total_contrib_score = coalesce(x.score, u.total_contrib_score),
+                    total_attack_score = coalesce(x.attack_score, u.total_attack_score)
+                from unnest(?::bigint[], ?::bigint[], ?::bigint[]) AS x(id, score, attack_score)
                 where u.id = x.id
-                    and u.total_contrib_score is distinct from x.score
-                """, ids.toArray(Long[]::new), scores.toArray(Long[]::new));
+                    and (u.total_contrib_score, u.total_attack_score) is distinct from (
+                      coalesce(x.score, u.total_contrib_score), coalesce(x.attack_score, u.total_attack_score))
+                """, ids.toArray(Long[]::new), scores.toArray(Long[]::new), attackScores.toArray(Long[]::new));
     }
 }

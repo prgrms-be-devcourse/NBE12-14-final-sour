@@ -1,6 +1,7 @@
 package com.back.nbe1214finalsour.domain.click.scheduler;
 
 import com.back.nbe1214finalsour.domain.click.service.ScoreFlushService;
+import com.back.nbe1214finalsour.domain.click.service.ScoreRestoreService;
 import com.back.nbe1214finalsour.global.redis.RedisKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class ScoreFlushScheduler {
 
     private final ScoreFlushService scoreFlushService;
     private final StringRedisTemplate stringRedisTemplate;
+    private final ScoreRestoreService scoreRestoreService;
     private static final RedisScript<Long> RELEASE_LOCK =
             RedisScript.of(new ClassPathResource("redis/release-lock.lua"), Long.class);
 
@@ -35,9 +37,14 @@ public class ScoreFlushScheduler {
             if (!Boolean.TRUE.equals(acquired)) return;
         } catch (Exception e) {
             log.error("[ScoreFlush] 락 취득 실패", e);
+            return;
         }
 
         try {
+            if (!scoreRestoreService.isReady()) {
+                scoreRestoreService.restoreIfNeeded();
+                return;
+            }
             scoreFlushService.flush();
         } catch (Exception e) {
             log.error("[ScoreFlush] 점수 반영 실패, 다음 회차에 재시도", e);
