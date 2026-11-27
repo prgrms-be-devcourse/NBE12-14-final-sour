@@ -201,5 +201,24 @@ class PaymentConfirmTxServiceTest {
                     .extracting("errorCode")
                     .isEqualTo(ErrorCode.PAY_ALREADY_PROCESSED);
         }
+
+        @Test
+        @DisplayName("본인 READY 주문이고 금액도 같은데 UPDATE가 0행이면 IllegalStateException을 던진다")
+        void throwsIllegalStateWhenStillReady() {
+            // given
+            // 실제 DB에서는 쿼리를 일부러 틀리지 않는 한 재현할 수 없어 목으로 만든다
+            Payment readyPayment = mock(Payment.class);
+            given(readyPayment.getUserId()).willReturn(USER_ID);
+            given(readyPayment.getAmount()).willReturn(AMOUNT);
+            given(readyPayment.getStatus()).willReturn(PaymentStatus.READY);
+            given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(0);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(readyPayment));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. 이 예외는 BusinessException이 아니라 errorCode가 없으므로 메시지에 주문 번호가 담겼는지 본다
+            assertThatThrownBy(() -> service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining(ORDER_ID);
+        }
     }
 }
