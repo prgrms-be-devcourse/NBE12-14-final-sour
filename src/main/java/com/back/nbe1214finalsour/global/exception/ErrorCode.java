@@ -110,6 +110,8 @@ public enum ErrorCode {
     PAY_INVALID_AMOUNT(HttpStatus.BAD_REQUEST, "PAY_INVALID_AMOUNT", "허용되지 않은 충전 금액입니다."),
     PAY_ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY_ORDER_NOT_FOUND", "결제 주문을 찾을 수 없습니다."),
     CLICKER_MAX_LEVEL(HttpStatus.BAD_REQUEST, "CLICKER_MAX_LEVEL", "이미 최고 레벨입니다."),
+    PAY_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "PAY_AMOUNT_MISMATCH", "결제 금액이 주문 금액과 다릅니다."),
+    PAY_CONFIRM_FAILED(HttpStatus.BAD_REQUEST, "PAY_CONFIRM_FAILED", "결제 승인이 거절되었습니다."),
     CLICKER_NOT_ENOUGH_SCORE(HttpStatus.BAD_REQUEST, "CLICKER_NOT_ENOUGH_SCORE", "업그레이드에 필요한 기여도가 부족합니다."),
     CLICKER_UPGRADE_CONFLICT(HttpStatus.CONFLICT, "CLICKER_UPGRADE_CONFLICT", "다른 업그레이드 요청이 먼저 처리되었습니다. 다시 시도해주세요."),
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "ITEM_NOT_FOUND", "아이템을 찾을 수 없습니다."),
