@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
 import com.back.nbe1214finalsour.domain.payment.service.PaymentConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.service.PaymentService;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
@@ -314,5 +315,32 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
                 .andExpect(jsonPath("$.data.method").doesNotExist())
                 .andExpect(jsonPath("$.data.creditBalance").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("토스가 거절하면 400 PAY_CONFIRM_FAILED와 토스 거절 코드·메시지를 응답한다")
+    void confirmReturns400WithTossReasonWhenRejected() throws Exception {
+        // given: 서비스가 토스 거절 예외를 던진다
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY))
+                .willThrow(new PaymentConfirmRejectedException(
+                        "REJECT_CARD_PAYMENT", "한도초과 혹은 잔액부족으로 결제에 실패했습니다."));
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"paymentKey": "tgen_20261127160000AbCd1",
+                         "orderId": "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b",
+                         "amount": 5000}
+                        """));
+
+        // then
+        // data에 토스 코드·메시지가 있어야 BusinessException 처리기(data null)가 아니라 전용 처리기가 실행된 것이다
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PAY_CONFIRM_FAILED"))
+                .andExpect(jsonPath("$.message").value("결제 승인이 거절되었습니다."))
+                .andExpect(jsonPath("$.data.tossCode").value("REJECT_CARD_PAYMENT"))
+                .andExpect(jsonPath("$.data.tossMessage").value("한도초과 혹은 잔액부족으로 결제에 실패했습니다."));
     }
 }
