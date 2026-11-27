@@ -290,5 +290,21 @@ class PaymentServiceTest {
             then(paymentConfirmTxService).should().abortConfirm(ORDER_ID, tossCode, tossMessage);
             then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
         }
+
+        @Test
+        @DisplayName("승인 시작에서 예외가 나면 토스를 부르지 않고 그 예외를 그대로 던진다")
+        void doesNotCallTossWhenStartFails() {
+            // given
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willThrow(new BusinessException(ErrorCode.PAY_AMOUNT_MISMATCH));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_AMOUNT_MISMATCH);
+            then(tossPaymentsClient).shouldHaveNoInteractions();
+        }
     }
 }
