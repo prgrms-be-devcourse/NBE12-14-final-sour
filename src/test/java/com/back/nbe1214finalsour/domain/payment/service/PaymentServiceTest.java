@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.withSettings;
 
 import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
@@ -181,6 +182,28 @@ class PaymentServiceTest {
             assertThatThrownBy(() -> paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining(ORDER_ID);
+        }
+    }
+
+    @Nested
+    @DisplayName("결제 승인을 요청할 때")
+    class WhenConfirming {
+
+        @Test
+        @DisplayName("승인 시작이 이미 DONE인 결과를 돌려주면 토스를 부르지 않고 그 결과를 그대로 돌려준다")
+        void returnsStoredResultWithoutCallingToss() {
+            // given
+            PaymentConfirmResult stored =
+                    new PaymentConfirmResult(ORDER_ID, PaymentStatus.DONE, METHOD, APPROVED_AT, 5_000L, 12_000L);
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT)).willReturn(stored);
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result).isSameAs(stored);
+            then(tossPaymentsClient).shouldHaveNoInteractions();
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
         }
     }
 }
