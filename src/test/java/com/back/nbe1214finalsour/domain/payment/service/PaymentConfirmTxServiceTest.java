@@ -275,4 +275,20 @@ class PaymentConfirmTxServiceTest {
         then(creditHistoryRepository).shouldHaveNoInteractions();
         then(paymentRepository).should(never()).findByOrderId(any());
     }
+
+    @Test
+    @DisplayName("승인 거절을 기록하면 주문 번호와 토스 코드·메시지로 거절 UPDATE를 실행한다")
+    void abortConfirmRecordsTossFailure() {
+        // given
+        String failCode = "REJECT_CARD_PAYMENT";
+        String failMessage = "한도초과 혹은 잔액부족으로 결제에 실패했습니다.";
+
+        // when
+        service.abortConfirm(ORDER_ID, failCode, failMessage);
+
+        // then
+        // 코드와 메시지는 둘 다 String이라 인자 순서가 바뀌어도 컴파일러가 못 잡는다. 값이 서로 달라 여기서 잡는다
+        then(paymentRepository).should().abortIfInProgress(ORDER_ID, failCode, failMessage);
+        then(paymentRepository).shouldHaveNoMoreInteractions();
+    }
 }
