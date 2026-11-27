@@ -5,10 +5,12 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -220,5 +222,20 @@ class TossPaymentsClientTest {
         // then
         assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
         assertThat(result.message()).contains("500");
+    }
+
+    @Test
+    @DisplayName("토스 응답을 받지 못하면 예외를 던지지 않고 UNKNOWN을 돌려준다")
+    void returnsUnknownWhenNoResponse() {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withException(new SocketTimeoutException("Read timed out")));
+
+        // when
+        // 예외가 밖으로 나오면 이 호출에서 테스트가 실패한다
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
     }
 }
