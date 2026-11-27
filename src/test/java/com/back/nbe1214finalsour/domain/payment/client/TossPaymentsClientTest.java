@@ -5,6 +5,7 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -127,5 +129,25 @@ class TossPaymentsClientTest {
         assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
         assertThat(result.method()).isNull();
         assertThat(result.approvedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("토스가 4xx 거절을 주면 토스 코드·메시지를 담은 REJECTED를 돌려준다")
+    void returnsRejectedWhenCardRejected() {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code":"REJECT_CARD_PAYMENT","message":"한도초과 혹은 잔액부족으로 결제에 실패했습니다."}
+                                """));
+
+        // when
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.REJECTED);
+        assertThat(result.code()).isEqualTo("REJECT_CARD_PAYMENT");
+        assertThat(result.message()).isEqualTo("한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
     }
 }
