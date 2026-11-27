@@ -226,5 +226,24 @@ class PaymentServiceTest {
             assertThat(result).isSameAs(done);
             then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
         }
+
+        @Test
+        @DisplayName("토스 결과를 모르면 충전도 거절 기록도 하지 않고 IN_PROGRESS 결과를 돌려준다")
+        void returnsInProgressWhenTossOutcomeUnknown() {
+            // given
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.UNKNOWN, null, null, null, "HTTP 500"));
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result.orderId()).isEqualTo(ORDER_ID);
+            assertThat(result.status()).isEqualTo(PaymentStatus.IN_PROGRESS);
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+            then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
+        }
     }
 }
