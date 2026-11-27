@@ -8,12 +8,14 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
+import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,9 +37,19 @@ class PaymentServiceTest {
     private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
     private static final String CODE = "PAY_PROCESS_CANCELED";
     private static final String MESSAGE = "사용자에 의해 결제가 취소되었습니다.";
+    private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
+    private static final long AMOUNT = 5_000L;
+    private static final String METHOD = "카드";
+    private static final OffsetDateTime APPROVED_AT = OffsetDateTime.parse("2026-11-27T16:00:00+09:00");
 
     @Mock
     private PaymentRepository paymentRepository;
+
+    @Mock
+    private PaymentConfirmTxService paymentConfirmTxService;
+
+    @Mock
+    private TossPaymentsClient tossPaymentsClient;
 
     @InjectMocks
     private PaymentService paymentService;
