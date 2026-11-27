@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.withSettings;
 
+import com.back.nbe1214finalsour.domain.payment.client.TossConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
@@ -204,6 +205,26 @@ class PaymentServiceTest {
             assertThat(result).isSameAs(stored);
             then(tossPaymentsClient).shouldHaveNoInteractions();
             then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("토스가 승인하면 승인 완료 결과를 돌려준다")
+        void completesWhenTossApproved() {
+            // given
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.APPROVED, METHOD, APPROVED_AT, null, null));
+            PaymentConfirmResult done =
+                    new PaymentConfirmResult(ORDER_ID, PaymentStatus.DONE, METHOD, APPROVED_AT, 5_000L, 12_000L);
+            given(paymentConfirmTxService.completeConfirm(ORDER_ID, METHOD, APPROVED_AT)).willReturn(done);
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result).isSameAs(done);
+            then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
         }
     }
 }
