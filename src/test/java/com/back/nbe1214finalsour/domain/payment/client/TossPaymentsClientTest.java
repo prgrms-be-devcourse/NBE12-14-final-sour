@@ -12,9 +12,13 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -95,5 +99,33 @@ class TossPaymentsClientTest {
                 Base64.getDecoder().decode(authorization.substring("Basic ".length())), StandardCharsets.UTF_8);
         assertThat(decoded).isEqualTo("test-only-toss-secret-key:");
         server.verify();
+    }
+
+    // 케이스 이름과 200 응답 본문을 묶어 돌려준다. Stream.of는 케이스를 하나씩 이어 붙여 JUnit이 한 건씩 꺼내 쓰게 한다
+    static Stream<Arguments> notDoneSuccessBodies() {
+        return Stream.of(
+                Arguments.of("입금 대기", """
+                        {"status": "WAITING_FOR_DEPOSIT", "method": "가상계좌"}
+                        """),
+                Arguments.of("DONE인데 승인 시각 없음", """
+                        {"status": "DONE", "method": "카드"}
+                        """));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("notDoneSuccessBodies")
+    @DisplayName("200이어도 결제가 끝난 상태가 아니면 UNKNOWN을 돌려준다")
+    void returnsUnknownWhenSuccessButNotDone(String caseName, String body) {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+
+        // when
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
+        assertThat(result.method()).isNull();
+        assertThat(result.approvedAt()).isNull();
     }
 }
