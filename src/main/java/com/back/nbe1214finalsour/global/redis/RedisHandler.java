@@ -3,16 +3,13 @@ package com.back.nbe1214finalsour.global.redis;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.connection.RedisHashCommands;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
-import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
@@ -38,13 +35,6 @@ public class RedisHandler {
     // Hash 설정
     public void setHash(String key, String hashKey, Object value) {
         redisTemplate.opsForHash().put(key, hashKey, value);
-    }
-
-    // Hash TTL 설정, 이미 데이터가 저장되어 있어야 함
-    public void setHashFieldTtl(String key, Map<String, Object> hashKeyValue, Duration ttl) {
-        redisTemplate.opsForHash().putAndExpire(
-                key, hashKeyValue, RedisHashCommands.HashFieldSetOption.UPSERT, Expiration.from(ttl)
-        );
     }
 
     // String 값 조회

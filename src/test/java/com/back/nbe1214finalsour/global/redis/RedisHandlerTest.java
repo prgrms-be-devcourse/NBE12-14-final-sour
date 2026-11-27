@@ -20,7 +20,6 @@ import org.springframework.data.redis.serializer.SerializationException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @IntegrationTest
 class RedisHandlerTest {
@@ -84,24 +83,6 @@ class RedisHandlerTest {
 
         // Redis는 만료가 없는 키의 TTL을 -1로 응답한다
         assertThat(redisTemplate.getExpire(TTL_KEY)).isEqualTo(-1L);
-    }
-
-    @Test
-    @DisplayName("setHashFieldTtl은 필드를 저장하면서 필드 단위 만료를 건다")
-    void setHashFieldTtlAppliesExpirationPerField() {
-        LocalDateTime now = LocalDateTime.now();
-        Map<String, Object> fields = Map.of("post1", new TempPost("제목", "내용", now));
-
-        redisHandler.setHashFieldTtl(HASH_KEY, fields, Duration.ofMinutes(10));
-
-        assertThat(redisHandler.getHash(HASH_KEY, "post1", TempPost.class).get().title()).isEqualTo("제목");
-
-        HashOperations<String, String, Object> hashOperations = redisTemplate.opsForHash();
-        Duration ttl = hashOperations.getTimeToLive(HASH_KEY, List.of("post1")).ttlOf("post1");
-
-        assertThat(ttl).isNotNull()
-                .isGreaterThan(Duration.ZERO)
-                .isLessThanOrEqualTo(Duration.ofMinutes(10));
     }
 
     @Test

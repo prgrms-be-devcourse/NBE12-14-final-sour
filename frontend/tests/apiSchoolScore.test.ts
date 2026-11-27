@@ -44,7 +44,7 @@ const ok = (data: unknown) => new Response(JSON.stringify({ code: 'SUCCESS', mes
 const clickAnswer = (schoolTotal: number, clickCount: number): ClickResponse => ({
   acceptedClicks: clickCount, earnedScore: clickCount * 2, multiplier: 1, myContribScore: 10 + clickCount * 2,
   university: { id: 1, totalScore: schoolTotal, rank: 3, logoUrl: 'tempUrl' }, department: { id: 7, totalScore: 50 },
-  schoolClicksLastSecond: clickCount, libraryBonus: false,
+  schoolClicksLastSecond: clickCount, libraryBonus: false, criticalIndex: [], damageRateIndex: [],
 });
 const rankingPage = (totalScore: number | null): UniversityRankingPage => ({
   items: [], page: 0, size: 1, totalCount: 76, hasNext: true,

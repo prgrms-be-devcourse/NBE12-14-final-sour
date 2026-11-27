@@ -49,9 +49,9 @@ const ME: MyInfo = {
 const DETAIL: UniversityDetail = { id: SCHOOL_ID.pusan, name: '부산대학교', logoUrl: null, totalScore: 1000, rank: 2, memberCount: 42,
   topDepartments: [], topContributors: [], isMyUniversity: false, isMyAlly: false, rankChange: null };
 const ANSWER: AttackResponse = { acceptedClicks: 4, damage: 12, multiplier: 1, isRival: false,
-  targetUniversity: { id: DETAIL.id, name: DETAIL.name, totalScore: 988, rank: 3 }, myAttackScore: 12 };
+  targetUniversity: { id: DETAIL.id, name: DETAIL.name, totalScore: 988, rank: 3 }, myAttackScore: 12, criticalIndex: [], damageRateIndex: [] };
 const ASSIST: AssistResponse = { acceptedClicks: 4, assistScore: 12, targetUniversity: { id: DETAIL.id, name: DETAIL.name, totalScore: 1012, rank: 1 },
-  myContribScore: 140 };
+  myContribScore: 140, criticalIndex: [], damageRateIndex: [] };
 const ok = (data: unknown) => new Response(JSON.stringify({ code: 'SUCCESS', message: '성공', data }), { status: 200 });
 const fail = (status: number, code: string) => new Response(JSON.stringify({ code, message: code, data: null }), { status });
 let attacks: ReturnType<typeof useApiCampusAttacks>;
@@ -178,12 +178,12 @@ test('로그인 전에는 관전만, 자기 학교에는 공격 요청을 보내
   const guest = mount({ signedIn: false });
   await waitFor(() => assert.ok(screen.getByTestId('spectator-bar')));
   assertAbsent(screen.queryByRole('button', { name: /캠퍼스 공격/ }));
-  act(() => { assert.equal(attacks.tap(SCHOOL_ID.pusan), false); });
+  act(() => { assert.equal(attacks.tap(SCHOOL_ID.pusan), null); });
   assert.equal(guest.calls.length, 0);
   cleanup();
   const self = mount();
   await waitFor(() => assert.ok(attackButton()));
-  act(() => { assert.equal(attacks.tap(SCHOOL_ID.hanyang), false); });
+  act(() => { assert.equal(attacks.tap(SCHOOL_ID.hanyang), null); });
   self.navigate(SCHOOL_ID.hanyang);
   await waitFor(() => assertAbsent(screen.queryByRole('button', { name: /캠퍼스 공격/ })));
   assert.equal(self.calls.length, 0);
@@ -207,7 +207,7 @@ test('화면을 떠나도 원래 학교에 보내고, 미확정 공격이 있는
   fireEvent.click(attackButton());
   f.navigate(SCHOOL_ID.snu);
   await waitFor(() => assert.equal((attackButton() as HTMLButtonElement).disabled, true));
-  act(() => { assert.equal(attacks.tap(SCHOOL_ID.snu), false); });
+  act(() => { assert.equal(attacks.tap(SCHOOL_ID.snu), null); });
   f.navigate(SCHOOL_ID.snu, false);
   await waitFor(() => assert.equal(attacks.result?.kind === 'attack' && attacks.result.damage, 12), { timeout: 2500 });
   assert.equal(f.calls[0].body.targetUniversityId, SCHOOL_ID.pusan);
@@ -360,7 +360,7 @@ test('연합 해제 뒤 첫 지원 거절은 대기분을 취소하고 잠금을
   await waitFor(() => assert.ok(attackButton()));
   assert.ok(detailReads >= 2);
   assert.equal(f.queryClient.getQueryState(allianceKeys.mine(ME.id))?.isInvalidated, true);
-  act(() => { assert.equal(attacks.tap(SCHOOL_ID.pusan, 'attack'), true); });
+  act(() => { assert.ok(attacks.tap(SCHOOL_ID.pusan, 'attack')); });
 });
 
 test('지원 응답 유실 뒤 연합 거절은 미확정 배치와 대기분을 보존한다', async () => {
@@ -432,7 +432,7 @@ test('연합이 아닌 학교는 그대로 공격하고, 지원 대기 중에는
   const f = mount({ allies: [SCHOOL_ID.pusan] });
   await waitFor(() => assert.ok(assistButton()));
   fireEvent.click(assistButton());
-  act(() => { assert.equal(attacks.tap(SCHOOL_ID.pusan, 'attack'), false, '같은 학교라도 묶음 종류는 하나'); });
+  act(() => { assert.equal(attacks.tap(SCHOOL_ID.pusan, 'attack'), null, '같은 학교라도 묶음 종류는 하나'); });
   assert.match(screen.getByRole('alert').textContent ?? '', /이전 학교의 지원 전송이 끝난 뒤/);
   await waitFor(() => assert.equal(attacks.pendingClicks, 0), { timeout: 2500 });
   f.navigate(SCHOOL_ID.snu);
@@ -461,4 +461,87 @@ test('계약 센서: 지원 경로·필드·동맹 거절·0.3배·기여도는 
   assert.match(api, /'\/assists'/);
   const phone = readFileSync(new URL('../src/components/VisitingScreen1Phone.tsx', import.meta.url), 'utf8');
   assert.match(phone, /visit\.isMyAlly \? 'assist' : 'attack'/);
+});
+
+// ClickActionGuard: each answer decides the next attack/assist batch's crits and damage rates, as for campus clicks.
+const SLOT_RATES = [130, 70, ...Array<number>(18).fill(100)];
+const tapNumbers = () => screen.queryAllByTestId('tap-floating-number').map((node) => node.textContent);
+
+test('공격 탭은 응답이 정한 크리티컬·배율로 클릭처럼 데미지를 띄우고, 점수는 응답 전까지 바꾸지 않는다', async () => {
+  const f = mount({ respond: () => ok({ ...ANSWER, criticalIndex: [0], damageRateIndex: SLOT_RATES }) });
+  await waitFor(() => assert.ok(attackButton()));
+  fireEvent.click(attackButton());
+  assert.deepEqual(tapNumbers(), ['-3'], '첫 응답 전에는 기본 파워 10 × 0.3');
+  await settle();
+  fireEvent.click(attackButton());
+  fireEvent.click(attackButton());
+  assert.deepEqual(tapNumbers().slice(-2), ['-7!', '-2'], '0번 칸 10 × 130% × 2배 × 0.3 = 7.8, 1번 칸 10 × 70% × 0.3 = 2.1');
+  assert.equal(screen.getByTestId('visit-score').textContent, '988점', '탭 데미지는 표시만 하고 학교 점수는 응답으로만 바꾼다');
+  assert.equal(f.calls.length, 1);
+});
+
+test('지원 탭은 + 데미지를 띄우고, 공격으로 받은 칸은 지원에 쓰지 않는다', async () => {
+  const f = mount({ allies: [SCHOOL_ID.snu], respond: (body) => body.targetUniversityId === SCHOOL_ID.snu
+    ? ok({ ...ASSIST, criticalIndex: [1], damageRateIndex: SLOT_RATES })
+    : ok({ ...ANSWER, criticalIndex: [0], damageRateIndex: SLOT_RATES }) });
+  await waitFor(() => assert.ok(attackButton()));
+  fireEvent.click(attackButton());
+  await settle();
+  await waitFor(() => assert.equal(attacks.pendingClicks, 0), { timeout: 2500 });
+  f.navigate(SCHOOL_ID.snu);
+  await waitFor(() => assert.ok(assistButton()));
+  fireEvent.click(assistButton());
+  assert.deepEqual(tapNumbers().slice(-1), ['+3'], '공격 응답의 0번 크리티컬을 지원에 쓰지 않는다');
+  await waitFor(() => assert.equal(f.assistCalls.length, 1), { timeout: 2500 });
+  await waitFor(() => assert.equal(attacks.pendingClicks, 0), { timeout: 2500 });
+  fireEvent.click(assistButton());
+  fireEvent.click(assistButton());
+  assert.deepEqual(tapNumbers().slice(-2), ['+3', '+4!'], '지원 응답이 정한 칸: 10 × 130% × 0.3 = 3.9, 10 × 70% × 2배 × 0.3 = 4.2');
+});
+
+test('공격 탭은 건물을 좌우로, 주변은 반대로 흔들고, 지원 탭은 클릭처럼 건물만 출렁이며, 거절된 탭은 흔들지 않는다', async () => {
+  const proto = dom.window.Element.prototype as unknown as { animate?: unknown };
+  const animated: Array<{ el: Element; frames: Keyframe[] }> = [];
+  proto.animate = function (this: Element, frames: Keyframe[]) { animated.push({ el: this, frames }); return { cancel() {} }; };
+  try {
+    const f = mount({ allies: [SCHOOL_ID.snu] });
+    await waitFor(() => assert.ok(attackButton()));
+    fireEvent.click(attackButton());
+    const buildings = animated.filter((a) => a.el.matches('[data-wobble], [data-wobble-lights]'));
+    const surroundings = animated.filter((a) => a.el.matches('[data-wobble-back]'));
+    assert.ok(buildings.length > 0, '공격 탭에 건물이 흔들린다');
+    assert.ok(surroundings.length > 0, '공격 탭에 주변도 흔들린다');
+    assert.equal(buildings.length + surroundings.length, animated.length, '하늘·땅·클릭 영역은 흔들지 않는다');
+    assert.ok(animated.every((a) => a.el.closest('[data-campus-stage]')));
+    assert.equal(buildings[0].frames[1].transform, 'translateX(-2px)', '건물이 왼쪽으로 갈 때');
+    assert.equal(surroundings[0].frames[1].transform, 'translateX(2px)', '주변은 오른쪽으로 간다');
+    await waitFor(() => assert.equal(attacks.pendingClicks, 0), { timeout: 2500 });
+
+    const afterAttack = animated.length;
+    f.navigate(SCHOOL_ID.snu);
+    await waitFor(() => assert.ok(assistButton()));
+    fireEvent.click(assistButton());
+    const assisted = animated.slice(afterAttack);
+    assert.ok(assisted.length > 0, '지원 탭에도 흔들린다');
+    assert.ok(assisted.every((a) => a.el.matches('[data-wobble], [data-wobble-lights]')), '지원 탭은 건물만 흔들고 주변은 그대로');
+    assert.equal(assisted[0].frames[1].transform, 'scale(1.04, 0.95)', '캠퍼스 클릭과 같은 출렁임');
+    await waitFor(() => assert.equal(attacks.pendingClicks, 0), { timeout: 2500 });
+
+    const afterAssist = animated.length;
+    f.setBusy(true);
+    act(() => { f.navigate(SCHOOL_ID.pusan); });
+    await waitFor(() => assert.ok(attackButton()));
+    fireEvent.click(attackButton());
+    assert.equal(animated.length, afterAssist, '내 학교 큐가 바빠 거절된 공격 탭은 흔들지 않는다');
+  } finally { delete proto.animate; }
+});
+
+test('경쟁 학교 공격은 응답의 isRival을 받은 뒤부터 0.33배로 띄운다', async () => {
+  mount({ respond: () => ok({ ...ANSWER, isRival: true, multiplier: 0.33, criticalIndex: [0, 1], damageRateIndex: [130, 130, ...Array<number>(18).fill(100)] }) });
+  await waitFor(() => assert.ok(attackButton()));
+  fireEvent.click(attackButton());
+  assert.deepEqual(tapNumbers(), ['-3'], '경쟁 학교인지 모르는 첫 탭은 0.3배');
+  await settle();
+  fireEvent.click(attackButton());
+  assert.deepEqual(tapNumbers().slice(-1), ['-8!'], '10 × 130% × 2배 × 0.33 = 8.58 (0.3배면 7)');
 });

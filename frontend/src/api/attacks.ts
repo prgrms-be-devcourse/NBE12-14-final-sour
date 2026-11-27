@@ -13,6 +13,9 @@ export interface AttackResponse {
   isRival: boolean;
   targetUniversity: { id: number; name: string; totalScore: number; rank: number | null };
   myAttackScore: number;
+  /** Next attack/assist batch: crit positions and per-click damage rates (see ClickResponse). */
+  criticalIndex: number[];
+  damageRateIndex: number[];
 }
 
 export function submitAttack(client: ApiClient, body: AttackRequest, signal?: AbortSignal): Promise<AttackResponse> {

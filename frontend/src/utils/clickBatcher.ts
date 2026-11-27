@@ -4,6 +4,36 @@ import { isClickLimitError, isScoreRestoring, requiresClickVerification } from '
 import { createUuid } from './uuid';
 
 const RESTORE_DELAYS = [2000, 4000, 8000, 16000, 30000] as const;
+/** The server keeps the next batch's slots for 30s. Stop trusting them earlier so a batch never lands after expiry. */
+export const DAMAGE_SLOT_FRESH_MS = 25_000;
+
+/** What the server already decided for the NEXT batch it receives from this member (ClickActionGuard). */
+export interface DamageSlots {
+  criticalIndex: readonly number[];
+  damageRateIndex: readonly number[];
+}
+
+/** `known` is false when the click lands in a batch whose slots the client cannot know yet: it shows the base power. */
+export interface TapEstimate {
+  points: number;
+  isCrit: boolean;
+  known: boolean;
+}
+
+/**
+ * Turns `clickPower × rate(%) × crit(2|1)` (still ×100) into the points shown for one tap. The default is a campus
+ * click's base score; attacks and assists pass their own server ratio (ClickActionGuard, AttackService, AssistService).
+ */
+export type TapPoints = (scaled: number) => number;
+export const clickTapPoints: TapPoints = (scaled) => Math.floor(scaled / 100);
+
+/** Per-click display value; the server sums the batch before flooring, so the confirmed total can differ slightly. */
+export function estimateTap(power: number, slots: DamageSlots | null, index: number, toPoints: TapPoints = clickTapPoints): TapEstimate {
+  if (!slots || index >= MAX_CLICK_BATCH_SIZE) return { points: toPoints(power * 100), isCrit: false, known: false };
+  const rate = slots.damageRateIndex[index] ?? 100;
+  const isCrit = slots.criticalIndex.includes(index);
+  return { points: toPoints(power * rate * (isCrit ? 2 : 1)), isCrit, known: true };
+}
 
 export interface ClickBatchSnapshot {
   pendingClicks: number;
@@ -22,6 +52,8 @@ export interface ClickBatcherOptions<TResponse = ClickResponse> {
   onChange: (snapshot: ClickBatchSnapshot) => void;
   /** Only a first-attempt HTTP rejection reaches this callback. True cancels the rejected batch AND its queued successors. */
   onRejected?: (error: unknown, pendingClicks: number) => boolean;
+  /** Slots the response decided for the next batch. Omit for queues that do not show per-click damage. */
+  getSlots?: (response: TResponse) => DamageSlots | null | undefined;
   createId?: () => string;
   /** Sample once for a NEW submission. Every retry must preserve the ID, count, and coordinates. */
   getCoordinates?: () => ClickCoordinates | undefined;
@@ -37,8 +69,12 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
     const timer = setTimeout(callback, delay);
     return () => clearTimeout(timer);
   });
-  const queue: number[] = [];
-  let batch: { request: ClickRequest; points: number[]; startedAt: number; retried: boolean } | null = null;
+  // `power` is set for taps enqueued via enqueueTap so their points can be recomputed once the slots arrive.
+  const queue: Array<{ points: number; power: number | null; toPoints?: TapPoints }> = [];
+  type HeldSlots = { value: DamageSlots; receivedAt: number };
+  let batch: { request: ClickRequest; points: number[]; slots: HeldSlots | null; startedAt: number; retried: boolean } | null = null;
+  // Slots for the next batch to be cut from the queue. A batch takes them; only its acceptance brings new ones.
+  let slots: HeldSlots | null = null;
   let cancelTimer: (() => void) | null = null;
   let disposed = false;
   let sending = false;
@@ -50,7 +86,7 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
 
   const getSnapshot = (): ClickBatchSnapshot => ({
     pendingClicks: queue.length + (batch?.points.length ?? 0),
-    pendingScore: [...queue, ...(batch?.points ?? [])].reduce((sum, points) => sum + points, 0),
+    pendingScore: queue.reduce((sum, item) => sum + item.points, 0) + (batch?.points ?? []).reduce((sum, points) => sum + points, 0),
     sending,
     restoring,
     locked,
@@ -58,6 +94,17 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
     recoverable: batch !== null && !batch.retried && (isClickLimitError(error) || requiresClickVerification(error)),
   });
   const publish = () => { if (!disposed) options.onChange(getSnapshot()); };
+  const freshSlots = () => (slots && now() - slots.receivedAt < DAMAGE_SLOT_FRESH_MS ? slots.value : null);
+  // Only the next batch has known slots, and only while no batch is ahead of it.
+  const estimateAt = (power: number, index: number, toPoints?: TapPoints) => estimateTap(power, batch ? null : freshSlots(), index, toPoints);
+  function reestimateQueue() {
+    queue.forEach((item, index) => { if (item.power !== null) item.points = estimateAt(item.power, index, item.toPoints).points; });
+  }
+  /** A batch the server rejected before reading its slots gives them back to the next batch. */
+  function returnSlots(rejected: { slots: HeldSlots | null }) {
+    slots = rejected.slots;
+    reestimateQueue();
+  }
 
   function arm() {
     if (disposed || sending || cancelTimer || error || (!batch && queue.length === 0)) return;
@@ -71,8 +118,9 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
     if (disposed || sending || error) return;
     if (!batch) {
       if (!queue.length) return;
-      const points = queue.splice(0, MAX_CLICK_BATCH_SIZE);
-      batch = { request: { submissionId: createId(), clickCount: points.length, ...options.getCoordinates?.() }, points, startedAt: now(), retried: false };
+      const points = queue.splice(0, MAX_CLICK_BATCH_SIZE).map((item) => item.points);
+      batch = { request: { submissionId: createId(), clickCount: points.length, ...options.getCoordinates?.() }, points, slots, startedAt: now(), retried: false };
+      slots = null;
     }
     const submitted = batch;
     // The backend's dedupe key expires after 10s and does not replay the original response. Never retry a late
@@ -95,6 +143,10 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
       sending = false;
       restoring = false;
       restoreAttempts = 0;
+      const next = options.getSlots?.(response);
+      slots = next ? { value: next, receivedAt: now() } : null;
+      // Clicks queued during the request were shown at base power; the new slots now decide their real value.
+      reestimateQueue();
       options.onAccepted(response, getSnapshot().pendingScore, { request: submitted.request, sentAt });
       publish();
       arm();
@@ -125,6 +177,7 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
         batch = null;
         queue.length = 0;
         error = null;
+        returnSlots(submitted);
         publish();
         return;
       }
@@ -164,18 +217,35 @@ export function createClickBatcher<TResponse = ClickResponse>(options: ClickBatc
       // A first-attempt 429 consumed the ID but applied no score. Explicitly discard just that rejected batch;
       // keep its successors. Never replay it under a new ID as a way around server protection.
       const rejected = { clicks: batch.points.length, score: batch.points.reduce((sum, points) => sum + points, 0) };
+      // The guard rejects 429 before it reads the slots, so they still belong to the next batch.
+      const returned = batch;
       batch = null;
       error = null;
+      returnSlots(returned);
       publish();
       arm();
       return rejected;
     },
     enqueue(points: number): boolean {
       if (disposed || error || locked || restoring) return false;
-      queue.push(points);
+      queue.push({ points, power: null });
       publish();
       arm();
       return true;
+    },
+    /** Forget the held slots, e.g. when the next batch goes to a different server action with its own slots. */
+    clearSlots() {
+      slots = null;
+      reestimateQueue();
+    },
+    /** Enqueue one click of `power` and return what to show for it, using the slots the server already decided. */
+    enqueueTap(power: number, toPoints?: TapPoints): TapEstimate | null {
+      if (disposed || error || locked || restoring) return null;
+      const estimate = estimateAt(power, queue.length, toPoints);
+      queue.push({ points: estimate.points, power, toPoints });
+      publish();
+      arm();
+      return estimate;
     },
     dispose() {
       disposed = true;

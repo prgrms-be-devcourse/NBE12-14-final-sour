@@ -99,7 +99,7 @@ test('배치 전송기는 수락된 요청과 실제로 성공한 시도의 전�
   const accepted: Array<{ request: ClickRequest; sentAt: number }> = [];
   const response: ClickResponse = {
     acceptedClicks: 2, earnedScore: 2, multiplier: 1, myContribScore: 2,
-    university: { id: 1, totalScore: 2, rank: 1, logoUrl: 'tempUrl' }, department: { id: 7, totalScore: 2 }, schoolClicksLastSecond: 5, libraryBonus: false,
+    university: { id: 1, totalScore: 2, rank: 1, logoUrl: 'tempUrl' }, department: { id: 7, totalScore: 2 }, schoolClicksLastSecond: 5, libraryBonus: false, criticalIndex: [], damageRateIndex: [],
   };
   const controller = createClickBatcher({
     now: () => time,
@@ -190,7 +190,7 @@ test('API 모드 캠퍼스는 클릭 응답의 schoolClicksLastSecond로 파티�
       return ok({
         acceptedClicks: body.clickCount, earnedScore: body.clickCount, multiplier: 1, myContribScore: total,
         university: { id: 1, totalScore: 100 + total, rank: 1, logoUrl: 'tempUrl' }, department: { id: 7, totalScore: 20 + total },
-        schoolClicksLastSecond: lastSecond[sent.length - 1] ?? 0, libraryBonus: false,
+        schoolClicksLastSecond: lastSecond[sent.length - 1] ?? 0, libraryBonus: false, criticalIndex: [], damageRateIndex: [],
       } satisfies ClickResponse);
     }
     if (path.endsWith('/auth/reissue')) return ok({ accessToken: 'member-a', expiresInSeconds: 3600 });

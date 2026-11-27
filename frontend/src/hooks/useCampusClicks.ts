@@ -11,6 +11,7 @@ import { createClickBatcher, type ClickBatchSnapshot } from '../utils/clickBatch
 import { createClickLocation, type ClickLocationSnapshot } from '../utils/clickLocation';
 import { createOtherClicksEstimator, createOtherClicksFeed, type OtherClicksFeed } from '../utils/otherClicksFeed';
 import { useMockGame } from './useMockGame';
+import type { TapOutcome } from '../types';
 
 export interface ClickUpgradeGate {
   upgradeBlocked: boolean;
@@ -25,7 +26,8 @@ export interface LibraryClickControl {
 }
 interface CampusClicks extends ClickUpgradeGate {
   library: LibraryClickControl | null;
-  tap: (isCrit: boolean) => number | null;
+  /** `isCrit` is the screen's own roll; only mock mode uses it. API mode uses the slots the server sent. */
+  tap: (isCrit: boolean) => TapOutcome | null;
   notice: string | null;
   getPendingScore: () => number;
   /** True while a batch is on its way: the server may or may not count it yet (SCRUM-188). */
@@ -40,7 +42,11 @@ const notSending = () => false;
 const EMPTY_BATCH: ClickBatchSnapshot = { pendingClicks: 0, pendingScore: 0, sending: false, error: null, recoverable: false, restoring: false, locked: false };
 
 function useMockCampusClicks(): CampusClicks {
-  const { tap } = useMockGame();
+  const { tap: mockTap } = useMockGame();
+  const tap = useCallback((isCrit: boolean): TapOutcome | null => {
+    const points = mockTap(isCrit);
+    return points === null ? null : { points, isCrit };
+  }, [mockTap]);
   return { tap, notice: null, getPendingScore: noPendingScore, isSending: notSending, retryLimited: null, botCheck: null, upgradeBlocked: false, beginUpgrade: () => null, otherClicksFeed: null, library: null };
 }
 
@@ -71,6 +77,8 @@ export function useApiCampusClicks(): CampusClicks {
     const otherClicks = createOtherClicksEstimator();
     const controller = createClickBatcher({
       send: (body) => submitClicks(client, body),
+      // A server without the fields (older deploy) leaves every tap at base power instead of failing.
+      getSlots: (response) => (Array.isArray(response.criticalIndex) && Array.isArray(response.damageRateIndex) ? response : null),
       getCoordinates: location.getCoordinates,
       onChange: setSnapshot,
       onAccepted(response, pendingScore, { request, sentAt }) {
@@ -128,20 +136,20 @@ export function useApiCampusClicks(): CampusClicks {
   const getPendingScore = useCallback(() => batcher.current?.getSnapshot().pendingScore ?? 0, []);
   const isSending = useCallback(() => batcher.current?.getSnapshot().sending ?? false, []);
   const ready = signedIn && me !== undefined && player.userId === String(me.id);
-  const tap = useCallback((_isCrit: boolean): number | null => {
+  const tap = useCallback((_isCrit: boolean): TapOutcome | null => {
     if (!ready || !me || !batcher.current) return null;
     if (requiresClickVerification(batcher.current.getSnapshot().error)) {
       setBotCheckOpen(true);
       return null;
     }
-    // The click endpoint has no critical-hit field; its score uses the signed-in member's actual click power.
+    // The server decided this batch's crits and damage rates in its last answer; the batcher maps the tap onto them.
     const current = queryClient.getQueryData<MyInfo>(userKeys.me);
     if (!current || current.id !== me.id) return null;
-    const points = current.clicker.clickPower;
-    if (!batcher.current.enqueue(points)) return null;
+    const estimate = batcher.current.enqueueTap(current.clicker.clickPower);
+    if (!estimate) return null;
     setCancelledClicks(0);
-    applyApiTap(points);
-    return points;
+    applyApiTap(estimate.points);
+    return { points: estimate.points, isCrit: estimate.isCrit };
   }, [ready, me, applyApiTap, queryClient]);
 
   const beginUpgrade = useCallback(() => batcher.current?.acquireIdleLock() ?? null, []);

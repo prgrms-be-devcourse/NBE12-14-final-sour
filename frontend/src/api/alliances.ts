@@ -5,7 +5,7 @@
 // PATCH /matches/{id}/accept|cancel. GET /alliances/me gives the school's current alliance.
 // See allianceLists.ts for server-backed lists.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from './ApiProvider';
 import type { ApiClient } from './client';
@@ -370,18 +370,27 @@ export function useUniversityName(universityId: number | null, viewerId: number)
   });
 }
 
+/** First visit uses the query's normal mount fetch; returning to a kept-mounted tab refreshes immediately. */
+export function useRefetchOnReveal(visible: boolean, refetch: (options: { cancelRefetch: boolean }) => Promise<unknown>) {
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    if (visible && !wasVisible.current) void refetch({ cancelRefetch: false });
+    wasVisible.current = visible;
+  }, [visible, refetch]);
+}
+
 const matchMayChange = (status: AllianceMatchStatus | undefined) => status === 'REQUESTED' || status === 'IN_PROGRESS' || status === 'SCHEDULED';
 
-export function useAllianceMatch(userId: number, matchId: number | null) {
+export function useAllianceMatch(userId: number, matchId: number, visible: boolean) {
   const client = useApiClient();
   const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: allianceKeys.match(userId, matchId ?? 0),
-    queryFn: ({ signal }) => getMatch(client, matchId!, signal),
-    enabled: matchId !== null,
+    queryKey: allianceKeys.match(userId, matchId),
+    queryFn: ({ signal }) => getMatch(client, matchId, signal),
     staleTime: 0,
-    refetchInterval: (query) => matchMayChange(query.state.data?.status) ? MATCH_REFRESH_MS : false,
+    refetchInterval: (query) => visible && matchMayChange(query.state.data?.status) ? MATCH_REFRESH_MS : false,
   });
+  useRefetchOnReveal(visible, query.refetch);
   const status = query.data?.status;
   const a = query.data?.allianceAId;
   const b = query.data?.allianceBId;

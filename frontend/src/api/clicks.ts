@@ -21,6 +21,10 @@ export interface ClickResponse {
   schoolClicksLastSecond: number;
   /** The click came from inside the school library: `multiplier` already includes its x1.2 (ClickService). */
   libraryBonus: boolean;
+  /** Next batch only: 0-based click positions the server will double (ClickActionGuard). */
+  criticalIndex: number[];
+  /** Next batch only: one damage rate (percent, 70~130) per click position. */
+  damageRateIndex: number[];
 }
 
 export function submitClicks(client: ApiClient, body: ClickRequest): Promise<ClickResponse> {

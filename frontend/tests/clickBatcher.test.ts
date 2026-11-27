@@ -4,16 +4,17 @@ import { test } from 'node:test';
 import { CLICK_BATCH_WINDOW_MS, MAX_CLICK_BATCH_SIZE, submitClicks, type ClickCoordinates, type ClickRequest, type ClickResponse } from '../src/api/clicks';
 import { createApiClient } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
-import { createClickBatcher, type ClickBatchSnapshot } from '../src/utils/clickBatcher';
+import { createClickBatcher, DAMAGE_SLOT_FRESH_MS, type ClickBatchSnapshot, type DamageSlots } from '../src/utils/clickBatcher';
 
 const response: ClickResponse = {
   acceptedClicks: 2, earnedScore: 4, multiplier: 1, myContribScore: 14,
   university: { id: 1, totalScore: 104, rank: 3, logoUrl: 'tempUrl' },
-  department: { id: 7, totalScore: 24 }, schoolClicksLastSecond: 5, libraryBonus: false,
+  department: { id: 7, totalScore: 24 }, schoolClicksLastSecond: 5, libraryBonus: false, criticalIndex: [], damageRateIndex: [],
 };
 const network = () => new ApiError({ kind: 'network', code: 'CLIENT_NETWORK_ERROR', status: null });
 
-function fixture(send: (request: ClickRequest) => Promise<ClickResponse> = async () => response, getCoordinates?: () => ClickCoordinates | undefined) {
+function fixture(send: (request: ClickRequest) => Promise<ClickResponse> = async () => response, getCoordinates?: () => ClickCoordinates | undefined,
+  getSlots?: (response: ClickResponse) => DamageSlots | null) {
   let time = 0;
   let sequence = 0;
   const tasks = new Map<number, { at: number; run: () => void }>();
@@ -23,6 +24,7 @@ function fixture(send: (request: ClickRequest) => Promise<ClickResponse> = async
   const controller = createClickBatcher({
     now: () => time,
     getCoordinates,
+    getSlots,
     createId: () => `submission-${++sequence}`,
     schedule(run, delay) {
       const id = ++sequence;
@@ -479,4 +481,97 @@ test('클릭 응답 필드·입력 상한·중복 TTL 센서: Java 계약 변경
   assert.equal(CLICK_BATCH_WINDOW_MS, 1000);
   assert.match(readJava(new URL('service/ClickActionGuard.java', javaRoot)), /Duration.ofSeconds\(10L\)/,
     '중복 방지 TTL이 바뀌면 clickBatcher의 재시도 안전 시간도 재검토하세요');
+});
+
+// Server-decided crits and damage rates (ClickActionGuard): answer N holds the slots for batch N+1.
+const RATES = [130, 70, 89, ...Array<number>(17).fill(100)];
+const withSlots = (criticalIndex: number[], damageRateIndex: number[] = RATES): ClickResponse => ({ ...response, criticalIndex, damageRateIndex });
+const slotsOf = (data: ClickResponse) => data;
+
+async function slotFixture(answer: ClickResponse = withSlots([1])) {
+  const f = fixture(async () => answer, undefined, slotsOf);
+  f.controller.enqueueTap(10);
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.equal(f.accepted.length, 1);
+  return f;
+}
+
+test('크리티컬·배율: 첫 응답 전에는 정해진 칸이 없어 기본 파워로 보여 준다', () => {
+  const f = fixture(async () => withSlots([0]), undefined, slotsOf);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 10, isCrit: false, known: false });
+});
+
+test('크리티컬·배율: 응답 뒤 탭은 응답이 정한 0번부터 차례로 칸을 쓴다', async () => {
+  const f = await slotFixture();
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 13, isCrit: false, known: true });
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 14, isCrit: true, known: true }, '70% × 크리티컬 2배');
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 8, isCrit: false, known: true }, '89%는 탭마다 버림');
+  assert.equal(f.controller.getSnapshot().pendingScore, 35);
+});
+
+test('크리티컬·배율: 21번째 탭은 다음 배치로 넘어가 아직 알 수 없다', async () => {
+  const f = await slotFixture(withSlots([], Array<number>(20).fill(130)));
+  for (let i = 0; i < MAX_CLICK_BATCH_SIZE; i++) assert.equal(f.controller.enqueueTap(10)?.known, true);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 10, isCrit: false, known: false });
+});
+
+test('크리티컬·배율: 응답을 기다리는 동안 누른 탭은 기본 파워로 보이고, 응답이 오면 새 칸으로 다시 계산한다', async () => {
+  let release: (data: ClickResponse) => void = () => {};
+  const f = fixture(() => new Promise<ClickResponse>((resolve) => { release = resolve; }), undefined, slotsOf);
+  f.controller.enqueueTap(10);
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.equal(f.sent.length, 1);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 10, isCrit: false, known: false });
+  release(withSlots([0]));
+  await f.advance(0);
+  assert.equal(f.accepted.length, 1);
+  assert.equal(f.accepted[0][1], 26, '대기 중이던 탭은 0번 칸(130% × 2배)으로 다시 계산');
+  assert.equal(f.controller.getSnapshot().pendingScore, 26);
+});
+
+test('크리티컬·배율: 칸을 받은 지 오래되면 서버 만료 전에 버리고 기본 파워로 보여 준다', async () => {
+  const f = await slotFixture(withSlots([0]));
+  f.suspend(DAMAGE_SLOT_FRESH_MS);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 10, isCrit: false, known: false });
+});
+
+test('크리티컬·배율: 한 번 보낸 배치의 칸은 다음 탭에 다시 쓰지 않는다', async () => {
+  const f = await slotFixture(withSlots([0]));
+  f.controller.enqueueTap(10);
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.equal(f.accepted.length, 2);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 26, isCrit: true, known: true }, '두 번째 응답이 정한 칸');
+});
+
+test('크리티컬·배율: 첫 시도 429로 제외한 배치의 칸은 서버가 읽지 않았으므로 다음 탭이 이어 쓴다', async () => {
+  let calls = 0;
+  const f = fixture(async () => {
+    if (++calls === 2) throw new ApiError({ kind: 'http', status: 429, code: 'CLICK_TOO_FREQUENT' });
+    return withSlots([0]);
+  }, undefined, slotsOf);
+  f.controller.enqueueTap(10);
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 26, isCrit: true, known: true });
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.deepEqual(f.controller.discardRateLimitedBatch(), { clicks: 1, score: 26 });
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 26, isCrit: true, known: true });
+});
+
+test('크리티컬·배율: 칸 필드가 없는 응답이면 모든 탭을 기본 파워로 보여 준다', async () => {
+  const f = fixture(async () => response, undefined, () => null);
+  f.controller.enqueueTap(10);
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.deepEqual(f.controller.enqueueTap(10), { points: 10, isCrit: false, known: false });
+});
+
+test('크리티컬·배율: 공격처럼 비율을 넘긴 탭은 응답 뒤 다시 계산할 때도 그 비율을 쓴다', async () => {
+  let release: (data: ClickResponse) => void = () => {};
+  const f = fixture(() => new Promise<ClickResponse>((resolve) => { release = resolve; }), undefined, slotsOf);
+  const attackPoints = (scaled: number) => Math.floor((scaled * 3) / 1000);
+  f.controller.enqueueTap(10, attackPoints);
+  await f.advance(CLICK_BATCH_WINDOW_MS);
+  assert.deepEqual(f.controller.enqueueTap(10, attackPoints), { points: 3, isCrit: false, known: false });
+  release(withSlots([0]));
+  await f.advance(0);
+  assert.equal(f.controller.getSnapshot().pendingScore, 7, '0번 칸 130% × 2배 × 0.3 = 7.8');
 });

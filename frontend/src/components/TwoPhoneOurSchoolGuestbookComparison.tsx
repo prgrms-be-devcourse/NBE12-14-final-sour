@@ -1,3 +1,4 @@
+import type { CampusViewProps } from './CampusView';
 import React from 'react';
 import { OurSchoolGuestbookScreen1Phone } from './OurSchoolGuestbookScreen1Phone';
 import { OurSchoolGuestbookScreen2Phone } from './OurSchoolGuestbookScreen2Phone';
@@ -12,7 +13,7 @@ interface TwoPhoneOurSchoolGuestbookComparisonProps {
   clickPower?: number;
   basePower?: number;
   activeStudents?: number;
-  onCampusTap?: (x: number, y: number, isCrit: boolean, gainedPoints: number) => number | null | void;
+  onCampusTap?: CampusViewProps['onTap'];
   onNavigateTab?: (tab: NavTab) => void;
   onGoToMap?: () => void;
 }

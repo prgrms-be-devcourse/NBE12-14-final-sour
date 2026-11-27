@@ -15,6 +15,7 @@ import { soundManager } from '../utils/sound';
 import { BottomNavFooter, type NavTab } from './BottomNav';
 import { DurationPicker, formatDurationHours } from './DurationPicker';
 import { AllianceApplicationList, AllianceDirectory, AllianceHistory, AllianceMatchList, AllianceSchoolList } from './AllianceListPanels';
+import { GamePanelTabs } from './GamePanelTabs';
 import { LoadNotice } from './LoadNotice';
 import { PhoneShell } from './PhoneShell';
 
@@ -29,6 +30,14 @@ const dateFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', da
 const defaultApplications = createSentApplicationMemory();
 const defaultMatches = createMatchMemory();
 const ERROR_TEXT = 'text-[#7f1d1d]';
+const ALLIANCE_TABS = [
+  { id: 'overview', label: '우리 연합', icon: 'alliance' },
+  { id: 'applications', label: '가입 신청', icon: 'detail' },
+  { id: 'matches', label: '대결', icon: 'swords', tone: 'battle' },
+  { id: 'search', label: '연합 찾기', icon: 'search' },
+  { id: 'history', label: '대결 이력', icon: 'history' },
+] as const;
+type AllianceTab = typeof ALLIANCE_TABS[number]['id'];
 
 export function remainingTime(expiredAt: string, now: number): string {
   const diff = Date.parse(expiredAt) - now;
@@ -74,15 +83,15 @@ export function ApiAllianceScreenPhone({
         </button>
         <h1 className="text-sm font-black">연합</h1>
       </header>
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3 font-pixel text-[#261608]">
-        {signedIn && me.data ? <AllianceHome key={me.data.id} userId={me.data.id} universityName={me.data.university.name}
-          applications={applications} matches={matches} now={now} /> : (
+      {signedIn && me.data ? <AllianceHome key={me.data.id} userId={me.data.id} universityName={me.data.university.name}
+        applications={applications} matches={matches} now={now} /> : (
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 font-pixel text-[#261608]">
           <div role="status" className={`${BOX} items-center text-center`}>
             <p className="text-sm font-bold">연합을 만들거나 보려면 로그인해 주세요</p>
             <button type="button" className={BUTTON} onClick={onGoToLogin}>로그인</button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       {onNavigateTab && <BottomNavFooter activeTab="alliance" onChangeTab={onNavigateTab} />}
     </PhoneShell>
   );
@@ -96,7 +105,12 @@ function AllianceHome({ userId, universityName, applications, matches, now }: {
   const refresh = () => void membership.refetch({ cancelRefetch: false });
   const [sent, setSent] = useState(() => applications.get(userId));
   const [notice, setNotice] = useState<string | null>(null);
-  const [lookedUp, setLookedUp] = useState<number | null>(null);
+  const [tab, setTab] = useState<AllianceTab>('overview');
+  const rememberSent = (application: AllianceApplication) => {
+    const next = { applicationId: application.id, allianceId: application.allianceId };
+    applications.set(userId, next);
+    setSent(next);
+  };
   const joinedId = mine?.id ?? null;
   useEffect(() => {
     if (joinedId === null) return;
@@ -121,14 +135,13 @@ function AllianceHome({ userId, universityName, applications, matches, now }: {
       </div>
     );
   } else if (mine) {
-    mineContent = <>
+    mineContent = (
       <article aria-label={`연합 #${mine.id}`} data-testid="alliance-detail" aria-busy={membership.isFetching} className={`${BOX} text-xs`}>
         <AllianceFields alliance={mine} now={now} />
         <AllianceSchoolList userId={userId} allianceId={mine.id} />
         {recheck}
       </article>
-      <ApplicationDecisionForm key={mine.id} userId={userId} allianceId={mine.id} />
-    </>;
+    );
   } else {
     mineContent = <>
       <p role="status" className="text-xs">우리 학교가 속한 연합이 없어요.</p>
@@ -141,33 +154,49 @@ function AllianceHome({ userId, universityName, applications, matches, now }: {
     </>;
   }
 
-  let lookupActions: ReactNode = null;
-  if (lookedUp !== null && lookedUp === mine?.id) {
-    lookupActions = <p className="text-[11px] font-bold">우리 연합이에요.</p>;
-  } else if (lookedUp !== null && mine === null) {
-    lookupActions = (
-      <ApplyButton key={lookedUp} userId={userId} allianceId={lookedUp} onSent={(application) => {
-        const next = { applicationId: application.id, allianceId: application.allianceId };
-        applications.set(userId, next);
-        setSent(next);
-      }} />
-    );
-  }
+  const renderTab = (panel: AllianceTab, openAndFocus: (next: AllianceTab) => void) => {
+    const visible = panel === tab;
+    switch (panel) {
+      case 'overview': return <>
+        <h2 className="text-sm font-black">우리 연합</h2>
+        {notice && <p role="status" className={`${BOX} text-xs`}>{notice}</p>}
+        {mineContent}
+      </>;
+      case 'applications': return <>
+        <h2 className="text-sm font-black">가입 신청</h2>
+        {mine && <ApplicationDecisionForm key={mine.id} userId={userId} allianceId={mine.id} visible={visible} />}
+        <AllianceApplicationList userId={userId} visible={visible} />
+      </>;
+      case 'matches': return mine
+        ? <AllianceMatches key={mine.id} userId={userId} alliance={mine} visible={visible} memory={matches} now={now} />
+        : <MatchMembershipNotice unjoined={mine === null} openAndFocus={openAndFocus} />;
+      case 'search': return <AllianceSearch userId={userId} now={now} mine={mine} onSent={rememberSent} />;
+      case 'history': return <>
+        <h2 className="text-sm font-black">이전 연합 대결 이력</h2>
+        <AllianceHistory userId={userId} visible={visible} detail={(alliance, matchId, close) =>
+          <MatchCard key={matchId} userId={userId} alliance={alliance} matchId={matchId} visible={visible}
+            now={now} history onMissing={close} onForget={close} />} />
+      </>;
+    }
+  };
 
+  return <div className="flex flex-1 min-h-0 min-w-0 flex-col font-pixel text-[#261608]">
+    <GamePanelTabs label="연합 메뉴" compact keepVisitedMounted tabs={ALLIANCE_TABS} selected={tab} onSelect={setTab}>
+      {(panel, openAndFocus) => <div className="flex flex-col gap-3 p-3">{renderTab(panel, openAndFocus)}</div>}
+    </GamePanelTabs>
+  </div>;
+}
+
+function MatchMembershipNotice({ unjoined, openAndFocus }: { unjoined: boolean; openAndFocus: (tab: AllianceTab) => void }) {
+  const target = unjoined ? 'search' : 'overview';
   return <>
-    <section aria-labelledby="alliance-mine" className="flex flex-col gap-2">
-      <h2 id="alliance-mine" className="text-sm font-black">우리 연합</h2>
-      {notice && <p role="status" className={`${BOX} text-xs`}>{notice}</p>}
-      {mineContent}
-    </section>
-
-    {mine && <AllianceMatches key={mine.id} userId={userId} alliance={mine} memory={matches} now={now} />}
-
-    <AllianceApplicationList userId={userId} />
-    <AllianceDirectory userId={userId} mode="recruiting" onSelect={(alliance) => setLookedUp(alliance.id)} />
-    <AllianceLookup userId={userId} now={now} allianceId={lookedUp} onLookup={setLookedUp} actions={lookupActions} />
-    <AllianceHistory userId={userId} detail={(alliance, matchId, close) =>
-      <MatchCard key={matchId} userId={userId} alliance={alliance} matchId={matchId} now={now} history onMissing={close} onForget={close} />} />
+    <h2 className="text-sm font-black">연합 대결</h2>
+    <div className={`${BOX} text-xs`}>
+      <p>{unjoined ? '연합에 소속되면 대결을 신청하거나 받은 대결을 확인할 수 있어요.' : '연합 소속이 확인되면 대결 메뉴를 이용할 수 있어요.'}</p>
+      <button type="button" className={`${BUTTON} self-start`} onClick={() => openAndFocus(target)}>
+        {unjoined ? '연합 찾기로 이동' : '우리 연합으로 이동'}
+      </button>
+    </div>
   </>;
 }
 
@@ -184,8 +213,8 @@ function SentApplicationCard({ userId, sent, now, onMissing, onForget }: {
     <section aria-label="보낸 가입 신청" data-testid="sent-application" className={`${BOX} text-xs`}>
       <h3 className="text-sm font-black">보낸 가입 신청 #{sent.applicationId}</h3>
       <p>
-        연합 #{sent.allianceId}에 가입을 신청했어요. 현재 상태는 아래 가입 신청 목록에서 확인할 수 있어요.
-        승인되면 위의 ‘우리 연합’에 자동으로 표시돼요.
+        연합 #{sent.allianceId}에 가입을 신청했어요. ‘가입 신청’ 탭에서 현재 상태를 확인할 수 있어요.
+        승인되면 ‘우리 연합’에 자동으로 표시돼요.
       </p>
       <AllianceDetail userId={userId} allianceId={sent.allianceId} now={now} onMissing={onMissing}
         actions={<button type="button" className={BUTTON} onClick={onForget}>신청 기억 지우기</button>} />
@@ -214,7 +243,7 @@ function ApplyButton({ userId, allianceId, onSent }: { userId: number; allianceI
   </>;
 }
 
-function ApplicationDecisionForm({ userId, allianceId }: { userId: number; allianceId: number }) {
+function ApplicationDecisionForm({ userId, allianceId, visible }: { userId: number; allianceId: number; visible: boolean }) {
   const id = useId();
   const [input, setInput] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
@@ -250,7 +279,7 @@ function ApplicationDecisionForm({ userId, allianceId }: { userId: number; allia
   return (
     <form noValidate onSubmit={(event) => { event.preventDefault(); ask('approve'); }} aria-label="가입 신청 처리" className={`${BOX} text-xs`}>
       <h3 className="text-sm font-black">가입 신청 처리</h3>
-      <AllianceApplicationList userId={userId} allianceId={allianceId} busy={decide.isPending}
+      <AllianceApplicationList userId={userId} allianceId={allianceId} visible={visible} busy={decide.isPending}
         onDecide={(applicationId, decision) => { setProblem(null); setConfirming({ applicationId, decision }); }} />
       <label htmlFor={`${id}-id`} className="font-bold">신청 번호</label>
       <input id={`${id}-id`} inputMode="numeric" autoComplete="off" value={input} disabled={decide.isPending} aria-invalid={problem !== null}
@@ -289,7 +318,9 @@ function ApplicationDecisionForm({ userId, allianceId }: { userId: number; allia
   );
 }
 
-function AllianceMatches({ userId, alliance, memory, now }: { userId: number; alliance: Alliance; memory: MatchMemory; now: () => number }) {
+function AllianceMatches({ userId, alliance, visible, memory, now }: {
+  userId: number; alliance: Alliance; visible: boolean; memory: MatchMemory; now: () => number;
+}) {
   const [matchId, setMatchId] = useState(() => memory.get(userId));
   const [notice, setNotice] = useState<string | null>(null);
   const show = (id: number, message: string | null) => {
@@ -305,10 +336,10 @@ function AllianceMatches({ userId, alliance, memory, now }: { userId: number; al
   return (
     <section aria-labelledby="alliance-matches" className="flex flex-col gap-2">
       <h2 id="alliance-matches" className="text-sm font-black">연합 대결</h2>
-      <AllianceMatchList userId={userId} allianceId={alliance.id} selected={matchId} onSelect={(id) => show(id, null)} />
+      <AllianceMatchList userId={userId} allianceId={alliance.id} visible={visible} selected={matchId} onSelect={(id) => show(id, null)} />
       {notice && <p role="status" className={`${BOX} text-xs`}>{notice}</p>}
       {matchId !== null ? (
-        <MatchCard key={matchId} userId={userId} matchId={matchId} alliance={alliance} now={now}
+        <MatchCard key={matchId} userId={userId} matchId={matchId} alliance={alliance} visible={visible} now={now}
           onMissing={() => forget(`기억해 둔 대결 #${matchId}을(를) 찾을 수 없어 지웠어요.`)} onForget={() => forget(null)} />
       ) : null}
       <MatchRequestForm userId={userId} allianceId={alliance.id} expiredAt={alliance.expiredAt}
@@ -462,11 +493,12 @@ function AllianceName({ userId, allianceId, mine }: { userId: number; allianceId
   return <>{name} #{allianceId}{isMine && <strong> (우리)</strong>}</>;
 }
 
-function MatchCard({ userId, matchId, alliance, now, history = false, onMissing, onForget }: {
-  userId: number; matchId: number; alliance: Pick<Alliance, 'id' | 'name'>; now: () => number; history?: boolean; onMissing: () => void; onForget: () => void;
+function MatchCard({ userId, matchId, alliance, visible, now, history = false, onMissing, onForget }: {
+  userId: number; matchId: number; alliance: Pick<Alliance, 'id' | 'name'>; visible: boolean;
+  now: () => number; history?: boolean; onMissing: () => void; onForget: () => void;
 }) {
   const allianceId = alliance.id;
-  const query = useAllianceMatch(userId, matchId);
+  const query = useAllianceMatch(userId, matchId, visible);
   const missing = isApiError(query.error) && query.error.code === MATCH_ERROR_CODES.notFound;
   // Runs once when the 404 arrives; the parent passes a new callback on every render, so it is not a dependency.
   useEffect(() => { if (missing) onMissing(); }, [missing]);
@@ -632,34 +664,46 @@ function CreateAllianceForm({ userId, universityName, onCreated, onCheckMembersh
   );
 }
 
-function AllianceLookup({ userId, now, allianceId, onLookup, actions }: {
-  userId: number; now: () => number; allianceId: number | null; onLookup: (id: number) => void;
-  actions: ReactNode;
+function AllianceSearch({ userId, now, mine, onSent }: {
+  userId: number; now: () => number; mine: Alliance | null | undefined; onSent: (application: AllianceApplication) => void;
 }) {
   const id = useId();
   const [input, setInput] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  const [allianceId, setAllianceId] = useState<number | null>(null);
+  const result = useRef<HTMLHeadingElement>(null);
+  const lookup = (nextId: number) => {
+    setProblem(null);
+    if (nextId === allianceId) result.current?.focus();
+    else setAllianceId(nextId);
+  };
+  useEffect(() => { if (allianceId !== null) result.current?.focus(); }, [allianceId]);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const parsed = parseAllianceId(input);
     if ('problem' in parsed) { setProblem(parsed.problem); return; }
-    setProblem(null);
-    onLookup(parsed.allianceId);
+    lookup(parsed.allianceId);
   };
-  return (
-    <section aria-labelledby={`${id}-title`} className="flex flex-col gap-2">
-      <h2 id={`${id}-title`} className="text-sm font-black">연합 ID로 찾기</h2>
-      <form noValidate onSubmit={submit} aria-label="연합 ID로 찾기" className={`${BOX} text-xs`}>
-        <label htmlFor={`${id}-id`} className="font-bold">연합 ID</label>
-        <input id={`${id}-id`} inputMode="numeric" autoComplete="off" value={input} aria-invalid={problem !== null}
-          aria-describedby={problem ? `${id}-problem` : undefined}
-          onChange={(event) => { setInput(event.target.value); setProblem(null); }} className={INPUT} />
-        {problem && <p id={`${id}-problem`} role="alert" className="text-[#7f1d1d]">{problem}</p>}
-        <button type="submit" className={`${BUTTON} self-start`}>찾기</button>
-      </form>
-      {allianceId !== null && <AllianceDetail key={allianceId} userId={userId} allianceId={allianceId} now={now} actions={actions} />}
-    </section>
-  );
+  return <>
+    <h2 className="text-sm font-black">연합 찾기</h2>
+    <form noValidate onSubmit={submit} aria-labelledby={`${id}-title`} className={`${BOX} text-xs`}>
+      <h3 id={`${id}-title`} className="text-sm font-black">연합 ID로 찾기</h3>
+      <label htmlFor={`${id}-id`} className="font-bold">연합 ID</label>
+      <input id={`${id}-id`} inputMode="numeric" autoComplete="off" value={input} aria-invalid={problem !== null}
+        aria-describedby={problem ? `${id}-problem` : undefined}
+        onChange={(event) => { setInput(event.target.value); setProblem(null); }} className={INPUT} />
+      {problem && <p id={`${id}-problem`} role="alert" className={ERROR_TEXT}>{problem}</p>}
+      <button type="submit" className={`${BUTTON} self-start`}>찾기</button>
+    </form>
+    {allianceId !== null && <>
+      <h3 ref={result} tabIndex={-1} className="text-sm font-black">연합 #{allianceId} 상세</h3>
+      <AllianceDetail key={allianceId} userId={userId} allianceId={allianceId} now={now} actions={
+        allianceId === mine?.id ? <p className="text-[11px] font-bold">우리 연합이에요.</p>
+          : mine === null ? <ApplyButton userId={userId} allianceId={allianceId} onSent={onSent} /> : null
+      } />
+    </>}
+    <AllianceDirectory userId={userId} mode="recruiting" onSelect={(alliance) => lookup(alliance.id)} />
+  </>;
 }
 
 function AllianceDetail({ userId, allianceId, now, onMissing, actions }: {

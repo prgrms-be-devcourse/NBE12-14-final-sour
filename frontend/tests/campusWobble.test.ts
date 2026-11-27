@@ -21,7 +21,7 @@ const { CampusScene, CampusSceneLights } = await import('../src/components/Campu
 const { CampusView } = await import('../src/components/CampusView');
 const { MockGameProvider } = await import('../src/hooks/useMockGame');
 const { CampusAmbienceProvider } = await import('../src/hooks/useCampusTimePhase');
-const { wobbleBuildings, WOBBLE_SELECTOR, WOBBLE_STAGGER_MS } = await import('../src/utils/campusWobble');
+const { wobbleBuildings, wobbleCampusAttack, WOBBLE_SELECTOR, WOBBLE_BACK_SELECTOR, ATTACK_SHAKE_KEYFRAMES, REVERSE_ATTACK_SHAKE_KEYFRAMES, WOBBLE_STAGGER_MS } = await import('../src/utils/campusWobble');
 
 afterEach(() => cleanup());
 after(() => { hooks.deregister(); dom.window.close(); });
@@ -137,5 +137,48 @@ test('reduced motion이면 흔들지 않는다', () => {
     renderCampusView();
     fireEvent.click(screen.getByRole('button', { name: '캠퍼스 클릭 영역' }));
     assert.equal(calls.length, 0);
+  } finally { restore(); }
+});
+
+test('주변 래퍼는 건물이 아닌 소품마다 하나씩이고, 건물에는 두지 않는다(Lv.1~10)', () => {
+  for (let level = 1; level <= 10; level++) {
+    render(React.createElement(CampusScene, { level }));
+    const back = Array.from(document.querySelectorAll(WOBBLE_BACK_SELECTOR));
+    for (const wrapper of back) {
+      const assets = Array.from(wrapper.querySelectorAll('[data-asset]')).map((e) => e.getAttribute('data-asset'));
+      assert.deepEqual(assets, [wrapper.getAttribute('data-wobble-back')], `Lv.${level}: 주변 래퍼에는 그 소품 하나`);
+      assert.equal(isBuilding(CAMPUS_ASSETS[assets[0] as keyof typeof CAMPUS_ASSETS]), false, `Lv.${level} ${assets[0]}`);
+    }
+    const sprites = Array.from(document.querySelectorAll('[data-asset]')).filter((e) => !e.closest('[data-sky]'));
+    const loose = sprites.filter((e) => !e.closest('[data-wobble]') && !e.closest(WOBBLE_BACK_SELECTOR)).map((e) => e.getAttribute('data-asset'));
+    assert.deepEqual(loose, [], `Lv.${level}: 모든 소품은 건물이거나 주변 래퍼 안에 있다`);
+    cleanup();
+  }
+});
+
+test('공격 흔들림은 건물을 좌우로, 주변은 반대로 함께 흔들고, reduced motion이면 아무것도 흔들지 않는다', () => {
+  const { calls, restore } = stubAnimate();
+  const frames: Keyframe[][] = [];
+  const proto = dom.window.Element.prototype as unknown as { animate: (f: Keyframe[], o: KeyframeAnimationOptions) => unknown };
+  const record = proto.animate;
+  proto.animate = function (this: Element, f: Keyframe[], o: KeyframeAnimationOptions) { frames.push(f); return record.call(this, f, o); };
+  try {
+    const { container } = render(React.createElement(CampusScene, { level: 7 }));
+    const buildings = container.querySelectorAll(WOBBLE_SELECTOR).length;
+    const back = container.querySelectorAll(WOBBLE_BACK_SELECTOR).length;
+    assert.ok(back > 0, 'Lv.7에는 주변 소품이 있다');
+    assert.equal(wobbleCampusAttack(container, true), 0);
+    assert.equal(calls.length, 0);
+    assert.equal(wobbleCampusAttack(container, false), buildings + back);
+    calls.forEach((c, i) => assert.deepEqual(frames[i], c.el.matches(WOBBLE_BACK_SELECTOR) ? REVERSE_ATTACK_SHAKE_KEYFRAMES : ATTACK_SHAKE_KEYFRAMES));
+    assert.ok(calls.every((c) => c.delay === 0), '학교 전체가 한 번에 흔들린다');
+    const offset = (k: Keyframe) => Number(String(k.transform).match(/translateX\((-?[\d.]+)px\)/)![1]);
+    ATTACK_SHAKE_KEYFRAMES.forEach((k, i) => {
+      assert.equal(offset(REVERSE_ATTACK_SHAKE_KEYFRAMES[i]) + offset(k), 0, `프레임 ${i}: 건물과 주변은 반대쪽으로 같은 만큼`);
+    });
+    assert.ok(ATTACK_SHAKE_KEYFRAMES.every((k) => /^translateX\(/.test(String(k.transform))), '좌우로만 움직인다');
+    assert.equal(offset(ATTACK_SHAKE_KEYFRAMES.at(-1)!), 0, '제자리로 돌아온다');
+    assert.equal(Math.max(...ATTACK_SHAKE_KEYFRAMES.map((k) => Math.abs(offset(k)))), 2, '좌우로 최대 2까지만 움직인다');
+    assert.equal(wobbleBuildings(container, false), buildings, '캠퍼스 클릭은 지금처럼 건물만 흔든다');
   } finally { restore(); }
 });

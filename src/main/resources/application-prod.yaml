@@ -39,6 +39,8 @@ file:
 dev-account:
   enabled: ${DEV_ACCOUNT_ENABLED:false}
   role: ${DEV_ACCOUNT_ROLE:USER}
+  # 운영 시연용 계정은 DEV_ACCOUNT_ENABLED=true와 DEV_ACCOUNT_DEMO_COUNT(예: 100)를 넣을 때만 만든다
+  demo-count: ${DEV_ACCOUNT_DEMO_COUNT:0}
 
 # 운영에서는 API 문서를 열지 않는다 (SecurityConfig가 경로를 열어 두므로 여기서 끈다)
 springdoc:

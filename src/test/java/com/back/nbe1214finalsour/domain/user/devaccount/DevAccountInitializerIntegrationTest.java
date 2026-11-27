@@ -67,12 +67,14 @@ class DevAccountInitializerIntegrationTest {
 
     @AfterEach
     void tearDown() {
-        List<Long> userIds = jdbcTemplate.queryForList(
-                "SELECT id FROM users WHERE email_hash = ?", Long.class, emailHasher.hash(NORMALIZED_EMAIL));
-        userIds.forEach(id -> redis.delete(RedisKey.AUTH_SESSION.of(id)));
-        jdbcTemplate.update("DELETE FROM refresh_token WHERE user_id IN (SELECT id FROM users WHERE email_hash = ?)",
-                emailHasher.hash(NORMALIZED_EMAIL));
-        jdbcTemplate.update("DELETE FROM users WHERE email_hash = ?", emailHasher.hash(NORMALIZED_EMAIL));
+        for (String email : List.of(NORMALIZED_EMAIL, demoEmail(1), demoEmail(2), demoEmail(3))) {
+            String hash = emailHasher.hash(email);
+            jdbcTemplate.queryForList("SELECT id FROM users WHERE email_hash = ?", Long.class, hash)
+                    .forEach(id -> redis.delete(RedisKey.AUTH_SESSION.of(id)));
+            jdbcTemplate.update("DELETE FROM refresh_token WHERE user_id IN (SELECT id FROM users WHERE email_hash = ?)", hash);
+            jdbcTemplate.update("DELETE FROM users WHERE email_hash = ?", hash);
+        }
+        jdbcTemplate.update("DELETE FROM users WHERE nickname = ?", "선점닉네임");
     }
 
     @Test
@@ -118,7 +120,7 @@ class DevAccountInitializerIntegrationTest {
                 .isFalse();
         assertThat(initializer(properties(true, null, NICKNAME, "와플대학교", Role.ADMIN)).createIfAbsent()).isFalse();
         assertThat(initializer(properties(true, "  ", NICKNAME, "와플대학교", Role.ADMIN)).createIfAbsent()).isFalse();
-        assertThat(initializer(new DevAccountProperties(true, "", PASSWORD, NICKNAME, "와플대학교", "운영팀", Role.ADMIN))
+        assertThat(initializer(new DevAccountProperties(true, "", PASSWORD, NICKNAME, "와플대학교", "운영팀", Role.ADMIN, 0))
                 .createIfAbsent()).isFalse();
 
         assertThat(userRepository.existsByEmailHashAndDeletedAtIsNull(emailHasher.hash(NORMALIZED_EMAIL))).isFalse();
@@ -147,12 +149,77 @@ class DevAccountInitializerIntegrationTest {
 
     private static DevAccountProperties properties(boolean enabled, String password, String nickname,
             String universityName, Role role) {
-        return new DevAccountProperties(enabled, EMAIL, password, nickname, universityName, "운영팀", role);
+        return properties(enabled, password, nickname, universityName, role, 0);
+    }
+
+    private static DevAccountProperties properties(boolean enabled, String password, String nickname,
+            String universityName, Role role, int demoCount) {
+        return new DevAccountProperties(enabled, EMAIL, password, nickname, universityName, "운영팀", role, demoCount);
+    }
+
+    /** dev-account@dev-account-test.example → dev-account{n}@dev-account-test.example */
+    private static String demoEmail(int n) {
+        return NORMALIZED_EMAIL.replace("@", n + "@");
     }
 
     private ResultActions login(String password) throws Exception {
+        return login(NORMALIZED_EMAIL, password);
+    }
+
+    private ResultActions login(String email, String password) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"" + NORMALIZED_EMAIL + "\",\"password\":\"" + password + "\"}"));
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"));
+    }
+
+    @Test
+    @DisplayName("시연용 계정을 개발자 이메일 @ 앞에 1~N 번호를 붙여 같은 비밀번호·학교·학과, USER 권한으로 만들고 로그인된다")
+    void createsDemoAccountsThatCanLogIn() throws Exception {
+        int created = initializer(properties(true, PASSWORD, NICKNAME, "와플대학교", Role.ADMIN, 3)).createDemoAccountsIfAbsent();
+
+        assertThat(created).isEqualTo(3);
+        long waffleId = universityRepository.findByName("와플대학교").orElseThrow().getId();
+        for (int n = 1; n <= 3; n++) {
+            User user = userRepository.findByEmailHashAndDeletedAtIsNull(emailHasher.hash(demoEmail(n))).orElseThrow();
+            assertThat(user.getUniversityId()).isEqualTo(waffleId);
+            assertThat(user.getRole()).as("개발자 계정이 ADMIN이어도 시연용은 USER").isEqualTo(Role.USER);
+            assertThat(user.getNickname()).isEqualTo(NICKNAME + n);
+        }
+        assertThat(userRepository.existsByEmailHashAndDeletedAtIsNull(emailHasher.hash(demoEmail(4)))).isFalse();
+        login(demoEmail(2), PASSWORD)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.user.nickname").value(NICKNAME + 2))
+                .andExpect(jsonPath("$.data.user.role").value("USER"));
+    }
+
+    @Test
+    @DisplayName("다시 실행하면 이미 있는 시연용 계정은 건너뛰고 없는 번호만 만든다")
+    void demoAccountsSecondRunCreatesOnlyMissing() throws Exception {
+        initializer(properties(true, PASSWORD, NICKNAME, "와플대학교", Role.ADMIN, 2)).createDemoAccountsIfAbsent();
+
+        int created = initializer(properties(true, "Chang3d!pw", NICKNAME, "와플대학교", Role.ADMIN, 3))
+                .createDemoAccountsIfAbsent();
+
+        assertThat(created).isEqualTo(1);
+        login(demoEmail(1), PASSWORD).andExpect(status().isOk());
+        login(demoEmail(3), "Chang3d!pw").andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("꺼져 있거나 개수가 0이면 시연용 계정을 만들지 않고, 닉네임을 다른 회원이 쓰면 그 번호만 건너뛴다")
+    void demoAccountsSkipWhenDisabledOrNicknameTaken() {
+        assertThat(initializer(properties(false, PASSWORD, NICKNAME, "와플대학교", Role.ADMIN, 3)).createDemoAccountsIfAbsent()).isZero();
+        assertThat(initializer(properties(true, PASSWORD, NICKNAME, "와플대학교", Role.ADMIN, 0)).createDemoAccountsIfAbsent()).isZero();
+        assertThat(userRepository.existsByEmailHashAndDeletedAtIsNull(emailHasher.hash(demoEmail(1)))).isFalse();
+
+        // 2번 닉네임을 다른 회원이 먼저 쓴다
+        initializer(new DevAccountProperties(true, EMAIL, PASSWORD, "선점닉네임", "와플대학교", "운영팀", Role.USER, 0))
+                .createIfAbsent();
+        jdbcTemplate.update("UPDATE users SET nickname = ? WHERE email_hash = ?", NICKNAME + 2, emailHasher.hash(NORMALIZED_EMAIL));
+
+        int created = initializer(properties(true, PASSWORD, NICKNAME, "와플대학교", Role.ADMIN, 3)).createDemoAccountsIfAbsent();
+
+        assertThat(created).isEqualTo(2);
+        assertThat(userRepository.existsByEmailHashAndDeletedAtIsNull(emailHasher.hash(demoEmail(2)))).isFalse();
     }
 }

@@ -3,6 +3,8 @@ package com.back.nbe1214finalsour.domain.user.devaccount;
 import com.back.nbe1214finalsour.domain.user.validation.Nickname;
 import com.back.nbe1214finalsour.global.security.Role;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -21,6 +23,8 @@ import org.springframework.validation.annotation.Validated;
  * @param universityName 소속 학교 이름. 기본 와플대학교(V14 숨김 학교). ID는 DB마다 다를 수 있어 이름으로 찾는다
  * @param departmentName 소속 학과 이름. 기본 운영팀(V14)
  * @param role           권한 ({@code DEV_ACCOUNT_ROLE})
+ * @param demoCount      시연용 계정 수 ({@code DEV_ACCOUNT_DEMO_COUNT}). 개발자 이메일의 @ 앞에 1~N 번호를 붙여 만든다.
+ *                       같은 비밀번호·학교·학과, 권한은 USER. 0이면 만들지 않는다
  */
 @Validated
 @ConfigurationProperties("dev-account")
@@ -31,7 +35,8 @@ public record DevAccountProperties(
         @NotNull @Nickname String nickname,
         @NotBlank String universityName,
         @NotBlank String departmentName,
-        @NotNull Role role) {
+        @NotNull Role role,
+        @Min(0) @Max(1000) int demoCount) {
 
     public boolean hasEmail() {
         return email != null && !email.isBlank();
@@ -45,6 +50,7 @@ public record DevAccountProperties(
     @Override
     public String toString() {
         return "DevAccountProperties[enabled=" + enabled + ", email=***, password=***, nickname=" + nickname
-                + ", universityName=" + universityName + ", departmentName=" + departmentName + ", role=" + role + "]";
+                + ", universityName=" + universityName + ", departmentName=" + departmentName + ", role=" + role
+                + ", demoCount=" + demoCount + "]";
     }
 }

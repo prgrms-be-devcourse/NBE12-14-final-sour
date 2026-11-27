@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useApiClient } from './ApiProvider';
-import { allianceKeys, MATCH_REFRESH_MS, type AllianceApplicationStatus, type AllianceMatch, type AllianceStatus } from './alliances';
+import { allianceKeys, MATCH_REFRESH_MS, useRefetchOnReveal, type AllianceApplicationStatus, type AllianceMatch, type AllianceStatus } from './alliances';
 import { ApiError, CLIENT_ERROR_CODES } from './errors';
 
 interface AllianceName { id: number; name: string }
@@ -15,10 +15,10 @@ export interface MatchRow extends Pick<AllianceMatch, 'id' | 'status' | 'duratio
 }
 interface Page<T> { items: T[]; nextCursor: number | null }
 
-function usePages<T extends { id: number }>(userId: number, path: string, filters: Record<string, string | boolean>, enabled = true, live = false) {
+function usePages<T extends { id: number }>(userId: number, path: string, filters: Record<string, string | boolean>, liveAndVisible = false) {
   const client = useApiClient();
-  return useInfiniteQuery({
-    queryKey: [...allianceKeys.lists(userId), path, filters], enabled,
+  const query = useInfiniteQuery({
+    queryKey: [...allianceKeys.lists(userId), path, filters],
     initialPageParam: null as number | null,
     queryFn: async ({ signal, pageParam }) => {
       const page = await client.get<Page<T>>(path, { signal, query: { ...filters, cursor: pageParam ?? undefined } });
@@ -30,8 +30,10 @@ function usePages<T extends { id: number }>(userId: number, path: string, filter
       return page;
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    refetchInterval: live ? MATCH_REFRESH_MS : false,
+    refetchInterval: liveAndVisible ? MATCH_REFRESH_MS : false,
   });
+  useRefetchOnReveal(liveAndVisible, query.refetch);
+  return query;
 }
 
 export function useAllianceDirectory(userId: number, mode: 'recruiting' | 'opponents' | 'history') {
@@ -46,10 +48,10 @@ export function useAllianceSchools(userId: number, allianceId: number) {
   return useQuery({ queryKey: [...allianceKeys.lists(userId), path], queryFn: ({ signal }) => client.get<AllianceSchool[]>(path, { signal }) });
 }
 
-export function useAllianceApplications(userId: number, allianceId?: number) {
-  return usePages<ApplicationRow>(userId, allianceId === undefined ? '/alliances/applications/me' : `/alliances/${allianceId}/applications`, {}, true, true);
+export function useAllianceApplications(userId: number, visible: boolean, allianceId?: number) {
+  return usePages<ApplicationRow>(userId, allianceId === undefined ? '/alliances/applications/me' : `/alliances/${allianceId}/applications`, {}, visible);
 }
 
-export function useAllianceMatches(userId: number, allianceId: number, history: boolean) {
-  return usePages<MatchRow>(userId, `/alliances/${allianceId}/matches`, history ? { status: 'FINISHED' } : {}, true, !history);
+export function useAllianceMatches(userId: number, allianceId: number, history: boolean, visible: boolean) {
+  return usePages<MatchRow>(userId, `/alliances/${allianceId}/matches`, history ? { status: 'FINISHED' } : {}, !history && visible);
 }

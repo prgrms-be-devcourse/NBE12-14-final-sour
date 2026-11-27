@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ALLIANCE_MAX_SCHOOLS, ALLIANCE_STATUS_LABEL, MATCH_STATUS_LABEL, type AllianceApplicationStatus } from '../api/alliances';
 import { useAllianceApplications, useAllianceDirectory, useAllianceMatches, useAllianceSchools, type AllianceSummary } from '../api/allianceLists';
 import { errorMessage, isApiError } from '../api/errors';
@@ -68,10 +68,10 @@ export function AllianceSchoolList({ userId, allianceId }: { userId: number; all
   </ul> : <p>현재 소속 학교가 없어요.</p>;
 }
 
-export function AllianceApplicationList({ userId, allianceId, busy, onDecide }: {
-  userId: number; allianceId?: number; busy?: boolean; onDecide?: (id: number, decision: 'approve' | 'reject') => void;
+export function AllianceApplicationList({ userId, visible, allianceId, busy, onDecide }: {
+  userId: number; visible: boolean; allianceId?: number; busy?: boolean; onDecide?: (id: number, decision: 'approve' | 'reject') => void;
 }) {
-  const query = useAllianceApplications(userId, allianceId);
+  const query = useAllianceApplications(userId, visible, allianceId);
   const sent = allianceId === undefined;
   const name = sent ? '우리 학교가 보낸 가입 신청' : '받은 가입 신청';
   return <section aria-label={name} className={PANEL}>
@@ -89,10 +89,10 @@ export function AllianceApplicationList({ userId, allianceId, busy, onDecide }: 
   </section>;
 }
 
-export function AllianceMatchList({ userId, allianceId, history = false, selected, onSelect }: {
-  userId: number; allianceId: number; history?: boolean; selected: number | null; onSelect: (id: number) => void;
+export function AllianceMatchList({ userId, allianceId, visible, history = false, selected, onSelect }: {
+  userId: number; allianceId: number; visible: boolean; history?: boolean; selected: number | null; onSelect: (id: number) => void;
 }) {
-  const query = useAllianceMatches(userId, allianceId, history);
+  const query = useAllianceMatches(userId, allianceId, history, visible);
   const name = history ? '종료 대결 이력' : '대결 목록';
   return <div className={PANEL}>
     <h3 className="text-sm font-black">{name}</h3>
@@ -107,24 +107,17 @@ export function AllianceMatchList({ userId, allianceId, history = false, selecte
   </div>;
 }
 
-export function AllianceHistory({ userId, detail }: {
-  userId: number; detail: (alliance: AllianceSummary, id: number, close: () => void) => ReactNode;
+export function AllianceHistory({ userId, visible, detail }: {
+  userId: number; visible: boolean; detail: (alliance: AllianceSummary, id: number, close: () => void) => ReactNode;
 }) {
-  const id = useId();
-  const [open, setOpen] = useState(false);
   const [alliance, setAlliance] = useState<AllianceSummary | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  return <section className={PANEL}>
-    <button type="button" className={`${BUTTON} self-start`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>이전 연합 대결 이력</button>
-    <div id={id} hidden={!open}>
-      {open && <>
-        <AllianceDirectory userId={userId} mode="history" onSelect={(item) => { setAlliance(item); setSelected(null); }} />
-        {alliance && <>
-          <p className="font-bold mt-2 break-words">{alliance.name} 대결 이력</p>
-          <AllianceMatchList userId={userId} allianceId={alliance.id} history selected={selected} onSelect={setSelected} />
-          {selected !== null && detail(alliance, selected, () => setSelected(null))}
-        </>}
-      </>}
-    </div>
-  </section>;
+  return <div className="flex flex-col gap-3 text-xs">
+    <AllianceDirectory userId={userId} mode="history" onSelect={(item) => { setAlliance(item); setSelected(null); }} />
+    {alliance && <>
+      <p className="font-bold break-words">{alliance.name} 대결 이력</p>
+      <AllianceMatchList userId={userId} allianceId={alliance.id} visible={visible} history selected={selected} onSelect={setSelected} />
+      {selected !== null && detail(alliance, selected, () => setSelected(null))}
+    </>}
+  </div>;
 }

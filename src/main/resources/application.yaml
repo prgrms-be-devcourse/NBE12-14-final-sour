@@ -165,6 +165,8 @@ dev-account:
   university-name: 와플대학교
   department-name: 운영팀
   role: ${DEV_ACCOUNT_ROLE:ADMIN}
+  # 시연용 계정 수: 개발자 이메일 @ 앞에 1~N 번호를 붙여 같은 비밀번호·학교로 만든다 (권한 USER)
+  demo-count: ${DEV_ACCOUNT_DEMO_COUNT:100}
 
 # API 문서 (OpenApiConfig). /api/** 만 싣고 actuator·/error는 뺀다. 운영은 application-prod.yaml에서 끈다
 springdoc:

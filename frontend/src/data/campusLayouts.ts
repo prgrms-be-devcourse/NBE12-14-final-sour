@@ -277,15 +277,19 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       at('tree-oak-1', P(234, 234)), at('tree-oak-2', P(102, 222), { flip: true }), at('tree-oak-1', P(272, 206)), at('tree-oak-1', P(162, 250)),
       at('hedge', iso(faceMid(lv3Hall, 'left'), -18, 0), { flip: true }), at('hedge', iso(faceMid(lv3Hall, 'left'), 18, 0), { flip: true }),
       at('sapling', P(150, 216)), at('sapling', P(256, 182), { flip: true }),
-      // Wooden lanterns, log benches and a notice board line the dirt paths (plan D4: no iron lamps yet).
-      at('notice-board', lv3At(-14, 14)),
+      // The Lv.2 school signboard moves up to stand in front of the extended hall, where a flower patch was
+      // (user request 2026-11-27).
+      // Signs face the way the school does: the board runs along U, parallel to the door face, so it is flipped.
+      // Wooden lanterns and log benches line the dirt paths (plan D4: no iron lamps yet).
+      at('signboard', lv3At(-30, -8), { flip: true, depth: lv3Hall.y + 1 }),
       at('lantern-post', lv3At(14, 30)), at('lantern-post', lv3At(24, 14)), at('lantern-post', lv3At(54, 46)),
-      at('log-bench', lv3At(-30, 16)), at('log-bench', lv3At(28, 58), { flip: true }),
+      at('log-bench', lv3At(-30, 16), { flip: true }), at('log-bench', lv3At(28, 58), { flip: true }),
       at('student-sit-1', lv3At(-30, 18), { shadow: false }),
       // Woods life: a birdhouse, a stump, a picnic and a bicycle.
-      at('birdhouse', P(200, 232)), at('stump', P(252, 222)), at('picnic-mat', lv3At(72, 30)), at('student-sit-2', lv3At(74, 31), { shadow: false }),
+      at('birdhouse', P(200, 232)), at('stump', P(252, 222)), at('picnic-mat', lv3At(72, 30)),
+      // She sits on the mat, drawn over it (user request 2026-11-27).
+      at('student-sit-2', lv3At(70, 26), { shadow: false, depth: lv3At(72, 30)[1] + 1 }),
       at('bicycle', lv3At(64, 14)),
-      at('flowers-1', iso(faceMid(lv3Hall, 'left'), -30, 4)),
       ...[lv3At(0, 40), lv3At(2, 82), lv3At(-60, 2), lv3At(-44, 0), lv3At(40, 30), lv3At(38, 62), lv3At(30, 0)]
         .map((p, i) => at(WALKERS[i % 4], p, { flip: i % 2 === 1, shadow: false })),
       ...scatter([P(70, 170), P(196, 222), P(150, 226), P(250, 160), P(212, 112)], 2),
@@ -310,15 +314,17 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       // Pond life stays on the grass around the pond, clear of the paving (F3).
       at('reeds', iso(lv4Pond, -26, 2), { shadow: false }), at('reeds', iso(lv4Pond, 22, -10), { shadow: false, flip: true }), at('lily-pad', iso(lv4Pond, -2, 2), { shadow: false }),
       at('duck', iso(lv4Pond, 10, -2), { shadow: false }), at('rock', P(lv4Pond[0] + 36, lv4Pond[1] + 6)), at('rock', P(lv4Pond[0] - 34, lv4Pond[1] + 10)),
-      // In front of the main hall's left wing, not under it (user request 2026-11-09).
-      at('hedge', iso(faceMid(lv4Main, 'left'), -30, 8), { flip: true, depth: lv4Main.y + 1 }),
-      at('hedge', iso(faceMid(lv4Main, 'left'), 36, 8), { flip: true, depth: lv4Main.y + 1 }),
-      at('hedge', iso(faceMid(lv4Main, 'right'), 8, 0), { depth: lv4Main.y + 1 }), at('bush-1', P(250, 212)), at('bush-2', P(232, 230)),
+      // The school signboard stands in front of the main hall's left wing, where a hedge was, facing the way the
+      // school does and drawn over the hall, as on Lv.3 (user request 2026-11-27).
+      at('signboard', iso(faceMid(lv4Main, 'left'), -30, 10), { flip: true, depth: lv4Main.y + 1 }),
+      // In front of the main hall's right wing, not under it (user request 2026-11-09).
+      at('hedge', iso(faceMid(lv4Main, 'left'), 50, 12), { flip: true, depth: lv4Main.y + 1 }),
+      at('hedge', iso(faceMid(lv4Main, 'right'), 15, 18), { depth: lv4Main.y + 1 }), at('bush-1', P(250, 212)), at('bush-2', P(232, 230)),
       ...scatter([P(80, 196), P(110, 248), P(286, 220), P(74, 150), P(214, 266)], 3),
       // Garden fill (F11, UF): a white picket fence closes the pond lawn off the cross path, and a
       // flower border lines the entrance path. Long props run along V unflipped and along U flipped.
       ...[44, 70].map((u) => at('fence-picket', iso(lv4Door, u, 52), { flip: true })),
-      ...[56, 80].map((v) => at('flower-border', iso(lv4Door, 27, v))),
+      ...[64, 88].map((v) => at('flower-border', iso(lv4Door, 27, v))),
     ],
     features: { '본관 시계탑': 'main-clocktower', '돌 보도블록': 'tex-paving', '자연 연못': 'tex-water' },
   },
@@ -336,13 +342,17 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       lv5Main, lv5Library,
       at('tree-cherry-2', P(30, 236)), at('tree-cherry-1', P(170, 120)), at('tree-oak-2', P(296, 150)), at('tree-cherry-1', P(290, 214)),
       at('tree-cherry-2', P(250, 262), { flip: true }), at('tree-cherry-1', P(96, 262), { flip: true }), at('tree-cherry-2', P(20, 150)),
-      at('bench', iso(lv5Plaza, 0, 30)), at('bench', iso(lv5Plaza, 30, -26), { flip: true }),
+      at('bench', iso(lv5Plaza, 35, -12), { flip: true }),
       at('flowerbed-2', iso(lv5Plaza, 34, 30)), at('flowers-2', iso(lv5Plaza, -10, 32)), at('flowers-2', P(254, 222), { flip: true }),
-      at('lamp', iso(lv5Plaza, -26, -22)), at('lamp', iso(lv5Plaza, 26, 22)),
-      ...crowd(lv5Plaza, 20, 16, 5, 2),
+      // The lamps stand in front of the buildings, never hidden behind the library or the hall (user request 2026-11-27).
+      ...[iso(lv5Plaza, -26, 20), iso(lv5Plaza, 15, -23)].map((p) => at('lamp', p, { depth: Math.max(lv5Main.y, lv5Library.y) + 1 })),
+      ...crowd(lv5Plaza, 20, 16, 5, 141),
       ...scatter([P(230, 270), P(160, 272), P(286, 186)], 4),
+      // The school signboard stands on the lawn between the main hall and the library, turned toward the library
+      // side and drawn over the hall (user request 2026-11-27).
+      at('signboard', iso(faceMid(lv5Main, 'left'), -40, 22), { depth: lv5Main.y + 1 }),
       // Garden fill (F11, UF): planters along the hall front, a picket fence along the garden walk.
-      ...[-26, 26].map((u) => at('planter-strip', iso(faceMid(lv5Main, 'left'), u, 6), { flip: true, depth: lv5Main.y + 1 })),
+      ...[-20, 40].map((u) => at('planter-strip', iso(faceMid(lv5Main, 'left'), u, 12), { flip: true, depth: lv5Main.y + 1 })),
       ...[60, 86].map((u) => at('fence-picket', iso(lv5Plaza, u, 27), { flip: true })),
     ],
     features: { '중앙도서관': 'library-r', '벚꽃 정원': 'tree-cherry-1', '벤치': 'bench' },
@@ -362,16 +372,20 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       lv6Lecture, lv6Main,
       ...[P(80, 118), P(122, 112), P(164, 118), P(206, 112), P(240, 120)].map((p, i) => at((['tree-maple-orange', 'tree-cherry-1', 'tree-oak-2', 'tree-pine', 'tree-cherry-2'] as const)[i], p, { flip: i % 2 === 1 })),
       // One lamp per spot: two at the plaza corners, then a row down the south path (F5).
-      at('lamp', iso(lv6Plaza, 30, -26)), at('lamp', iso(lv6Plaza, -30, 26)),
+      // The lamp by the main hall stands in front of it, never hidden behind it (user request 2026-11-27).
+      at('lamp', iso(lv6Plaza, 18, -28), { depth: lv6Main.y + 1 }), at('lamp', iso(lv6Plaza, -32, 18)),
       ...along(iso(lv6Plaza, 0, 50), iso(lv6Plaza, 0, 110), 3).map((p) => at('lamp', iso(p, 14))),
-      at('flowerbed-1', iso(lv6Plaza, 44, 44)), at('flowerbed-2', iso(lv6Plaza, -42, 42)), at('flowerbed-1', iso(lv6Plaza, 34, -40)),
-      at('bench', iso(lv6Plaza, 40, 18)), at('bush-2', P(214, 264)), at('tree-cherry-1', P(70, 250)), at('tree-maple-red', P(276, 276)),
+      at('flowerbed-1', iso(lv6Plaza, 30, 44)), at('flowerbed-2', iso(lv6Plaza, -40, 42)), at('flowerbed-1', iso(lv6Plaza, 49, -13), { flip: true }),
+      at('bush-2', P(214, 264)), at('tree-cherry-1', P(70, 250)), at('tree-maple-red', P(276, 276)),
       ...crowd(lv6Plaza, 24, 20, 6, 3), ...crowd(iso(lv6Plaza, 0, 60), 6, 30, 3, 4),
       ...scatter([P(110, 280), P(310, 236), P(60, 200)], 5),
+      // The school signboard stands on the lawn between the main hall and the lecture hall, turned toward the
+      // lecture hall and drawn over the main hall, as on Lv.5 (user request 2026-11-27).
+      at('signboard', iso(faceMid(lv6Main, 'left'), -50, 30), { depth: lv6Main.y + 1 }),
       // Garden fill (F11, UF): low hedges edge the plaza walks, planters line the hall front.
-      ...[66, 94].map((u) => at('hedge-low', iso(lv6Plaza, u, 27), { flip: true })),
-      ...[64, 92].map((v) => at('hedge-low', iso(lv6Plaza, -15, v))),
-      ...[-26, 26].map((u) => at('planter-strip', iso(faceMid(lv6Main, 'left'), u, 6), { flip: true, depth: lv6Main.y + 1 })),
+      ...[53, 80].map((u) => at('hedge-low', iso(lv6Plaza, u, 27), { flip: true })),
+      ...[48, 74].map((v) => at('hedge-low', iso(lv6Plaza, -13, v))),
+      ...[-20, 37].map((u) => at('planter-strip', iso(faceMid(lv6Main, 'left'), u, 13), { flip: true, depth: lv6Main.y + 1 })),
     ],
     features: { '제2강의동': 'lecture-2-r', '빈티지 가로등': 'lamp', '화단': 'flowerbed-1' },
   },
@@ -393,15 +407,17 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       ...[80, 160, 190].map((v, i) => at(i % 2 ? 'tree-cherry-1' : 'tree-cherry-2', iso(lv7Gate, 30, v), { flip: i % 2 === 1, opacity: 0.6 })),
       ...along(iso(lv7Gate, 0, 150), lv7Avenue[1], 2).map((p, i) => at(i % 2 ? 'tree-cherry-2' : 'tree-cherry-1', iso(p, -26), { flip: i % 2 === 0 })),
       at('tree-maple-orange', P(150, 96 + 20)), at('tree-oak-2', P(64, 128)),
-      at('flag', iso(lv7Plaza, 20, -10)), at('bench', iso(lv7Plaza, 44, -20)),
+      at('flag', iso(lv7Plaza, 20, -10)), at('bench', iso(lv7Plaza, 44, -13), { flip: true }),
       ...crowd(lv7Plaza, 26, 18, 6, 4), ...crowd(iso(lv7Gate, 0, 110), 4, 40, 4, 5),
-      at('tree-oak-1', P(296, 272)), at('tree-maple-red', P(150, 292), { flip: true }), at('bench', iso(lv7Gate, 26, 100)),
+      at('tree-oak-1', P(296, 272)), at('tree-maple-red', P(150, 292), { flip: true }),
       ...along(iso(lv7Plaza, 50), iso(lv7Plaza, 130), 3).map((p) => at('lamp', iso(p, 0, -14))),
       ...scatter([P(60, 270), P(206, 296)], 6),
+      // The school signboard stands in front of the lecture hall, beside its door, facing the way the hall does: the
+      // door is on the right face, so the board runs along V unflipped (user request 2026-11-27).
+      at('signboard', iso(faceMid(lv7Lecture, 'right'), 10, -40), { depth: lv7Lecture.y + 1 }),
       // Garden fill (F11). Long props run along V unflipped and along U flipped.
-      ...[-22, 22].map((u) => at('planter-strip', iso(lv7HallDoor, u, 6), { flip: true, depth: lv7Hall.y + 1 })),
-      ...[70, 110].map((u) => at('fence-iron', iso(lv7Plaza, u, -13), { flip: true })),
-      ...[112, 134].map((v) => at('hedge-low', iso(lv7Gate, -22, v))),
+      ...[74, 115].map((u) => at('fence-iron', iso(lv7Plaza, u, -13), { flip: true })),
+      ...[122, 150].map((v) => at('hedge-low', iso(lv7Gate, -15, v))),
       ...[40, 66].map((u) => at('flower-border', iso(lv7South, u, -14), { flip: true })),
     ],
     features: { '종합 경기장': 'stadium', '가로수길': 'tree-cherry-2', '캠퍼스 광장': 'tex-paving' },
@@ -422,23 +438,25 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
     ],
     items: [
       lv8Main, lv8Hall,
-      at('fountain', lv8Plaza),
+      at('fountain', iso(lv8Plaza, 10, 15)),
       ...[[-30, -26], [30, -26], [-30, 26], [30, 26]].map(([u, v]) => at('lamp-banner', iso(lv8Plaza, u, v))),
       // Banner lamps and benches down both sides of the south walk (growth sheet).
       ...along(iso(lv8Plaza, 0, 56), iso(lv8Plaza, 0, 112), 3).flatMap((p) => [at('lamp-banner', iso(p, -16)), at('lamp-banner', iso(p, 16))]),
-      at('bench', iso(lv8Plaza, -20, 84), { flip: true }), at('bench', iso(lv8Plaza, 20, 70)),
+      at('bench', iso(lv8Plaza, -15, 70)),
       // One goal on the near end line (the sprite opens toward +U only; user request 2026-11-09); the
       // bleacher's rows run along the court's long side, facing it.
       at('goal-post', iso(lv8Court, -35), { shadow: false }),
-      at('bleacher', iso(lv8Court, -34, -30), { flip: true }),
+      at('bleacher', iso(lv8Court, -34, -35), { flip: true }),
       // Garden fill (F11): planters at the square's corners and along the hall's entrance wall, low
       // hedges along the walk to the track.
-      ...[[-44, -40], [44, 40]].map(([u, v]) => at('planter-square', iso(lv8Plaza, u, v))),
-      at('hedge-low', iso(lv8Plaza, -6, -32)),
-      ...[-24, 24].map((v) => at('planter-strip', iso(lv8Door, 6, v), { depth: lv8Main.y + 1 })),
+      ...[[-44, -70], [20, 40]].map(([u, v]) => at('planter-square', iso(lv8Plaza, u, v))),
+      ...[35].map((v) => at('planter-strip', iso(lv8Door, 20, v), { depth: lv8Main.y + 1 })),
+      // The school signboard stands at the right end of the main hall's entrance wall, facing the way the hall does
+      // (door on the right face, so unflipped) and drawn over it, as on Lv.7 (user request 2026-11-27).
+      at('signboard', iso(lv8Door, 12, -18), { depth: lv8Main.y + 1 }),
       ...[P(60, 112), P(196, 110), P(232, 104), P(306, 104)].map((p, i) => at((['tree-oak-2', 'tree-cherry-1', 'tree-pine', 'tree-oak-1'] as const)[i], p, { flip: i % 2 === 0 })),
-      at('tree-cherry-2', P(56, 250)), at('tree-pine', P(306, 196)), at('bench', iso(lv8Plaza, 58, 30), { flip: true }),
-      ...crowd(lv8Plaza, 30, 26, 8, 5), ...crowd(iso(lv8Plaza, 0, 80), 6, 40, 3, 6),
+      at('tree-cherry-2', P(56, 250)), at('tree-pine', P(306, 196)),
+      ...crowd(lv8Plaza, 60, -50, 2, 4), ...crowd(iso(lv8Plaza, 0, 80), 6, 40, 3, 6),
       ...scatter([P(150, 292), P(240, 296), P(90, 160)], 7),
     ],
     features: { '분수광장': 'fountain', '스포츠 코트': 'tex-court', '학교 배너': 'lamp-banner' },
@@ -455,12 +473,12 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
     items: [
       lv9Main, lv9DormB, lv9DormA,
       // Flowerbeds ring the square; planters line the hall front (growth sheet, F11).
-      at('flowerbed-1', iso(lv9Plaza, -40, 30)), at('flowerbed-2', iso(lv9Plaza, 40, 30)),
+      at('flowerbed-1', iso(lv9Plaza, -40, 30)), at('flowerbed-2', iso(lv9Plaza, 55, 33)),
       ...[-24, 24].map((u) => at('flower-border', iso(lv9Plaza, u, 34), { flip: true })),
-      ...[-26, 26].map((u) => at('planter-strip', iso(lv9MainDoor, u, 6), { flip: true, depth: lv9Main.y + 1 })),
+      ...[35].map((u) => at('planter-strip', iso(lv9MainDoor, u, 13), { flip: true, depth: lv9Main.y + 1 })),
       // Lamps and benches along the street.
-      ...along(iso(lv9Plaza, 44), iso(lv9Plaza, 110), 3).map((p) => at('lamp', iso(p, 0, -16))),
-      at('bench', iso(lv9Plaza, 70, 18)), at('bench', iso(lv9Plaza, 104, 20), { flip: true }),
+      ...along(iso(lv9Plaza, 30), iso(lv9Plaza, 100), 3).map((p) => at('lamp', iso(p, 0, -16))),
+      at('bench', iso(lv9Plaza, 50, -13), { flip: true }), at('bench', iso(lv9Plaza, 85, -13), { flip: true }),
       // The lawn below the street: picnics, pets and students.
       at('picnic-mat', iso(lv9Plaza, 30, 60), { shadow: false }), at('picnic-mat', iso(lv9Plaza, 96, 50), { shadow: false }),
       at('dog', iso(lv9Plaza, 10, 70), { shadow: false }), at('cat', iso(lv9Plaza, 110, 42), { shadow: false }),
@@ -471,6 +489,7 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       ...[87, 120].map((u) => at('trash-bin', iso(lv9Plaza, u, 19))),
       at('student-sit-1', iso(lv9Plaza, 70, 17), { shadow: false }), at('student-sit-2', iso(lv9Plaza, 28, 58), { shadow: false }),
       at('student-sit-1', iso(lv9Plaza, 34, 62), { shadow: false }), at('student-sit-2', iso(lv9Plaza, 98, 48), { shadow: false }),
+      at('signboard', iso(lv8Door, -30, -30), { flip: true, depth: lv8Main.y + 1 }),
       // Planters on the lawn between the hall and the big dorm; flowers on the lower lawn.
       ...[P(214, 196), P(232, 206)].map((p) => at('planter-square', p)),
       ...scatter([iso(lv9Plaza, 70, 76), iso(lv9Plaza, 92, 80)], 1),
@@ -509,9 +528,9 @@ export const CAMPUS_LAYOUTS: Readonly<Partial<Record<number, CampusLayout>>> = {
       ...[iso(lv10Plaza, 78, -44), iso(lv10Plaza, 94, 26)].map((p, i) => at(i ? 'tree-maple-red' : 'tree-cherry-1', p, { flip: true })),
       at('tree-oak-1', iso(lv10Plaza, 84, 84)),
       at('flag', iso(lv10Plaza, 56, 38)), at('flag', iso(lv10Plaza, 38, 56)),
-      at('flowerbed-1', iso(lv10Plaza, 66, -38)), at('flowerbed-2', iso(lv10Plaza, -38, 66)),
+      at('signboard', iso(lv8Door, 10, 0), { depth: lv8Main.y + 1 }),
       // The crowd fills the square around the fountain.
-      ...crowd(lv10Plaza, 42, 42, 48, 9).filter((s) => !lv10FountainCores.some((c) => pointInPolygon([s.x, s.y], c))),
+      ...crowd(lv10Plaza, 42, 42, 40, 13).filter((s) => !lv10FountainCores.some((c) => pointInPolygon([s.x, s.y], c))),
     ],
     effects: [
       { kind: 'festival-glow', x: lv10Plaza[0], y: lv10Plaza[1], rx: 92, ry: 46 },

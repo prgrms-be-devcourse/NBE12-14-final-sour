@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Mail, Check, RefreshCw, Clock, ArrowRight, Sparkles, CheckCircle2, Inbox, Hourglass, KeyRound, LogIn, LogOut } from 'lucide-react';
 import { CampusLayoutScene } from '../CampusScene';
+import brandLogo from '../../assets/brand/daedaedae-logo-final.png';
 import { PhoneShell } from '../PhoneShell';
 import { TITLE_LAYOUT } from '../../data/campusLayouts';
 import { soundManager } from '../../utils/sound';
@@ -604,7 +605,12 @@ export const LoginStep: React.FC<LoginStepProps> = ({
   const inputClass = 'w-full bg-[#ffffff] border-2 border-[#261608] px-2.5 py-1.5 text-xs font-mono text-[#261608] placeholder:text-stone-400 focus:outline-none focus:bg-[#fef9c3] shadow-[inset_1px_1px_0px_#261608]';
   return (
     <>
-      <TitleArt />
+      <div className="flex flex-col items-center shrink-0">
+        <img src={brandLogo} alt="대대대" width={1200} height={672} className="w-full max-w-[280px] h-auto" />
+        <span className="font-pixel text-[11px] font-bold text-[#ffffff] bg-[#e11d48] border-2 border-[#261608] px-2 py-0.5 mt-1 shadow-[2px_2px_0px_#261608]">
+          전국 대학 대항전 픽셀 클리커
+        </span>
+      </div>
       <form
         className="rpg-box p-3 mt-3 flex flex-col gap-2"
         onSubmit={(event) => {

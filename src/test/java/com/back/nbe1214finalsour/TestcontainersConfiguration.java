@@ -28,10 +28,12 @@ class TestcontainersConfiguration {
 
     // 이미지 버전 (이슈 #26). latest를 쓰면 받는 시점마다 버전이 바뀌므로 고정한다.
     // compose.yaml과 같은 태그를 써야 한다 (ContainerImageVersionTest가 검사).
-    // Postgres: 배포 대상인 RDS PostgreSQL 16 (V1__init.sql). 주 버전만 고정해 16.x 패치는 따라간다
-    static final String POSTGRES_IMAGE = "postgres:16";
-    // Redis: 마이너 버전에서 동작이 바뀔 수 있어 8.10까지 고정하고 패치만 따라간다
-    static final String REDIS_IMAGE = "redis:8.10";
+    // Postgres: 운영 RDS(sour-postgres)와 같은 PostgreSQL 17 (2026-11-27 확인: 17.9, Terraform db_engine_version = "17").
+    // V1__init.sql 머리말의 "PostgreSQL 16"은 적용된 마이그레이션이라 고치지 않는다. 주 버전만 고정해 17.x 패치는 따라간다
+    static final String POSTGRES_IMAGE = "postgres:17";
+    // Redis: 운영과 같은 7.4 (Terraform redis_image = "redis:7.4", 2026-11-27). 마이너 버전에서 동작이 바뀔 수 있어
+    // 7.4까지 고정하고 패치만 따라간다
+    static final String REDIS_IMAGE = "redis:7.4";
     // Floci: 묶음 태그(2, 2.5)가 없어 정확한 버전으로 고정한다
     static final String FLOCI_IMAGE = "floci/floci:2.5.0";
 

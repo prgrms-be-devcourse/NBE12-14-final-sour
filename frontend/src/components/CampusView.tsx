@@ -7,14 +7,16 @@ import { useOtherClicksFeed } from '../hooks/otherClicksFeedContext';
 import { MOCK_REALTIME_CONFIG, type MockRealtimeConfig, type OtherClicksSource } from '../data/mockRealtime';
 import { useMockGame } from '../hooks/useMockGame';
 import { useMySchool } from '../hooks/useSchoolViews';
-import { FloatingNumber, Sparkle } from '../types';
+import { FloatingNumber, Sparkle, type TapOutcome } from '../types';
+import type { CampusSignInfo } from './CampusSignText';
 import { soundManager } from '../utils/sound';
 import { INITIAL_KEY_GATE, keyPressDown, keyPressUp, CLICK_KEYS } from '../utils/clickGuard';
 import { formatContribution } from '../utils/formatContribution';
 import { wobbleBuildings } from '../utils/campusWobble';
 
-interface CampusViewProps {
-  onTap: (x: number, y: number, isCrit: boolean, gainedPoints: number) => number | null | void;
+export interface CampusViewProps {
+  /** `isCrit` is only a proposal: a returned outcome (API mode: decided by the server) overrides it. */
+  onTap: (x: number, y: number, isCrit: boolean, gainedPoints: number) => TapOutcome | number | null | void;
   clickPower: number;
   basePower: number;
   activeStudents: number;
@@ -36,6 +38,8 @@ interface CampusViewProps {
   otherClicksSource?: OtherClicksSource;
   realtimeConfig?: MockRealtimeConfig;
   realtimeScheduler?: OtherClickScheduler;
+  /** The school's first-ranked department for the signboard (App); without it the board stays blank. */
+  sign?: CampusSignInfo | null;
 }
 
 export const CampusView: React.FC<CampusViewProps> = ({
@@ -53,6 +57,7 @@ export const CampusView: React.FC<CampusViewProps> = ({
   otherClicksSource,
   realtimeConfig,
   realtimeScheduler,
+  sign,
 }) => {
   const { campus, clickNotice, state: { contribution: myContribution } } = useMockGame();
   // Keyboard clicks count on a full press and release only; held-key repeats never count (2026-11-08 지시).
@@ -118,16 +123,18 @@ export const CampusView: React.FC<CampusViewProps> = ({
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
-      const isCrit = Math.random() < 0.25;
-      const points = isCrit ? clickPower : basePower;
-      const result = onTap(x, y, isCrit, Math.round(points));
+      const proposedCrit = Math.random() < 0.25;
+      const points = proposedCrit ? clickPower : basePower;
+      const result = onTap(x, y, proposedCrit, Math.round(points));
       if (result === null) {
         // Refused by the mock click check (M5-A): no score, sound or sparkle, only a marker where it landed.
         const numId = `${Date.now()}-${++effectSequence.current}`;
         setFloatingNumbers((prev) => [...prev.slice(-15), { id: numId, x, y: y - 10, text: '거절', isCrit: false, drift: 0 }]);
         return;
       }
-      const finalPoints = result ?? Math.round(points);
+      const outcome = typeof result === 'object' && result !== null ? result : null;
+      const isCrit = outcome ? outcome.isCrit : proposedCrit;
+      const finalPoints = outcome ? outcome.points : (result ?? Math.round(points));
       ownClicks.current += 1;
 
       soundManager.playPopSound(isCrit);
@@ -215,6 +222,7 @@ export const CampusView: React.FC<CampusViewProps> = ({
   // Frame, ticker, scene and corner labels come from CampusStage, shared with the visit screen (V1).
   return (
     <CampusStage
+      sign={sign}
       level={campus.level}
       bubble={bubbleMessage}
       fill={fill}

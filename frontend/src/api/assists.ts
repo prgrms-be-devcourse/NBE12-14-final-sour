@@ -13,6 +13,9 @@ export interface AssistResponse {
   assistScore: number;
   targetUniversity: { id: number; name: string; totalScore: number; rank: number | null };
   myContribScore: number;
+  /** Next attack/assist batch: crit positions and per-click damage rates (see ClickResponse). */
+  criticalIndex: number[];
+  damageRateIndex: number[];
 }
 
 export function submitAssist(client: ApiClient, body: AssistRequest, signal?: AbortSignal): Promise<AssistResponse> {

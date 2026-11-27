@@ -165,7 +165,7 @@ test('프로필 observer가 렌더되기 전 같은 프레임의 클릭도 캐�
   await act(async () => {
     f.queryClient.setQueryData<MyInfo>(userKeys.me, { ...ME, totalContribScore: 30,
       clicker: { level: 12, clickPower: 19, nextLevelRequiredScore: 150 } });
-    assert.equal(clickController.tap(false), 19);
+    assert.deepEqual(clickController.tap(false), { points: 19, isCrit: false });
   });
   assert.equal(game().contribution, 49);
 });

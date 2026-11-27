@@ -530,6 +530,70 @@
 .game-panel-content:focus-visible { outline: 2px solid #49331d; outline-offset: 2px; }
 .game-panel-content { flex: 1; min-block-size: 16rem; min-inline-size: 0; overflow: auto; overscroll-behavior: contain; border: 1px solid #bd9e65; }
 .game-panel-content [data-phone-shell='embedded'] { overflow: hidden; }
+.game-compact-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: .25rem;
+  overflow-x: auto;
+  padding: .375rem;
+  scroll-padding-inline: .375rem;
+  border-block-end: 1px solid #bd9e65;
+  background: #faecc7;
+}
+.game-compact-tab {
+  position: relative;
+  display: flex;
+  flex: 1 0 max(44px, 3.125rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-inline-size: max-content;
+  min-block-size: max(44px, 2.75rem);
+  padding: .1875rem .25rem .375rem;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.game-compact-tabs .game-compact-tab .game-nav-icon {
+  display: block;
+  flex: none;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+.game-compact-tab.plaque-yellow:active {
+  box-shadow: inset 0 0 0 2px #fef08a, inset 0 0 0 4px #ca8a04, 1px 1px 0 #261608;
+}
+.game-compact-tab.plaque-battle {
+  --battle-highlight: #db7478;
+  --battle-inset: #591923;
+  --battle-depth: 3px;
+  background-color: #8b2c35;
+  color: #fff4dc;
+  box-shadow: inset 0 0 0 2px var(--battle-highlight), inset 0 0 0 4px var(--battle-inset),
+    var(--battle-depth) var(--battle-depth) 0 #261608;
+}
+.game-compact-tab.plaque-battle[aria-selected='true'] {
+  --battle-highlight: #ffe4e6;
+  --battle-inset: #be414b;
+  background-color: #fca5a5;
+  color: #450a0a;
+}
+.game-compact-tab.plaque-battle:active { --battle-depth: 1px; }
+.game-compact-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  inset: auto .375rem .125rem;
+  border-block-end: 2px solid currentColor;
+}
+.game-compact-tab:focus-visible { outline: 2px solid #49331d; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .game-compact-tab { transition: none; }
+}
+.game-compact-tab-panel { flex: 1; min-block-size: 0; min-inline-size: 0; overflow: auto; }
+.game-compact-tab-panel:focus-visible { outline: 2px solid #49331d; outline-offset: -2px; }
 .game-map-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .375rem; padding: .5rem; background: #fff4d1; border-block-end: 1px solid #bd9e65; }
 .game-map-preview button { min-block-size: 2.75rem; }
 .game-map-preview button[aria-disabled='true'] { color: #5c4631; cursor: not-allowed; }

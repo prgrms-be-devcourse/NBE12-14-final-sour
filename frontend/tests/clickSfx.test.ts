@@ -3,7 +3,8 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_VOICES, PITCH_JITTER, SampleBank, jitterRate, pickSampleIndex, type SampleContext } from '../src/utils/sfxSamples';
-import { RetroSoundManager } from '../src/utils/sound';
+import { ATTACK_CRIT_PUNCH_GAIN, ATTACK_PUNCH_GAIN, RetroSoundManager } from '../src/utils/sound';
+import { SAMPLE_GAIN } from '../src/utils/sfxSamples';
 
 class FakeParam {
   value = 1;
@@ -38,7 +39,9 @@ class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
   state = 'running';
   currentTime = 0;
+  sampleRate = 8000;
   destination = new FakeNode();
+  buffers: Array<{ length: number }> = [];
   sources: FakeSource[] = [];
   oscillators: FakeOscillator[] = [];
   decoded: string[] = [];
@@ -48,6 +51,13 @@ class FakeAudioContext {
   createBufferSource() { const source = new FakeSource(); this.sources.push(source); return source; }
   createOscillator() { const osc = new FakeOscillator(); this.oscillators.push(osc); return osc; }
   createGain() { return Object.assign(new FakeNode(), { gain: new FakeParam() }); }
+  createBiquadFilter() { return Object.assign(new FakeNode(), { type: 'lowpass', frequency: new FakeParam() }); }
+  createBuffer(_channels: number, length: number) {
+    const data = new Float32Array(length);
+    const buffer = { length, getChannelData: () => data };
+    this.buffers.push(buffer);
+    return buffer;
+  }
   decodeAudioData(data: ArrayBuffer) {
     const name = new TextDecoder().decode(data);
     if (this.failDecode.has(name)) return Promise.reject(new Error(`cannot decode ${name}`));
@@ -145,7 +155,9 @@ test('a SampleBank stops the oldest clip once MAX_VOICES ring at once', async ()
 function managerOnFakeWindow() {
   (globalThis as { window?: unknown }).window = { AudioContext: FakeAudioContext };
   const bank = new SampleBank(['a.mp3', 'b.mp3'], { fetch: fakeFetch().fetch });
-  return { manager: new RetroSoundManager(bank), bank };
+  const punch = new SampleBank(['punch.mp3'], { fetch: fakeFetch().fetch, gain: ATTACK_PUNCH_GAIN });
+  const critPunch = new SampleBank(['heavy.mp3'], { fetch: fakeFetch().fetch, gain: ATTACK_CRIT_PUNCH_GAIN });
+  return { manager: new RetroSoundManager(bank, punch, critPunch), bank, punch, critPunch };
 }
 
 test('playPopSound plays the synthesized blip until the clips are decoded', () => {
@@ -187,4 +199,47 @@ test('playTapSound keeps its synthesized blip and chime for other UI sounds', ()
   const [ctx] = FakeAudioContext.instances;
   assert.equal(ctx.sources.length, 0);
   assert.deepEqual(ctx.oscillators.map((osc) => osc.type), ['square', 'triangle']);
+});
+
+test('playAttackSound plays the synthesized blast until the punch clips are decoded', () => {
+  const { manager } = managerOnFakeWindow();
+  manager.playAttackSound(false);
+  const [ctx] = FakeAudioContext.instances;
+  assert.deepEqual(ctx.oscillators.map((osc) => osc.type), ['sine']);
+  assert.ok(ctx.sources.length > 0 && ctx.sources.every((source) => source.buffer === ctx.buffers[0]), 'noise only, no clip yet');
+});
+
+test('playAttackSound plays the punch clip, and a critical hit plays the heavy punch instead, 3 dB lower', async () => {
+  const { manager, punch, critPunch } = managerOnFakeWindow();
+  manager.playAttackSound(false); // creates the context and starts decoding
+  const [ctx] = FakeAudioContext.instances;
+  await Promise.all([punch.load(asContext(ctx)), critPunch.load(asContext(ctx))]);
+  ctx.sources = [];
+  ctx.oscillators = [];
+
+  manager.playAttackSound(false);
+  manager.playAttackSound(true);
+  assert.deepEqual(ctx.sources.map((source) => source.buffer), [{ name: 'punch.mp3' }, { name: 'heavy.mp3' }]);
+  assert.equal(ctx.oscillators.length, 0, 'no synthesized blast or chime once the clips play');
+  assert.equal(ATTACK_PUNCH_GAIN, SAMPLE_GAIN);
+  assert.ok(Math.abs(20 * Math.log10(ATTACK_CRIT_PUNCH_GAIN / ATTACK_PUNCH_GAIN) + 3) < 1e-9, 'the heavy punch is 3 dB below the punch');
+});
+
+test('playAssistSound is a rising four-note heal, and a critical assist adds the chime', () => {
+  const { manager } = managerOnFakeWindow();
+  manager.playAssistSound(false);
+  const [ctx] = FakeAudioContext.instances;
+  assert.equal(ctx.sources.length, 0);
+  assert.deepEqual(ctx.oscillators.map((osc) => osc.type), ['triangle', 'triangle', 'triangle', 'triangle']);
+
+  manager.playAssistSound(true);
+  assert.equal(ctx.oscillators.length, 9);
+});
+
+test('playAttackSound and playAssistSound are silent while sound is off', () => {
+  const { manager } = managerOnFakeWindow();
+  manager.enabled = false;
+  manager.playAttackSound(true);
+  manager.playAssistSound(true);
+  assert.equal(FakeAudioContext.instances.length, 0);
 });

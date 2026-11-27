@@ -1,3 +1,9 @@
+/** What one campus tap earned on screen. In API mode the server decided `isCrit` in advance (ClickActionGuard). */
+export interface TapOutcome {
+  points: number;
+  isCrit: boolean;
+}
+
 export interface FloatingNumber {
   id: string;
   x: number;

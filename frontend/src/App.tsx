@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { SchoolId } from './data/schoolIds';
 import { TopHUD } from './components/TopHUD';
 import { CampusView } from './components/CampusView';
+import { useCampusTopDepartment } from './hooks/useCampusTopDepartment';
 import { LibraryBonusControl } from './components/LibraryBonusControl';
 import { PhoneShellVariantContext } from './components/PhoneShell';
 import { GameScreenLayout } from './components/GameScreenLayout';
@@ -117,6 +118,8 @@ function AppContent() {
   const playerInfo = game.player;
   const schoolScore = game.state.schoolScore;
   const mySchool = useMySchool();
+  // The school signboard shows the school's first-ranked department (user request 2026-11-27).
+  const campusSign = useCampusTopDepartment(mySchool.id);
   // API mode: the server's rank and change against 00:00 KST (SCRUM-184). The score above follows the server's total
   // through ApiSchoolScoreSync and click answers (SCRUM-188).
   const schoolRanking = useMySchoolRank(schoolScore, playerInfo.schoolId);
@@ -241,9 +244,9 @@ function AppContent() {
 
   const handleCampusTap = useCallback(
     (_x: number, _y: number, isCrit: boolean, _gainedPoints: number) => {
-      const gainedPoints = campusClicks.tap(isCrit);
+      const outcome = campusClicks.tap(isCrit);
       // A refused click (M5-A) adds nothing, not even to the fever gauge.
-      if (gainedPoints === null) return null;
+      if (outcome === null) return null;
 
       if (!isFever) {
         setFeverGauge((prev) => {
@@ -256,7 +259,7 @@ function AppContent() {
           return next;
         });
       }
-      return gainedPoints;
+      return outcome;
     },
     [campusClicks.tap, isFever]
   );
@@ -919,6 +922,7 @@ function AppContent() {
               {centerTab === 'campus' && (
                 <>
                   <CampusView
+                    sign={campusSign}
                     guestbookBadge={API_MODE === 'api' ? null : 'N 5'}
                     onTap={handleCampusTap}
                     clickPower={clickPower}

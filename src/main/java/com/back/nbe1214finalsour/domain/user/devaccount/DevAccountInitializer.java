@@ -6,7 +6,9 @@ import com.back.nbe1214finalsour.domain.university.repository.DepartmentReposito
 import com.back.nbe1214finalsour.domain.university.repository.UniversityRepository;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
+import com.back.nbe1214finalsour.domain.user.validation.Nickname;
 import com.back.nbe1214finalsour.domain.user.validation.Password;
+import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
 import jakarta.validation.Validator;
 import java.time.Clock;
@@ -51,6 +53,7 @@ public class DevAccountInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         createIfAbsent();
+        createDemoAccountsIfAbsent();
     }
 
     /** @return 이번에 만들었으면 true */
@@ -106,6 +109,80 @@ public class DevAccountInitializer implements ApplicationRunner {
             }
             throw e;
         }
+    }
+
+    /**
+     * 시연용 계정 {@code dev-account.demo-count}개를 없는 것만 만든다. 개발자 계정과 같은 비밀번호·학교·학과를 쓰고,
+     * 이메일은 개발자 이메일의 @ 앞에 번호를 붙인다(dev-account@example.com → dev-account1@example.com ~ dev-account100@example.com).
+     * 닉네임은 개발자 닉네임 뒤에 번호를 붙인다. 권한은 개발자 계정 설정과 관계없이 USER다.
+     *
+     * <ul>
+     *   <li>꺼져 있거나 개수가 0이거나 이메일·비밀번호가 없으면 만들지 않는다.</li>
+     *   <li>같은 이메일이 이미 있으면 그 번호는 건너뛴다. 기존 계정은 바꾸지 않는다.</li>
+     *   <li>닉네임이 규칙에 맞지 않거나 다른 회원이 쓰고 있으면 그 번호만 건너뛴다.</li>
+     *   <li>비밀번호가 모두 같아 해시는 한 번만 만든다.</li>
+     * </ul>
+     *
+     * @return 이번에 만든 계정 수
+     */
+    public int createDemoAccountsIfAbsent() {
+        int count = properties.demoCount();
+        if (!properties.enabled() || count <= 0 || !properties.hasEmail() || !properties.hasPassword()) {
+            return 0;
+        }
+        if (!validator.validate(new PasswordRule(properties.password())).isEmpty()) {
+            throw new IllegalStateException(
+                    "DEV_ACCOUNT_PASSWORD가 비밀번호 규칙(8~64자, 공백 없는 ASCII, 영문·숫자·특수문자 포함)에 맞지 않습니다");
+        }
+        String baseEmail = EmailHasher.normalize(properties.email());
+        int at = baseEmail.indexOf('@');
+        String localPart = baseEmail.substring(0, at);
+        String domain = baseEmail.substring(at);
+
+        University university = universityRepository.findByName(properties.universityName())
+                .orElseThrow(() -> new IllegalStateException(
+                        "dev-account.university-name 학교가 DB에 없습니다: " + properties.universityName()));
+        Department department = departmentRepository
+                .findByUniversity_IdAndName(university.getId(), properties.departmentName())
+                .orElseThrow(() -> new IllegalStateException("dev-account.department-name 학과가 "
+                        + properties.universityName() + "에 없습니다: " + properties.departmentName()));
+
+        String encodedPassword = null;
+        int created = 0;
+        for (int i = 1; i <= count; i++) {
+            String email = localPart + i + domain;
+            String emailHash = emailHasher.hash(email);
+            if (userRepository.existsByEmailHashAndDeletedAtIsNull(emailHash)) {
+                continue;
+            }
+            String nickname = properties.nickname() + i;
+            if (!validator.validate(new NicknameRule(nickname)).isEmpty()
+                    || userRepository.existsActiveNicknameIgnoreCase(nickname)) {
+                log.warn("[DevAccount] 시연용 계정 {}번은 닉네임 {}을(를) 쓸 수 없어 만들지 않습니다", i, nickname);
+                continue;
+            }
+            if (encodedPassword == null) {
+                encodedPassword = passwordEncoder.encode(properties.password());
+            }
+            try {
+                userRepository.saveAndFlush(User.create(university.getId(), department.getId(), nickname, email,
+                        emailHash, encodedPassword, OffsetDateTime.now(clock), Role.USER));
+                created++;
+            } catch (DataIntegrityViolationException e) {
+                if (!userRepository.existsByEmailHashAndDeletedAtIsNull(emailHash)) {
+                    throw e;
+                }
+                // 다른 서버가 같은 번호를 먼저 만들었다
+            }
+        }
+        if (created > 0) {
+            log.info("[DevAccount] 시연용 계정 {}개를 만들었습니다 (전체 {}개, university={})", created, count, university.getName());
+        }
+        return created;
+    }
+
+    /** 회원가입과 같은 닉네임 규칙({@link Nickname})으로 검사한다 */
+    private record NicknameRule(@Nickname String nickname) {
     }
 
     /** 회원가입과 같은 비밀번호 규칙({@link Password})으로 검사한다 */

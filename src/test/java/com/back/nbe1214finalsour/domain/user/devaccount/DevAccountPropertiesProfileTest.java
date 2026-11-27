@@ -33,6 +33,7 @@ class DevAccountPropertiesProfileTest {
         assertThat(properties.universityName()).isEqualTo("와플대학교");
         assertThat(properties.departmentName()).isEqualTo("운영팀");
         assertThat(properties.hasPassword()).isFalse();
+        assertThat(properties.demoCount()).as("로컬은 시연용 계정 100개").isEqualTo(100);
     }
 
     @Test
@@ -44,6 +45,7 @@ class DevAccountPropertiesProfileTest {
         assertThat(properties.hasEmail()).isFalse();
         assertThat(properties.role()).isEqualTo(Role.USER);
         assertThat(properties.hasPassword()).isFalse();
+        assertThat(properties.demoCount()).as("운영은 DEV_ACCOUNT_DEMO_COUNT를 넣을 때만 만든다").isZero();
     }
 
     /** 앞에 둔 파일이 우선한다 (Spring이 프로필 파일을 기본 파일 위에 얹는 순서와 같다) */

@@ -33,7 +33,7 @@ class ContainerImageVersionTest {
     @DisplayName("이미지는 latest가 아닌 버전 태그로 고정한다")
     void imagesArePinned() throws IOException {
         assertThat(composeImages().values()).allSatisfy(image -> assertThat(image)
-                .withFailMessage("'%s'는 버전이 고정되지 않았습니다. 'postgres:16'처럼 버전 태그를 붙이세요 (latest 금지).", image)
+                .withFailMessage("'%s'는 버전이 고정되지 않았습니다. 'postgres:17'처럼 버전 태그를 붙이세요 (latest 금지).", image)
                 .matches("[^:]+:[0-9][^:]*"));
     }
 
