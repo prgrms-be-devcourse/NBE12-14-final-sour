@@ -9,4 +9,7 @@ public interface CreditWallet {
 
     // 잔액이 충분하면 차감하고 차감 후 잔액을 반환, 부족하면 차감하지 않고 empty 반환
     OptionalLong tryDeduct(Long userId, long amount);
+
+    // 잔액을 늘리고 늘어난 잔액을 반환한다 (결제 승인 충전)
+    long charge(Long userId, long amount);
 }

@@ -62,4 +62,15 @@ public class CreditHistory {
         history.idempotencyKey = idempotencyKey;
         return history;
     }
+
+    // 결제 승인으로 크레딧을 충전한 기록
+    public static CreditHistory charge(Long userId, Long paymentId, long amount, long balanceAfter) {
+        CreditHistory history = new CreditHistory();
+        history.userId = userId;
+        history.paymentId = paymentId;
+        history.amount = amount;
+        history.balanceAfter = balanceAfter;
+        history.type = CreditHistoryType.CHARGE;
+        return history;
+    }
 }

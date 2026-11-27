@@ -65,6 +65,7 @@ public class PaymentService {
 
 
     public PaymentConfirmResult confirmPayment(Long userId, String orderId, long amount, String paymentKey){
+        // 트렌젝션 1: 주문 검증과 IN_PROGRESS로 변경
         PaymentConfirmResult start = paymentConfirmTxService.startConfirm(userId, orderId, paymentKey, amount);
         if (start.status() == PaymentStatus.DONE) {
             // 이미 승인된 같은 요청이다 (성공 페이지 새로고침). 토스를 부르지 않는다
@@ -81,8 +82,13 @@ public class PaymentService {
             return new PaymentConfirmResult(orderId);
         }
 
-        // 승인됨(APPROVED) → 승인 완료(tx2), 거절(REJECTED)·키 오류(KEY_ERROR) → 거절 기록은 다음 단계에서 구현한다
-        throw new UnsupportedOperationException("승인 완료·거절 기록 구현 전");
+        // 승인됨: DONE 저장, 잔액 충전, 원장 기록 (tx2)
+        if (result.type() == TossConfirmResult.Type.APPROVED) {
+            return paymentConfirmTxService.completeConfirm(orderId, result.method(), result.approvedAt());
+        }
+
+        // 거절(REJECTED)·키 오류(KEY_ERROR) → 거절 기록은 다음 단계에서 구현한다
+        throw new UnsupportedOperationException("거절 기록 구현 전");
     }
 
 }

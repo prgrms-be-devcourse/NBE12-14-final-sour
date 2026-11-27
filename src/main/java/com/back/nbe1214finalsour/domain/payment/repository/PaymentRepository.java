@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
@@ -49,4 +50,20 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     int startIfReady(@Param("orderId") String orderId, @Param("userId") Long userId,
                      @Param("amount") long amount, @Param("paymentKey") String paymentKey);
 
+
+    /**
+     * IN_PROGRESS 주문만 DONE으로 바꾸고 토스의 결제수단·승인 시각을 저장한다.
+     * 스케줄러가 같은 주문을 먼저 처리했으면 0이 되어 충전이 두 번 일어나지 않는다.
+     *
+     * @return 바뀐 행 수. 0이면 IN_PROGRESS가 아니다
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE payment
+               SET status = 'DONE', method = :method, approved_at = :approvedAt
+             WHERE order_id = :orderId
+               AND status = 'IN_PROGRESS'
+            """, nativeQuery = true)
+    int completeIfInProgress(@Param("orderId") String orderId, @Param("method") String method,
+                             @Param("approvedAt") OffsetDateTime approvedAt);
 }

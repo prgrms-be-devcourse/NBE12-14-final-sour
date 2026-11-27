@@ -1,5 +1,7 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
+import com.back.nbe1214finalsour.domain.credit.entity.CreditHistory;
+import com.back.nbe1214finalsour.domain.credit.repository.CreditHistoryRepository;
 import com.back.nbe1214finalsour.domain.credit.repository.CreditWallet;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
@@ -10,12 +12,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class PaymentConfirmTxService {
 
     private final PaymentRepository paymentRepository;
     private final CreditWallet creditWallet;
+    private final CreditHistoryRepository creditHistoryRepository;
 
     // 주문 상태 -> IN_PROGRESS로 변경 + payment_key 저장
     @Transactional
@@ -55,5 +60,25 @@ public class PaymentConfirmTxService {
         }
         // 그 외(IN_PROGRESS·ABORTED·EXPIRED·CANCELED, 다른 결제 키의 DONE)는 이미 처리된 주문이다
         throw new BusinessException(ErrorCode.PAY_ALREADY_PROCESSED);
+    }
+
+
+    // 승인 완료. 토스가 승인한 뒤 DONE 저장, 잔액 증가, 충전 원장 기록을 한 트랜잭션에서 한다
+    @Transactional
+    public PaymentConfirmResult completeConfirm(String orderId, String method, OffsetDateTime approvedAt) {
+        int updated = this.paymentRepository.completeIfInProgress(orderId, method, approvedAt);
+        if (updated == 0) {
+            // 스케줄러가 먼저 처리했다. 여기서 충전하면 두 번이 되므로 하지 않고 확인 중으로 응답한다
+            return new PaymentConfirmResult(orderId);
+        }
+        // 원장에 넣을 결제 id와 충전할 회원·금액을 읽는다. UPDATE가 1행이었으니 반드시 있다
+        Payment payment = this.paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalStateException("승인 완료 UPDATE 뒤 주문이 없음: orderId=" + orderId));
+
+        long balance = this.creditWallet.charge(payment.getUserId(), payment.getAmount());
+
+        this.creditHistoryRepository.save(CreditHistory.charge(payment.getUserId(), payment.getId(), payment.getAmount(), balance));
+
+        return new PaymentConfirmResult(orderId, PaymentStatus.DONE, method, approvedAt, payment.getAmount(), balance);
     }
 }
