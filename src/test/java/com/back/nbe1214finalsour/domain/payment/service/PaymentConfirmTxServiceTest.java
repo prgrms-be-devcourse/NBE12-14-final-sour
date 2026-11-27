@@ -35,6 +35,7 @@ class PaymentConfirmTxServiceTest {
     private static final Long OTHER_USER_ID = 2L;
     private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
     private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
+    private static final String OTHER_PAYMENT_KEY = "tgen_20261127160000ZzZz9";
     private static final long AMOUNT = 5_000L;
     private static final String METHOD = "카드";
     private static final OffsetDateTime APPROVED_AT = OffsetDateTime.parse("2026-11-27T16:00:00+09:00");
@@ -154,6 +155,27 @@ class PaymentConfirmTxServiceTest {
             assertThat(result.creditBalance()).isEqualTo(12_000L);
             then(creditWallet).should(never()).charge(anyLong(), anyLong());
             then(creditHistoryRepository).shouldHaveNoInteractions();
+        }
+
+        @Test
+        @DisplayName("이미 승인된 주문에 다른 결제 키로 요청하면 PAY_ALREADY_PROCESSED 예외를 던진다")
+        void throwsAlreadyProcessedWhenDoneWithOtherKey() {
+            // given
+            Payment donePayment = mock(Payment.class);
+            given(donePayment.getUserId()).willReturn(USER_ID);
+            given(donePayment.getAmount()).willReturn(AMOUNT);
+            given(donePayment.getStatus()).willReturn(PaymentStatus.DONE);
+            given(donePayment.getPaymentKey()).willReturn(OTHER_PAYMENT_KEY); // 요청의 PAYMENT_KEY와 다르다
+            given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(0);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(donePayment));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_ALREADY_PROCESSED);
+            then(creditWallet).shouldHaveNoInteractions();
         }
     }
 }
