@@ -14,6 +14,7 @@ import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
@@ -244,6 +245,27 @@ class PaymentServiceTest {
             assertThat(result.status()).isEqualTo(PaymentStatus.IN_PROGRESS);
             then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
             then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("토스가 거절하면 거절을 기록하고 토스 코드·메시지를 담은 거절 예외를 던진다")
+        void abortsAndThrowsRejectedWhenTossRejected() {
+            // given
+            String tossCode = "REJECT_CARD_PAYMENT";
+            String tossMessage = "한도초과 혹은 잔액부족으로 결제에 실패했습니다.";
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.REJECTED, null, null, tossCode, tossMessage));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting은 예외의 필드를 이름으로 꺼내고, containsExactly는 그 값들을 순서대로 비교한다
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY))
+                    .isInstanceOf(PaymentConfirmRejectedException.class)
+                    .extracting("errorCode", "tossCode", "tossMessage")
+                    .containsExactly(ErrorCode.PAY_CONFIRM_FAILED, tossCode, tossMessage);
+            then(paymentConfirmTxService).should().abortConfirm(ORDER_ID, tossCode, tossMessage);
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
         }
     }
 }
