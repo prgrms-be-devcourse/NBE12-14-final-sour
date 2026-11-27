@@ -22,6 +22,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -176,6 +178,28 @@ class PaymentConfirmTxServiceTest {
                     .extracting("errorCode")
                     .isEqualTo(ErrorCode.PAY_ALREADY_PROCESSED);
             then(creditWallet).shouldHaveNoInteractions();
+        }
+
+        // @EnumSource(names = ...)는 나열한 enum 상수 하나하나를 인자로 넣어 테스트를 상수 수만큼 반복 실행한다
+        @ParameterizedTest(name = "{0}")
+        @EnumSource(value = PaymentStatus.class, names = {"IN_PROGRESS", "ABORTED", "EXPIRED", "CANCELED"})
+        @DisplayName("본인 주문이 READY도 DONE도 아니면 PAY_ALREADY_PROCESSED 예외를 던진다")
+        void throwsAlreadyProcessedWhenNotReady(PaymentStatus status) {
+            // given
+            Payment payment = mock(Payment.class);
+            given(payment.getUserId()).willReturn(USER_ID);
+            given(payment.getAmount()).willReturn(AMOUNT);
+            given(payment.getStatus()).willReturn(status);
+            // getPaymentKey()는 스텁하지 않는다: DONE이 아니면 읽지 않는다
+            given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(0);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(payment));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_ALREADY_PROCESSED);
         }
     }
 }
