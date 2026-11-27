@@ -238,4 +238,21 @@ class TossPaymentsClientTest {
         // then
         assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
     }
+
+    @Test
+    @DisplayName("4xx인데 에러 본문에 코드가 없으면 UNKNOWN을 돌려준다")
+    void returnsUnknownWhenErrorBodyHasNoCode() {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{}"));
+
+        // when
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
+        assertThat(result.code()).isNull();
+    }
 }
