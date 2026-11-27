@@ -1,5 +1,7 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
+import com.back.nbe1214finalsour.domain.credit.repository.CreditHistoryRepository;
+import com.back.nbe1214finalsour.domain.credit.repository.CreditWallet;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
@@ -15,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final CreditWallet creditWallet;
+    private final CreditHistoryRepository creditHistoryRepository;
 
     // 충전 주문을 READY로 저장한다. 토스 호출은 없다 (프론트가 응답 값으로 결제창을 연다)
     @Transactional
@@ -56,4 +60,6 @@ public class PaymentService {
         // 그 외(IN_PROGRESS·DONE·EXPIRED·CANCELED)는 이미 다른 결과가 난 주문이다
         throw new BusinessException(ErrorCode.PAY_ALREADY_PROCESSED);
     }
+
+
 }
