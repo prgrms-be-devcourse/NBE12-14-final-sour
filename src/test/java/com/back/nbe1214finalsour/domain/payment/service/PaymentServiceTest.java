@@ -267,5 +267,28 @@ class PaymentServiceTest {
             then(paymentConfirmTxService).should().abortConfirm(ORDER_ID, tossCode, tossMessage);
             then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
         }
+
+        @Test
+        @DisplayName("토스 키 설정 오류면 거절을 기록하고 COMMON_INTERNAL_ERROR 예외를 던진다")
+        void abortsAndThrowsInternalErrorWhenKeyError() {
+            // given
+            String tossCode = "UNAUTHORIZED_KEY";
+            String tossMessage = "인증되지 않은 시크릿 키 혹은 클라이언트 키 입니다.";
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.KEY_ERROR, null, null, tossCode, tossMessage));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            // 거절 예외(400, 토스 사유 노출)가 아니라 일반 BusinessException이어야 우리 설정 오류가 사용자 탓으로 나가지 않는다
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY))
+                    .isInstanceOf(BusinessException.class)
+                    .isNotInstanceOf(PaymentConfirmRejectedException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.COMMON_INTERNAL_ERROR);
+            then(paymentConfirmTxService).should().abortConfirm(ORDER_ID, tossCode, tossMessage);
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+        }
     }
 }
