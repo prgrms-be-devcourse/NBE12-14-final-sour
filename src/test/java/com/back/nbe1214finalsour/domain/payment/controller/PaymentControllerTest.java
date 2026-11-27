@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
+import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.service.PaymentConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.service.PaymentService;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
@@ -26,6 +28,7 @@ import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.SecurityConfig;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 import org.junit.jupiter.api.DisplayName;
+import java.time.OffsetDateTime;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,6 +57,7 @@ class PaymentControllerTest {
     // 토큰의 회원: userId 1, universityId 7, departmentId 34
     private static final AuthUser USER = new AuthUser(1L, 7L, 34L, Role.USER);
     private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
+    private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
     private static final String CODE = "PAY_PROCESS_CANCELED";
     private static final String MESSAGE = "사용자에 의해 결제가 취소되었습니다.";
 
@@ -254,5 +258,35 @@ class PaymentControllerTest {
             return "null";
         }
         return "\"" + value + "\"";
+    }
+
+    @Test
+    @DisplayName("승인이 완료되면 200과 주문 상태·결제수단·KST 승인 시각·충전 크레딧·잔액을 응답한다")
+    void confirmReturns200WithChargeResult() throws Exception {
+        // given: 승인 시각을 일부러 UTC로 준다. 응답은 KST(+09:00)로 바뀌어야 한다
+        PaymentConfirmResult done = new PaymentConfirmResult(
+                ORDER_ID, PaymentStatus.DONE, "카드", OffsetDateTime.parse("2026-11-27T07:00:00Z"), 5_000L, 12_000L);
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY)).willReturn(done);
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"paymentKey": "tgen_20261127160000AbCd1",
+                         "orderId": "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b",
+                         "amount": 5000}
+                        """));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.orderId").value(ORDER_ID))
+                .andExpect(jsonPath("$.data.status").value("DONE"))
+                .andExpect(jsonPath("$.data.method").value("카드"))
+                .andExpect(jsonPath("$.data.approvedAt").value("2026-11-27T16:00:00+09:00"))
+                .andExpect(jsonPath("$.data.chargedCredit").value(5000))
+                .andExpect(jsonPath("$.data.creditBalance").value(12000));
+        then(paymentService).should().confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY);
     }
 }
