@@ -2,6 +2,7 @@ package com.back.nbe1214finalsour.domain.payment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -257,5 +258,21 @@ class PaymentConfirmTxServiceTest {
         assertThat(result.chargedCredit()).isEqualTo(5_000L);
         assertThat(result.creditBalance()).isEqualTo(12_000L);
         then(creditWallet).should().charge(USER_ID, AMOUNT); // 정확히 1번
+    }
+
+    @Test
+    @DisplayName("승인 완료 UPDATE가 0행이면 충전하지 않고 IN_PROGRESS 결과를 돌려준다")
+    void completeConfirmSkipsChargeWhenNotUpdated() {
+        // given
+        given(paymentRepository.completeIfInProgress(ORDER_ID, METHOD, APPROVED_AT)).willReturn(0);
+
+        // when
+        PaymentConfirmResult result = service.completeConfirm(ORDER_ID, METHOD, APPROVED_AT);
+
+        // then
+        assertThat(result.status()).isEqualTo(PaymentStatus.IN_PROGRESS);
+        then(creditWallet).shouldHaveNoInteractions();
+        then(creditHistoryRepository).shouldHaveNoInteractions();
+        then(paymentRepository).should(never()).findByOrderId(any());
     }
 }
