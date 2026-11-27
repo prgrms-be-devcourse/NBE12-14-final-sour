@@ -1,6 +1,7 @@
 package com.back.nbe1214finalsour.domain.payment.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -254,5 +256,18 @@ class TossPaymentsClientTest {
         // then
         assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
         assertThat(result.code()).isNull();
+    }
+
+    // @NullSource는 null을, @ValueSource는 나열한 문자열을 인자로 넣어 테스트를 인자 수(3번)만큼 반복 실행한다
+    @ParameterizedTest(name = "[{0}]")
+    @NullSource
+    @ValueSource(strings = {"", "   "})
+    @DisplayName("시크릿 키가 없거나 비어 있으면 클라이언트를 만들 수 없다")
+    void rejectsBlankSecretKey(String key) {
+        // when & then
+        // 람다 안의 호출이 던진 예외를 검사한다
+        assertThatThrownBy(() -> new TossPaymentsClient(RestClient.create(), key))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TOSS_SECRET_KEY");
     }
 }
