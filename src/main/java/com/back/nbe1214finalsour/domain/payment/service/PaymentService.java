@@ -5,6 +5,7 @@ import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
@@ -87,8 +88,22 @@ public class PaymentService {
             return paymentConfirmTxService.completeConfirm(orderId, result.method(), result.approvedAt());
         }
 
-        // 거절(REJECTED)·키 오류(KEY_ERROR) → 거절 기록은 다음 단계에서 구현한다
-        throw new UnsupportedOperationException("거절 기록 구현 전");
+        // 거절: 주문을 실패로 닫고, 토스 거절 사유를 담은 예외를 던진다 → 400
+        if (result.type() == TossConfirmResult.Type.REJECTED) {
+            paymentConfirmTxService.abortConfirm(orderId, result.code(), result.message());
+            log.info("토스 승인 거절: orderId={}, code={}", orderId, result.code());
+            throw new PaymentConfirmRejectedException(result.code(), result.message());
+        }
+
+        // 키 오류: 우리 설정 문제라 사용자에게 내부 사유를 보이지 않고 500으로 응답한다
+        if (result.type() == TossConfirmResult.Type.KEY_ERROR) {
+            paymentConfirmTxService.abortConfirm(orderId, result.code(), result.message());
+            log.error("토스 시크릿 키 설정 오류: code={}. TOSS_SECRET_KEY를 확인하세요", result.code());
+            throw new BusinessException(ErrorCode.COMMON_INTERNAL_ERROR);
+        }
+
+        // 네 종류를 모두 처리했으므로 여기 오면 분류 코드에 새 종류가 생긴 것이다
+        throw new IllegalStateException("처리하지 않은 토스 결과: " + result.type());
     }
 
 }

@@ -81,4 +81,11 @@ public class PaymentConfirmTxService {
 
         return new PaymentConfirmResult(orderId, PaymentStatus.DONE, method, approvedAt, payment.getAmount(), balance);
     }
+
+    // [거절 기록] 토스 거절이나 키 오류 뒤에 주문을 ABORTED로 닫고 토스의 코드·메시지를 남긴다
+    // 0행이면 스케줄러가 먼저 처리한 것이라 아무것도 하지 않는다
+    @Transactional
+    public void abortConfirm(String orderId, String failCode, String failMessage) {
+        this.paymentRepository.abortIfInProgress(orderId, failCode, failMessage);
+    }
 }

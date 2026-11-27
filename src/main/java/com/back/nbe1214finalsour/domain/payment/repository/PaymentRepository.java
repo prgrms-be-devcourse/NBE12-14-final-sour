@@ -66,4 +66,19 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """, nativeQuery = true)
     int completeIfInProgress(@Param("orderId") String orderId, @Param("method") String method,
                              @Param("approvedAt") OffsetDateTime approvedAt);
+
+    /**
+     * IN_PROGRESS 주문만 ABORTED로 바꾸고 토스의 거절 코드·메시지를 저장한다.
+     *
+     * @return 바뀐 행 수. 0이면 IN_PROGRESS가 아니다 (스케줄러가 먼저 처리함)
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE payment
+               SET status = 'ABORTED', fail_code = :failCode, fail_message = :failMessage
+             WHERE order_id = :orderId
+               AND status = 'IN_PROGRESS'
+            """, nativeQuery = true)
+    int abortIfInProgress(@Param("orderId") String orderId, @Param("failCode") String failCode,
+                          @Param("failMessage") String failMessage);
 }
