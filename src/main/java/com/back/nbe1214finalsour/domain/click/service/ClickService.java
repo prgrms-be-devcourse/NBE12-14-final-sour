@@ -47,7 +47,7 @@ public class ClickService {
         Double lat = request.latitude();
         Double lng = request.longitude();
 
-        long score = clickActionGuard.verifyAndGetBaseScore(userId, submissionId, clickCount);
+        ClickActionGuard.Score scoreVo = clickActionGuard.verifyAndGetBaseScore(userId, submissionId, clickCount, ClickActionGuard.ClickType.CLICK);
 
         if (departmentId == null) {
             departmentId = userRepository.findById(userId)
@@ -64,7 +64,7 @@ public class ClickService {
         BigDecimal multiplierBigDecimal = itemMultiplier.multiply(isInLibrary ? LIBRARY_MULTIPLIER : BigDecimal.ONE);
 
         // 점수 계산
-        score = multiplierBigDecimal.multiply(BigDecimal.valueOf(score))
+        long score = multiplierBigDecimal.multiply(BigDecimal.valueOf(scoreVo.score()))
                 .setScale(0, RoundingMode.FLOOR).longValueExact();
 
         // 연합·대결 확인
@@ -107,6 +107,9 @@ public class ClickService {
                 Long.valueOf(r.get(3)),
                 Long.valueOf(r.get(4)));
 
-        return ClickResponse.from(clickApplyResponse, clickCount, score, multiplierBigDecimal.doubleValue(), universityId, departmentId, isInLibrary);
+        return ClickResponse.from(
+                clickApplyResponse, clickCount, score,
+                multiplierBigDecimal.doubleValue(), universityId, departmentId,
+                isInLibrary, scoreVo.criticalIndex(), scoreVo.damageRateIndex());
     }
 }

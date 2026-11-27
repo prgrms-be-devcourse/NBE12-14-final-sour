@@ -103,7 +103,7 @@ test('실제 채팅은 지연 로드하고 API 미리보기는 샘플 메시지�
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   const panel = readFileSync(new URL('../src/components/GameSchoolPanel.tsx', import.meta.url), 'utf8');
   assert.match(panel, /lazy\(\(\) => import\('\.\/ApiChatBottomSheet'\)/);
-  assert.match(panel, /<LazyApiChat schoolOnly/);
+  assert.match(panel, /<LazyApiChat embedded/);
   assert.match(app, /<LazyApiChat/);
   assert.match(app, /unreadCount=\{API_MODE === 'api' \? 0 : 12\}/);
   assert.match(app, /latestMessage=\{API_MODE === 'api' \? '열어서 대화하기'/);

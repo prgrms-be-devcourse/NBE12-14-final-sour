@@ -2,6 +2,8 @@ package com.back.nbe1214finalsour.domain.click.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 public record AttackResponse(
         @Schema(description = "반영한 클릭 수 (요청한 clickCount와 같다)", example = "15")
         Long acceptedClicks,
@@ -14,17 +16,24 @@ public record AttackResponse(
         @Schema(description = "공격 뒤 대상 학교")
         AttackUniversityResponse targetUniversity,
         @Schema(description = "제출 뒤 내 누적 공격 점수", example = "120")
-        Long myAttackScore
+        Long myAttackScore,
+        @Schema(description = "크리티컬이 몇 번 인덱스에서 터지는지", example = "[1, 6, 10]")
+        List<Integer> criticalIndex,
+        @Schema(description = "데미지 비율 인덱스", example = "[89, 90, 110, 130, 50, ... 20개]")
+        List<Integer> damageRateIndex
 ) {
     public static AttackResponse from(AttackApplyResponse attackApplyResponse, int clickCount,
-                                      boolean isRival, Long targetUniversityId, String targetName) {
+                                      boolean isRival, Long targetUniversityId, String targetName,
+                                      List<Integer> criticalIndex, List<Integer> damageRateIndex) {
         return new AttackResponse(
                 (long) clickCount,
                 attackApplyResponse.damage(),
                 isRival ? 1.1 : 1.0,
                 isRival,
                 new AttackUniversityResponse(targetUniversityId, targetName, attackApplyResponse.univTotal(), attackApplyResponse.univRank()),
-                attackApplyResponse.myAttackScore()
+                attackApplyResponse.myAttackScore(),
+                criticalIndex,
+                damageRateIndex
         );
     }
     record AttackUniversityResponse(Long id, String name, Long totalScore, Long rank) {}

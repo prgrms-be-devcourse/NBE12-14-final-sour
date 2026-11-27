@@ -130,7 +130,7 @@ export const CampusView: React.FC<CampusViewProps> = ({
       const finalPoints = result ?? Math.round(points);
       ownClicks.current += 1;
 
-      soundManager.playTapSound(isCrit);
+      soundManager.playPopSound(isCrit);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate(isCrit ? 25 : 12);
       }

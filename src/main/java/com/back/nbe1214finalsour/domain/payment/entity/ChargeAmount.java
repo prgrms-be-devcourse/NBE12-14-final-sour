@@ -2,10 +2,10 @@ package com.back.nbe1214finalsour.domain.payment.entity;
 
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
-import java.util.Arrays;
-import java.util.Locale;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Locale;
 
 @Getter
 @RequiredArgsConstructor
@@ -17,10 +17,16 @@ public enum ChargeAmount {
     private final long amount;
 
     public static ChargeAmount from(long amount) {
-        return Arrays.stream(values())
-                .filter(chargeAmount -> chargeAmount.amount == amount)
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(ErrorCode.PAY_INVALID_AMOUNT));
+        if (amount == 2_500) {
+            return KRW_2500;
+        }
+        if (amount == 5_000) {
+            return KRW_5000;
+        }
+        if (amount == 10_000) {
+            return KRW_10000;
+        }
+        throw new BusinessException(ErrorCode.PAY_INVALID_AMOUNT);
     }
 
     public String orderName() {

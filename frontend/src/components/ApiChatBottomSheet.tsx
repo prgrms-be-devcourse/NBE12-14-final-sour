@@ -14,9 +14,9 @@ const BUTTON = 'pixel-plaque plaque-parchment min-h-11 min-w-11 px-2 text-xs fon
 const time = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' });
 const CONNECTION_TEXT = { connecting: '채팅에 연결하는 중이에요.', connected: '실시간 연결됨', reconnecting: '연결이 끊겨 다시 연결하는 중이에요.', blocked: '자동 연결을 멈췄어요. 오류를 확인하고 다시 연결해 주세요.' };
 
-interface ApiChatProps { onClose?: () => void; onGoToLogin?: () => void; connectionFactory?: ChatConnectionFactory; schoolOnly?: boolean }
+interface ApiChatProps { onClose?: () => void; onGoToLogin?: () => void; connectionFactory?: ChatConnectionFactory; embedded?: boolean }
 /** Only the live API entry mounts this component. Mock comparison screens keep their original sheet. */
-export function ApiChatBottomSheet({ onClose, onGoToLogin, connectionFactory, schoolOnly = false }: ApiChatProps) {
+export function ApiChatBottomSheet({ onClose, onGoToLogin, connectionFactory, embedded = false }: ApiChatProps) {
   const signedIn = useAuthSession().status === 'signed-in';
   const me = useMyInfo();
   const [view, setView] = useState<'school' | 'union' | 'words'>('school');
@@ -25,13 +25,11 @@ export function ApiChatBottomSheet({ onClose, onGoToLogin, connectionFactory, sc
   const wordsButton = useRef<HTMLButtonElement>(null);
   return <div className="w-full h-full bg-[#fdf5df] border-t-4 border-[#261608] flex flex-col overflow-hidden font-pixel text-[#261608]">
     <header className="bg-[#faecc7] border-b-2 border-[#261608] p-2 flex flex-wrap items-center gap-1 shrink-0">
-      <h2 className="text-sm font-black mr-1">{schoolOnly ? '우리 학교 채팅' : '채팅'}</h2>
-      {!schoolOnly && <>
-        <button type="button" aria-pressed={view === 'school'} onClick={() => setView('school')} className={BUTTON}>교내 채팅</button>
-        <button type="button" aria-pressed={view === 'union'} onClick={() => { setView('union'); setUnionOpened(true); }} className={BUTTON}>연합 채팅</button>
-      </>}
+      <h2 className="text-sm font-black mr-1">채팅</h2>
+      <button type="button" aria-pressed={view === 'school'} onClick={() => setView('school')} className={BUTTON}>교내 채팅</button>
+      <button type="button" aria-pressed={view === 'union'} onClick={() => { setView('union'); setUnionOpened(true); }} className={BUTTON}>연합 채팅</button>
       <button ref={wordsButton} type="button" aria-pressed={view === 'words'} onClick={() => setView('words')} className={BUTTON}>금칙어</button>
-      {!schoolOnly && <button type="button" aria-label="채팅창 닫기" onClick={onClose} className={`${BUTTON} ml-auto`}><ChevronDown className="w-4 h-4" aria-hidden="true" /></button>}
+      {!embedded && <button type="button" aria-label="채팅창 닫기" onClick={onClose} className={`${BUTTON} ml-auto`}><ChevronDown className="w-4 h-4" aria-hidden="true" /></button>}
     </header>
     {!signedIn ? <div role="status" className="p-3 text-sm">
       <p>채팅을 이용하려면 로그인해 주세요.</p>

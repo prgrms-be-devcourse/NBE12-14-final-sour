@@ -54,12 +54,38 @@ const { AllianceProvider, useAlliance } = await import('../src/hooks/useMockAlli
 const { MockGameProvider } = await import('../src/hooks/useMockGame.tsx');
 const { AllianceApplyScreenPhone } = await import('../src/components/AllianceApplyScreenPhone.tsx');
 const { CurrentAllianceScreenPhone } = await import('../src/components/CurrentAllianceScreenPhone.tsx');
+const { ChatBottomSheet } = await import('../src/components/ChatBottomSheet.tsx');
 const { default: App } = await import('../src/App.tsx');
 
 afterEach(() => cleanup());
 after(() => {
   assetHooks.deregister();
   dom.window.close();
+});
+
+test('PC mock 연합 채팅은 열린 상태에서 가입·만료를 반영하고 교내 메시지와 탭을 유지한다', () => {
+  let alliance!: ReturnType<typeof useAlliance>;
+  function Probe() { alliance = useAlliance(); return null; }
+  render(React.createElement(MockGameProvider, null, React.createElement(AllianceProvider, null,
+    React.createElement(Probe), React.createElement(ChatBottomSheet, { embedded: true, mySchoolInitial: '한', myNickname: '학생', myDepartment: '공학과' }))));
+  fireEvent.change(screen.getByRole('textbox', { name: '채팅 메시지' }), { target: { value: '교내 보존' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  fireEvent.click(screen.getByRole('button', { name: '연합 채팅' }));
+  assert.ok(screen.getByTestId('union-chat-empty'));
+  let requestId = '';
+  act(() => { const result = alliance.applyRequest(SCHOOL_ID.pusan); assert.ok(result.success); requestId = result.request!.id; });
+  act(() => { assert.ok(alliance.demoAcceptRequest(requestId).success); });
+  assertAbsent(screen.queryByTestId('union-chat-empty'));
+  assert.ok(screen.getByText(/연합 화이팅/));
+  fireEvent.change(screen.getByRole('textbox', { name: '채팅 메시지' }), { target: { value: '연합 보존' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  act(() => alliance.toggleSimulateLoadFailure());
+  assert.ok(screen.getByText('연합 보존'));
+  act(() => alliance.fastForwardClock(25));
+  assert.ok(screen.getByTestId('union-chat-empty'));
+  assertAbsent(screen.queryByText('교내 보존'));
+  fireEvent.click(screen.getByRole('button', { name: '교내 채팅' }));
+  assert.ok(screen.getByText('교내 보존'));
 });
 
 test('연합 신청 유효성 검사: 자기 학교 신청, 유효하지 않은 학교 ID, 중복 대기 신청을 거절한다', () => {

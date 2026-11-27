@@ -1,23 +1,40 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.withSettings;
 
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
+import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
+import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
+
+    private static final Long USER_ID = 1L;
+    private static final Long OTHER_USER_ID = 2L;
+    private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
+    private static final String CODE = "PAY_PROCESS_CANCELED";
+    private static final String MESSAGE = "사용자에 의해 결제가 취소되었습니다.";
 
     @Mock
     private PaymentRepository paymentRepository;
@@ -41,5 +58,117 @@ class PaymentServiceTest {
         assertThat(captor.getValue().getUserId()).isEqualTo(1L);
         assertThat(captor.getValue().getAmount()).isEqualTo(5_000L);
         assertThat(result).isSameAs(stored);
+    }
+
+    @Test
+    @DisplayName("실패 기록 UPDATE가 1행이면 주문을 조회하지 않고 끝난다")
+    void recordFailEndsWithoutLookupWhenUpdated() {
+        // given
+        given(paymentRepository.abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE)).willReturn(1);
+
+        // when
+        paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE);
+
+        // then
+        then(paymentRepository).should().abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE);
+        then(paymentRepository).shouldHaveNoMoreInteractions();
+    }
+
+    @Nested
+    @DisplayName("실패 기록 UPDATE가 0행일 때")
+    class WhenNotUpdated {
+
+        @Test
+        @DisplayName("주문이 없으면 PAY_ORDER_NOT_FOUND 예외를 던진다")
+        void throwsNotFoundWhenOrderMissing() {
+            // given
+            given(paymentRepository.abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE)).willReturn(0);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.empty());
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_ORDER_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("남의 주문이면 이미 ABORTED여도 PAY_ORDER_NOT_FOUND 예외를 던진다")
+        void throwsNotFoundWhenOthersOrder() {
+            // given
+            given(paymentRepository.abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE)).willReturn(0);
+            // 남의 주문인데 이미 ABORTED: 본인 확인보다 ABORTED 확인이 먼저면 200이 나가는 상황을 만든다
+            // 올바른 코드는 상태를 읽지 않으므로, 이 목만 사용되지 않은 스텁을 허용(LENIENT)한다
+            Payment othersAborted = mock(Payment.class, withSettings().strictness(Strictness.LENIENT));
+            given(othersAborted.getUserId()).willReturn(OTHER_USER_ID);
+            given(othersAborted.getStatus()).willReturn(PaymentStatus.ABORTED);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(othersAborted));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_ORDER_NOT_FOUND);
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @EnumSource(
+                value = PaymentStatus.class,
+                names = {"IN_PROGRESS", "DONE", "EXPIRED", "CANCELED"})
+        @DisplayName("본인 주문이 READY도 ABORTED도 아니면 PAY_ALREADY_PROCESSED 예외를 던진다")
+        void throwsAlreadyProcessedWhenNotReady(PaymentStatus status) {
+            // given
+            given(paymentRepository.abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE)).willReturn(0);
+            Payment payment = mock(Payment.class);
+            given(payment.getUserId()).willReturn(USER_ID);
+            given(payment.getStatus()).willReturn(status);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(payment));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_ALREADY_PROCESSED);
+        }
+
+        @Test
+        @DisplayName("본인 주문이 이미 ABORTED면 예외 없이 끝나고 기록을 다시 쓰지 않는다")
+        void endsNormallyWhenAlreadyAborted() {
+            // given
+            given(paymentRepository.abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE)).willReturn(0);
+            Payment payment = mock(Payment.class);
+            given(payment.getUserId()).willReturn(USER_ID);
+            given(payment.getStatus()).willReturn(PaymentStatus.ABORTED);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(payment));
+
+            // when
+            paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE);
+
+            // then
+            then(paymentRepository).should().abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE);
+            then(paymentRepository).should().findByOrderId(ORDER_ID);
+            then(paymentRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        @DisplayName("본인 주문이 READY인데 UPDATE가 0행이면 IllegalStateException을 던진다")
+        void throwsIllegalStateWhenStillReady() {
+            // given
+            given(paymentRepository.abortIfReady(ORDER_ID, USER_ID, CODE, MESSAGE)).willReturn(0);
+            // 실제 DB에서는 쿼리를 일부러 틀리지 않는 한 재현할 수 없어 목으로 만든다
+            Payment payment = mock(Payment.class);
+            given(payment.getUserId()).willReturn(USER_ID);
+            given(payment.getStatus()).willReturn(PaymentStatus.READY);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(payment));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다
+            assertThatThrownBy(() -> paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining(ORDER_ID);
+        }
     }
 }

@@ -105,6 +105,8 @@ tasks.test {
     useJUnitPlatform {
         excludeTags("integration")
     }
+    // ContainerImageVersionTest가 읽는다. 입력으로 등록해야 compose.yaml만 바뀌어도 테스트가 다시 돈다
+    inputs.file("compose.yaml").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // ./gradlew integrationTest → 통합 테스트만 (Docker 필요)

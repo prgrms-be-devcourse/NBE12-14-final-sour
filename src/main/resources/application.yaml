@@ -174,3 +174,10 @@ springdoc:
   swagger-ui:
     tags-sorter: alpha
     operations-sorter: alpha
+
+click:
+  # 크리티컬 확률, 현재 10%
+  critical-rate: 10
+  # 최소, 최대 데미지 비율, 현재 70~130%
+  min-damage-rate: 70
+  max-damage-rate: 130

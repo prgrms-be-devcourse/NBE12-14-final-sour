@@ -417,7 +417,7 @@
     repeating-linear-gradient(135deg, #dbe8d3 0 16px, #d5e3cd 16px 32px);
 }
 .guest-entry {
-  font-family: var(--font-pixel);
+  font-family: var(--pixel-font);
   color: #261608;
   padding-block: max(.75rem, env(safe-area-inset-top)) max(.75rem, env(safe-area-inset-bottom));
   padding-inline: max(.75rem, env(safe-area-inset-left)) max(.75rem, env(safe-area-inset-right));

@@ -52,7 +52,7 @@ def menu_metrics(controls):
 def mock_menu_flow(page, panel, path):
     left = page.get_by_role('complementary', name='학교 패널')
     detail = left.get_by_role('tab', name='상세')
-    chat = left.get_by_role('tab', name='우리 학교 채팅')
+    chat = left.get_by_role('tab', name='채팅')
     guestbook = left.get_by_role('tab', name='방명록')
     detail.focus()
     page.keyboard.press('ArrowRight')
@@ -580,7 +580,7 @@ def compact_scope(browser, url):
 def api_manual_tabs(page, panel, calls, sockets):
     school = page.get_by_role('complementary', name='학교 패널')
     detail = school.get_by_role('tab', name='상세')
-    chat = school.get_by_role('tab', name='우리 학교 채팅')
+    chat = school.get_by_role('tab', name='채팅')
     rankings = panel.get_by_role('tab', name='순위')
     detail.focus()
     page.keyboard.press('ArrowRight')

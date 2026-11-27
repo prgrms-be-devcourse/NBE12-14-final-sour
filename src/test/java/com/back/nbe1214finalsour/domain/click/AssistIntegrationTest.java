@@ -11,6 +11,7 @@ import com.back.nbe1214finalsour.global.redis.RedisKey;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -108,6 +110,12 @@ class AssistIntegrationTest {
                 RedisKey.USER_EFFECT.of(user.getId()),
                 RedisKey.RATELIMIT_ACTION.of(user.getId()),
                 RedisKey.RATELIMIT_CLICK.of(user.getId()),
+                RedisKey.ASSISTS_CRITICAL.of(user.getId()),
+                RedisKey.CLICKS_CRITICAL.of(user.getId()),
+                RedisKey.ATTACKS_CRITICAL.of(user.getId()),
+                RedisKey.ASSISTS_DAMAGE_RATE.of(user.getId()),
+                RedisKey.CLICKS_DAMAGE_RATE.of(user.getId()),
+                RedisKey.ATTACKS_DAMAGE_RATE.of(user.getId()),
                 RedisKey.SUBMIT_DEDUPE.of(user.getId(), "sub-1"),
                 RedisKey.SUBMIT_DEDUPE.of(user.getId(), "sub-2"),
                 RedisKey.UNIV_ALLIANCE.of(universityId), RedisKey.UNIV_ALLIANCE.of(allyId),
@@ -173,6 +181,67 @@ class AssistIntegrationTest {
                 // floor(9 * 0.3) = 2, floor(9 * 1.5) = 13
                 .andExpect(jsonPath("$.data.assistScore").value(27))
                 .andExpect(jsonPath("$.data.myContribScore").value(135));
+    }
+
+    @Test
+    @DisplayName("지원은 지원용 크리티컬 위치만 2배로 계산하고, 대상 학교 점수와 내 기여도에 모두 반영한다")
+    void criticalAppliesToAssistScoreAndContribution() throws Exception {
+        givenScore(allyId, 100);
+        redisHandler.setHash(RedisKey.USER_EFFECT.of(user.getId()), "multiplier", 1.5);
+        redis.opsForValue().set(RedisKey.ASSISTS_CRITICAL.of(user.getId()), "[0]");
+        redis.opsForValue().set(RedisKey.CLICKS_CRITICAL.of(user.getId()), "[0,1,2,3]");
+        redis.opsForValue().set(RedisKey.ATTACKS_CRITICAL.of(user.getId()), "[0,1,2,3]");
+
+        assist("sub-1", allyId, 4)
+                .andExpect(status().isOk())
+                // 기본 점수 20 + 10 + 10 + 10 = 50. 대상 학교 50 * 0.3 = 15, 내 기여도 50 * 1.5 = 75
+                .andExpect(jsonPath("$.data.assistScore").value(15))
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(115))
+                .andExpect(jsonPath("$.data.myContribScore").value(75))
+                .andExpect(jsonPath("$.data.criticalIndex", Matchers.empty()));
+
+        assertThat(redis.opsForValue().get(RedisKey.ASSISTS_CRITICAL.of(user.getId()))).isEqualTo("[]");
+        assertThat(redis.opsForValue().get(RedisKey.CLICKS_CRITICAL.of(user.getId()))).isEqualTo("[0,1,2,3]");
+        assertThat(redis.opsForValue().get(RedisKey.ATTACKS_CRITICAL.of(user.getId()))).isEqualTo("[0,1,2,3]");
+    }
+
+    @Test
+    @DisplayName("지원은 지원용 데미지 배율만 곱하고, 대상 학교 점수와 내 기여도에 모두 반영한다")
+    void damageRatesApplyToAssistScoreAndContribution() throws Exception {
+        givenScore(allyId, 100);
+        redisHandler.setHash(RedisKey.USER_EFFECT.of(user.getId()), "multiplier", 1.5);
+        redis.opsForValue().set(RedisKey.ASSISTS_DAMAGE_RATE.of(user.getId()), "[130,130,130,130]");
+        redis.opsForValue().set(RedisKey.CLICKS_DAMAGE_RATE.of(user.getId()), "[70,70,70,70]");
+        redis.opsForValue().set(RedisKey.ATTACKS_DAMAGE_RATE.of(user.getId()), "[70,70,70,70]");
+
+        assist("sub-1", allyId, 4)
+                .andExpect(status().isOk())
+                // 기본 점수 4 * 10 * 130 / 100 = 52. 대상 학교 52 * 0.3 = 15.6 → 15, 내 기여도 52 * 1.5 = 78
+                .andExpect(jsonPath("$.data.assistScore").value(15))
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(115))
+                .andExpect(jsonPath("$.data.myContribScore").value(78))
+                .andExpect(jsonPath("$.data.damageRateIndex.length()").value(20))
+                .andExpect(jsonPath("$.data.damageRateIndex[*]", Matchers.everyItem(Matchers.is(100))));
+
+        assertThat(redis.opsForValue().get(RedisKey.ASSISTS_DAMAGE_RATE.of(user.getId())))
+                .isEqualTo("[" + String.join(",", Collections.nCopies(20, "100")) + "]");
+        assertThat(redis.opsForValue().get(RedisKey.CLICKS_DAMAGE_RATE.of(user.getId()))).isEqualTo("[70,70,70,70]");
+        assertThat(redis.opsForValue().get(RedisKey.ATTACKS_DAMAGE_RATE.of(user.getId()))).isEqualTo("[70,70,70,70]");
+    }
+
+    @Test
+    @DisplayName("지원도 배율과 크리티컬을 합친 뒤 한 번 버린 값을 기본 점수로 쓴다")
+    void assistCombinesDamageRateAndCritical() throws Exception {
+        givenScore(allyId, 100);
+        redis.opsForValue().set(RedisKey.ASSISTS_DAMAGE_RATE.of(user.getId()), "[87,130]");
+        redis.opsForValue().set(RedisKey.ASSISTS_CRITICAL.of(user.getId()), "[1]");
+
+        assist("sub-1", allyId, 2)
+                .andExpect(status().isOk())
+                // (10*87 + 10*130*2) / 100 = 34.7 → 34. 대상 학교 34 * 0.3 = 10.2 → 10, 내 기여도 34
+                .andExpect(jsonPath("$.data.assistScore").value(10))
+                .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(110))
+                .andExpect(jsonPath("$.data.myContribScore").value(34));
     }
 
     @Test

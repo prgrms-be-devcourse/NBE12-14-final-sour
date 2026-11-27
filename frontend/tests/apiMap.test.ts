@@ -24,7 +24,7 @@ for (const [key, value] of Object.entries({ window: dom.window, document: dom.wi
 })) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 dom.window.HTMLElement.prototype.scrollIntoView = function () {};
 
-const { render, screen, cleanup, waitFor, fireEvent, within } = await import('@testing-library/react');
+const { render, screen, cleanup, waitFor, fireEvent, within, act } = await import('@testing-library/react');
 const { ApiProvider } = await import('../src/api/ApiProvider');
 const { createApiClient } = await import('../src/api/client');
 const { createQueryClient } = await import('../src/api/queryClient');
@@ -90,6 +90,20 @@ function mount({ signedIn = true, respond }: { signedIn?: boolean; respond?: (ur
   return { calls, selected };
 }
 const mapArea = () => screen.getByTestId('map-area');
+
+test('지도는 5초마다 재조회하여 변경된 순위와 점수를 표시한다', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const f = mount({ respond: (url, n) => url.pathname.endsWith('/map/universities') && n > 1
+    ? ok([entry(1, SCHOOL_ID.hanyang, 9876), entry(2, SCHOOL_ID.chonnam, 900)]) : undefined });
+  for (let i = 0; i < 12; i++) await act(async () => { await new Promise<void>((resolve) => setImmediate(resolve)); t.mock.timers.tick(10); });
+  assert.equal(f.calls.filter((call) => call.path.includes('/map/universities')).length, 1);
+  assert.equal(screen.getByTestId('my-school-tag').textContent, '내 학교 한양대 · 2위');
+  await act(async () => { t.mock.timers.tick(5000); await new Promise<void>((resolve) => setImmediate(resolve)); });
+  for (let i = 0; i < 12; i++) await act(async () => { await new Promise<void>((resolve) => setImmediate(resolve)); t.mock.timers.tick(10); });
+  assert.equal(f.calls.filter((call) => call.path.includes('/map/universities')).length, 2);
+  assert.equal(screen.getByTestId('my-school-tag').textContent, '내 학교 한양대 · 1위');
+  assert.ok(within(mapArea()).getAllByText('9,876').length > 0);
+});
 
 test('서버 순위·점수를 학교 디렉터리에 덮어쓰고, 응답에 없는 학교는 0점 공동 최하위로 둔다', () => {
   const views = toMapSchoolViews(SERVER, SCHOOL_ID.hanyang);

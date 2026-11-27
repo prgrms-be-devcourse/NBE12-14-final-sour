@@ -43,6 +43,13 @@ public class Payment extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private PaymentStatus status;
 
+    // 토스 결제창 실패 코드·메시지 (실패 기록 때만 채워진다)
+    @Column(name = "fail_code", length = 100)
+    private String failCode;
+
+    @Column(name = "fail_message", length = 255)
+    private String failMessage;
+
     public static Payment ready(Long userId, ChargeAmount chargeAmount) {
         Payment payment = new Payment();
         payment.orderId = UUID.randomUUID().toString();

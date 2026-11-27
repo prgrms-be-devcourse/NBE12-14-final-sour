@@ -26,3 +26,6 @@ public/campus-raw/
 wireframe/shots/
 wireframe/*.html
 wireframe/*.pdf
+
+# Raw sound-effect downloads. Commit only the clips scripts/sfx/normalize-sfx.sh writes under src/assets/sfx/.
+soundfiles/

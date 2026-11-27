@@ -2,6 +2,8 @@ package com.back.nbe1214finalsour.domain.click.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 /**
  * 연합 학교 지원 응답 (추가 명세 §3-3).
  * assistScore는 대상 학교에 더한 점수, myContribScore는 지원 뒤 내 누적 기여도다.
@@ -14,7 +16,11 @@ public record AssistResponse(
         @Schema(description = "지원 뒤 대상 학교")
         AssistUniversityResponse targetUniversity,
         @Schema(description = "지원 뒤 내 누적 기여도", example = "1520")
-        Long myContribScore
+        Long myContribScore,
+        @Schema(description = "크리티컬이 몇 번 인덱스에서 터지는지", example = "[1, 6, 10]")
+        List<Integer> criticalIndex,
+        @Schema(description = "데미지 비율 인덱스", example = "[89, 90, 110, 130, 50, ... 20개]")
+        List<Integer> damageRateIndex
 ) {
     public record AssistUniversityResponse(
             @Schema(description = "학교 ID", example = "2")

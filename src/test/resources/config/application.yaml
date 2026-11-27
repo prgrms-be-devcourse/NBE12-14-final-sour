@@ -21,3 +21,10 @@ scheduling:
 # 생성 로직은 DevAccountInitializerIntegrationTest가 설정을 직접 넣어 확인한다
 dev-account:
   enabled: false
+
+click:
+  # 크리티컬 확률, 테스트는 0%
+  critical-rate: 0
+  # 최대, 최소 데미지 비율, 테스트는 100%
+  min-damage-rate: 100
+  max-damage-rate: 100

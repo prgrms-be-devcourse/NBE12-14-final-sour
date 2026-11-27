@@ -1,10 +1,13 @@
 package com.back.nbe1214finalsour.domain.payment.controller;
 
 import com.back.nbe1214finalsour.domain.payment.controller.docs.PaymentApiDocs;
+import com.back.nbe1214finalsour.domain.payment.dto.PaymentFailRequest;
+import com.back.nbe1214finalsour.domain.payment.dto.PaymentFailResponse;
 import com.back.nbe1214finalsour.domain.payment.dto.PaymentOrderRequest;
 import com.back.nbe1214finalsour.domain.payment.dto.PaymentOrderResponse;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
+import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
 import com.back.nbe1214finalsour.domain.payment.service.PaymentService;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
 import com.back.nbe1214finalsour.global.security.AuthUser;
@@ -36,5 +39,16 @@ public class PaymentController implements PaymentApiDocs {
         ChargeAmount chargeAmount = ChargeAmount.from(request.amount());
         Payment payment = paymentService.createOrder(user.userId(), chargeAmount);
         return ApiResponse.ok(new PaymentOrderResponse(payment));
+    }
+
+    // 결제창 실패 기록. 회원은 토큰에서 꺼내고, failUrl의 code·message를 서비스에 넘긴다
+    // 1행 성공과 이미 ABORTED(새로고침) 모두 같은 200 응답이다
+    @PostMapping("/fail")
+    public ApiResponse<PaymentFailResponse> recordFail(
+            @AuthenticationPrincipal AuthUser user,
+            @Valid @RequestBody PaymentFailRequest request
+    ) {
+        paymentService.recordFail(user.userId(), request.orderId(), request.code(), request.message());
+        return ApiResponse.ok(new PaymentFailResponse(request.orderId(), PaymentStatus.ABORTED));
     }
 }

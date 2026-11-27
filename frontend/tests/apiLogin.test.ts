@@ -233,6 +233,8 @@ test('SCRUM-210: 복원 도중에는 게스트 진입점도 캠퍼스도 표시�
 test('SCRUM-210: 첫 화면에서 로그인 후 내 캠퍼스로, 세션 종료 후 안내와 함께 첫 화면으로 돌아간다', async () => {
   const { client, routes } = mount({ entry: true, restore: false });
   await screen.findByRole('heading', { level: 1, name: '대대대' });
+  assert.ok(screen.getByText('대학교 대 대학교 캠퍼스 대항전'));
+  assert.ok(screen.getByText('학교 이메일로 인증하고 클릭으로 우리 학교 순위를 끌어올리는 실시간 캠퍼스 대항전. 전국 대학과 겨루며 캠퍼스를 키워 보세요.'));
   assertAbsent(screen.queryByRole('heading', { name: '내 캠퍼스' }));
   assert.ok(screen.getByRole('button', { name: '회원가입' }));
   assert.ok(screen.getByRole('button', { name: '비회원 문의' }));

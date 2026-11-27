@@ -1,14 +1,21 @@
-// Web Audio API Retro 8-bit Sound Synthesizer
+// Web Audio API Retro 8-bit Sound Synthesizer, plus recorded clips for the campus tap
+import { BUBBLE_POP_CLIPS } from '../data/sfxClips';
+import { SampleBank } from './sfxSamples';
 
-class RetroSoundManager {
+export class RetroSoundManager {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
+
+  /** `popClips` is replaceable so tests can feed decoded clips without a network. */
+  constructor(private readonly popClips: SampleBank = new SampleBank(BUBBLE_POP_CLIPS)) {}
 
   private initContext() {
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+        // Decode the clips on the first sound, which always follows a user gesture. Failures fall back to synthesis.
+        void this.popClips.load(this.ctx);
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
@@ -21,36 +28,59 @@ class RetroSoundManager {
     try {
       this.initContext();
       if (!this.ctx) return;
-
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = isCrit ? 'triangle' : 'square';
-
-      const now = this.ctx.currentTime;
-      if (isCrit) {
-        // High sparkling dual chime
-        osc.frequency.setValueAtTime(587.33, now); // D5
-        osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.12); // D6
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.14);
-      } else {
-        // Satisfying short 8-bit blip
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.07);
-      }
+      if (isCrit) this.playCritChime(this.ctx);
+      else this.playTapBlip(this.ctx);
     } catch {
       // Audio playback might be prevented by browser policy
     }
+  }
+
+  /**
+   * Campus tap: a random bubble-pop clip at a slightly jittered pitch. A critical tap layers the crit chime on top.
+   * Until the clips are decoded (or if none load), the synthesized tap blip plays instead.
+   */
+  public playPopSound(isCrit: boolean = false) {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      if (!this.popClips.play(this.ctx)) this.playTapBlip(this.ctx);
+      if (isCrit) this.playCritChime(this.ctx);
+    } catch {
+      // Audio playback might be prevented by browser policy
+    }
+  }
+
+  /** Satisfying short 8-bit blip. */
+  private playTapBlip(ctx: AudioContext) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.07);
+  }
+
+  /** High sparkling chime, D5 to D6. */
+  private playCritChime(ctx: AudioContext) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.12); // D6
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
   }
 
   public playLevelUpSound() {

@@ -19,7 +19,7 @@ export const LazyApiChat = lazy(() => import('./ApiChatBottomSheet').then((modul
 
 const tabs = [
   { id: 'detail', label: '상세', icon: 'detail' },
-  { id: 'chat', label: '우리 학교 채팅', icon: 'chat' },
+  { id: 'chat', label: '채팅', icon: 'chat' },
   { id: 'guestbook', label: '방명록', icon: 'guestbook' },
 ] as const;
 export type SchoolPanelTab = (typeof tabs)[number]['id'];
@@ -110,8 +110,8 @@ function useApiOwnSchool(): OwnSchool {
 
 function SchoolChat({ mySchool }: { mySchool: SchoolView }) {
   const { player } = useMockGame();
-  if (API_MODE === 'api') return <Suspense fallback={<p role="status" className="p-2">채팅 화면을 여는 중이에요.</p>}><LazyApiChat schoolOnly /></Suspense>;
-  return <ChatBottomSheet key={`${player.userId}:${mySchool.id}`} schoolOnly showSoonRibbon={false}
+  if (API_MODE === 'api') return <Suspense fallback={<p role="status" className="p-2">채팅 화면을 여는 중이에요.</p>}><LazyApiChat embedded /></Suspense>;
+  return <ChatBottomSheet key={`${player.userId}:${mySchool.id}`} embedded showSoonRibbon={false}
     mySchoolInitial={mySchool.firstSyllable} myNickname={player.nickname} myDepartment={player.department} />;
 }
 

@@ -26,21 +26,30 @@ import org.testcontainers.utility.DockerImageName;
 @ImportTestcontainers(TestcontainersConfiguration.Containers.class)
 class TestcontainersConfiguration {
 
+    // 이미지 버전 (이슈 #26). latest를 쓰면 받는 시점마다 버전이 바뀌므로 고정한다.
+    // compose.yaml과 같은 태그를 써야 한다 (ContainerImageVersionTest가 검사).
+    // Postgres: 배포 대상인 RDS PostgreSQL 16 (V1__init.sql). 주 버전만 고정해 16.x 패치는 따라간다
+    static final String POSTGRES_IMAGE = "postgres:16";
+    // Redis: 마이너 버전에서 동작이 바뀔 수 있어 8.10까지 고정하고 패치만 따라간다
+    static final String REDIS_IMAGE = "redis:8.10";
+    // Floci: 묶음 태그(2, 2.5)가 없어 정확한 버전으로 고정한다
+    static final String FLOCI_IMAGE = "floci/floci:2.5.0";
+
     // 인터페이스의 필드는 자동으로 public static final이다
     interface Containers {
 
         // 컨텍스트들이 DB 하나를 같이 쓴다. 컨텍스트마다 HikariCP 풀(최대 10개, 처음부터 채워 둠)이 있어서 기본 한도 100으로는 부족하다.
         // 스프링 테스트 컨텍스트 캐시 최대 32개 × 풀 10개 = 320을 넘게 잡는다. fsync=off는 Testcontainers 기본 명령을 유지한 것
         @ServiceConnection
-        PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse("postgres:latest"))
+        PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse(POSTGRES_IMAGE))
                 .withCommand("postgres", "-c", "fsync=off", "-c", "max_connections=400");
 
         @ServiceConnection(name = "redis")
-        GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:latest")).withExposedPorts(6379);
+        GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse(REDIS_IMAGE)).withExposedPorts(6379);
 
         // S3 대신 쓰는 AWS 에뮬레이터 (로고 이미지 업로드). 인증 토큰 없이 쓸 수 있다
         @ServiceConnection
-        FlociContainer FLOCI = new FlociContainer(DockerImageName.parse("floci/floci:latest"));
+        FlociContainer FLOCI = new FlociContainer(DockerImageName.parse(FLOCI_IMAGE));
     }
 
     @Bean

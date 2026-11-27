@@ -1,5 +1,7 @@
 package com.back.nbe1214finalsour.domain.payment.controller.docs;
 
+import com.back.nbe1214finalsour.domain.payment.dto.PaymentFailRequest;
+import com.back.nbe1214finalsour.domain.payment.dto.PaymentFailResponse;
 import com.back.nbe1214finalsour.domain.payment.dto.PaymentOrderRequest;
 import com.back.nbe1214finalsour.domain.payment.dto.PaymentOrderResponse;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
@@ -29,4 +31,28 @@ public interface PaymentApiDocs {
                     description = PaymentErrorDocs.UNAUTHORIZED)
     })
     ApiResponse<PaymentOrderResponse> createOrder(AuthUser user, PaymentOrderRequest request);
+
+    @Operation(
+            summary = "결제 실패 기록",
+            description = """
+                    결제창에서 인증 실패·취소로 failUrl에 돌아왔을 때 호출한다. READY 주문을 ABORTED로 바꾸고 실패 코드·메시지를 남긴다.
+                    결제가 일어나지 않았으므로 크레딧은 바뀌지 않는다.
+
+                    - orderId: failUrl 쿼리가 아니라 **주문 생성 응답으로 받은 값**을 보낸다 (토스는 일부 에러에서 failUrl에 orderId를 주지 않는다)
+                    - code·message: failUrl 쿼리의 값을 그대로 보낸다. message는 없어도 된다
+                    - 이미 ABORTED인 본인 주문(failUrl 새로고침 등)이면 처음 기록을 유지하고 같은 200을 응답한다
+                    """)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+                    description = "실패 기록됨 (이미 기록된 경우 포함)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
+                    description = PaymentErrorDocs.FAIL_BAD_REQUEST),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401",
+                    description = PaymentErrorDocs.UNAUTHORIZED),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404",
+                    description = PaymentErrorDocs.FAIL_NOT_FOUND),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409",
+                    description = PaymentErrorDocs.FAIL_CONFLICT)
+    })
+    ApiResponse<PaymentFailResponse> recordFail(AuthUser user, PaymentFailRequest request);
 }

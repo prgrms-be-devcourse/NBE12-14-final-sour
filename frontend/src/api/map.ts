@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApiClient } from './ApiProvider';
 import type { ApiClient } from './client';
+import { RANKING_REFRESH_MS } from './rankings';
 
 /** The backend's maximum; the map needs every ranked school. */
 export const MAP_UNIVERSITY_LIMIT = 300;
@@ -31,5 +32,6 @@ export const mapKeys = {
 
 export function useMapUniversities() {
   const client = useApiClient();
-  return useQuery({ queryKey: mapKeys.universities, queryFn: ({ signal }) => getMapUniversities(client, { signal }) });
+  // Match the ranking refresh and the server's five-second cache.
+  return useQuery({ queryKey: mapKeys.universities, queryFn: ({ signal }) => getMapUniversities(client, { signal }), refetchInterval: RANKING_REFRESH_MS });
 }

@@ -121,7 +121,7 @@ test('SCRUM-207: 방문 학교 요약·상세·방명록을 바꾸고 채팅 탭
   const panel = () => within(screen.getByRole('complementary', { name: '학교 패널' }));
   assert.match(panel().getByRole('region', { name: '학교 요약' }).textContent ?? '', /한양대학교.*학교 점수.*전국 순위/);
   const detail = panel().getByRole('tab', { name: '상세' });
-  const chat = panel().getByRole('tab', { name: '우리 학교 채팅' });
+  const chat = panel().getByRole('tab', { name: '채팅' });
   detail.focus();
   fireEvent.keyDown(detail, { key: 'ArrowRight' });
   assertSameNode(document.activeElement, chat);
@@ -138,13 +138,13 @@ test('SCRUM-207: 방문 학교 요약·상세·방명록을 바꾸고 채팅 탭
   fireEvent.click(competition.getByRole('button', { name: /^KAIST 전국/ }));
   fireEvent.click(competition.getByRole('button', { name: 'KAIST 방문' }));
   assert.match(panel().getByRole('region', { name: '학교 요약' }).textContent ?? '', /방문 학교KAIST/);
-  assert.equal(panel().getByRole('tab', { name: '우리 학교 채팅' }).getAttribute('aria-selected'), 'true');
+  assert.equal(panel().getByRole('tab', { name: '채팅' }).getAttribute('aria-selected'), 'true');
   const visitCampus = screen.getByRole('button', { name: 'KAIST 캠퍼스 (관전 모드)' });
   resize(false);
   assertAbsent(screen.queryByRole('complementary', { name: '학교 패널' }));
   assertSameNode(screen.getByRole('button', { name: 'KAIST 캠퍼스 (관전 모드)' }), visitCampus);
   resize(true);
-  panel().getByRole('tabpanel', { name: '우리 학교 채팅' });
+  panel().getByRole('tabpanel', { name: '채팅' });
   fireEvent.click(screen.getByTestId('visit-info-button'));
   panel().getByRole('heading', { name: 'KAIST 학교 정보' });
   fireEvent.click(panel().getByRole('button', { name: '방명록 전체보기' }));
@@ -154,6 +154,25 @@ test('SCRUM-207: 방문 학교 요약·상세·방명록을 바꾸고 채팅 탭
   fireEvent.click(screen.getByRole('button', { name: '내 학교로 돌아가기' }));
   panel().getByRole('heading', { name: '한양대학교 방명록' });
   assertAbsent(panel().queryByRole('textbox'));
+});
+
+test('④ PC 학교 패널 탭은 채팅이며 우리 학교 채팅 문구가 없다', () => {
+  stubMatchMedia(win, [GAME_WIDE_QUERY]);
+  mountApp();
+  const panel = within(screen.getByRole('complementary', { name: '학교 패널' }));
+  panel.getByRole('tab', { name: '채팅' });
+  assertAbsent(screen.queryByText('우리 학교 채팅'));
+});
+
+test('mock PC 패널에서 교내·연합 전환을 제공하고 닫기 버튼은 없다', () => {
+  stubMatchMedia(win, [GAME_WIDE_QUERY]);
+  mountApp();
+  const panel = within(screen.getByRole('complementary', { name: '학교 패널' }));
+  fireEvent.click(panel.getByRole('tab', { name: /채팅/ }));
+  panel.getByRole('button', { name: '교내 채팅' });
+  assertAbsent(panel.queryByRole('button', { name: '채팅창 닫기' }));
+  fireEvent.click(panel.getByRole('button', { name: '연합 채팅' }));
+  panel.getByTestId('union-chat-empty');
 });
 
 test('SCRUM-208: 지도 선택은 미리보기만 갱신하고 방문 버튼만 캠퍼스를 바꾼다', () => {

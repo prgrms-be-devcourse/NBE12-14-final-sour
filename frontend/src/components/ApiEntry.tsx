@@ -23,9 +23,9 @@ function GuestLanding({ notice, onNavigate }: {
       <div className="guest-landing">
         <header className="guest-hero rpg-box">
           <div className="guest-hero-copy">
-            <p className="font-bold text-[#67431f]">전국 대학 대항전 · 픽셀 클리커</p>
+            <p className="font-bold text-[#67431f]">대학교 대 대학교 캠퍼스 대항전</p>
             <h1 ref={heading} tabIndex={-1} className="text-4xl sm:text-5xl font-black">대대대</h1>
-            <p>캠퍼스를 클릭해 우리 학교를 성장시키고 전국 대학과 겨뤄 보세요.</p>
+            <p>학교 이메일로 인증하고 클릭으로 우리 학교 순위를 끌어올리는 실시간 캠퍼스 대항전. 전국 대학과 겨루며 캠퍼스를 키워 보세요.</p>
             {notice && <p role="status" className="text-sm text-[#792e17]">{notice}</p>}
             <div className="guest-actions">
               <button type="button" className="pixel-plaque plaque-green" onClick={() => onNavigate('login')}>로그인</button>

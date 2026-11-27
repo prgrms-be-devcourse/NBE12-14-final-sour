@@ -267,8 +267,8 @@ def ranking_layout(container):
 
 def soon_metrics(page, chat_shot, guestbook_shot):
     left = page.get_by_role('complementary', name='학교 패널')
-    left.get_by_role('tab', name='우리 학교 채팅').click()
-    chat = left.get_by_role('tabpanel', name='우리 학교 채팅')
+    left.get_by_role('tab', name='채팅').click()
+    chat = left.get_by_role('tabpanel', name='채팅')
     expect(chat.get_by_text('필터링된 메시지입니다').first).to_be_visible()
     chat_soon = chat.get_by_text('SOON', exact=True).count()
     snapshot(page, chat_shot)

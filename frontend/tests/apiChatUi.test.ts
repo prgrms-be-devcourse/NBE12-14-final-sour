@@ -27,7 +27,7 @@ const ME: MyInfo = { id: 5, nickname: '우리학생', email: 'student@example.ac
   clicker: { level: 1, clickPower: 1, nextLevelRequiredScore: 10 }, totalContribScore: 0, totalAttackScore: 0 };
 
 async function mount(options: { signedOut?: boolean; history?: (url: URL) => Response | Promise<Response>; words?: () => Response;
-  alliance?: () => Response } = {}) {
+  alliance?: () => Response; embedded?: boolean } = {}) {
   const calls: string[] = [], sends: string[] = [], sentTo: string[] = [], callbacks: ChatCallbacks[] = [], rooms: ChatRoom[] = [];
   let stopped = 0, login = 0;
   const api = createApiClient({ fetch: async (url) => {
@@ -48,7 +48,7 @@ async function mount(options: { signedOut?: boolean; history?: (url: URL) => Res
     return { send: (value) => { sends.push(value); sentTo.push(`${room.kind}#${room.id}`); return true; }, stop: () => { stopped++; } };
   };
   const ui = render(React.createElement(ApiProvider, { client: api, queryClient: query,
-    children: React.createElement(ApiChatBottomSheet, { connectionFactory: factory, onGoToLogin: () => login++ }) }));
+    children: React.createElement(ApiChatBottomSheet, { connectionFactory: factory, onGoToLogin: () => login++, embedded: options.embedded }) }));
   if (!options.signedOut) {
     await waitFor(() => assert.equal(callbacks.length, 1));
     act(() => { callbacks[0].onStatus('connected'); callbacks[0].onReady(); });
@@ -111,6 +111,32 @@ test('오류 큐는 메시지를 알리고 연결 중단은 전송을 막는다'
   act(() => f.callbacks[0].onStatus('reconnecting'));
   assert.equal((screen.getByLabelText('채팅 메시지') as HTMLTextAreaElement).disabled, true);
   assert.deepEqual(f.sends, []);
+});
+
+test('① PC 패널에서 연합 이력과 실시간 메시지를 볼 수 있다', async () => {
+  const f = await mount({ embedded: true, alliance: () => success({ id: 9, name: '서울', totalScore: 0, status: 'ACTIVE', durationHours: 24, expiredAt: '2026-11-20T13:00:00+09:00' }) });
+  fireEvent.click(screen.getByRole('button', { name: '연합 채팅' }));
+  await waitFor(() => assert.equal(f.callbacks.length, 2));
+  act(() => { f.callbacks[1].onStatus('connected'); f.callbacks[1].onReady(); });
+  await waitFor(() => assert.ok(f.calls.includes('/api/v1/chat/alliances/9/messages?size=20')));
+  act(() => f.callbacks[1].onMessage(message(2, { roomId: 'ALLIANCE#9', content: '연합 실시간 인사' })));
+  await screen.findByText('연합 실시간 인사');
+});
+
+test('② PC 패널에 연합이 없으면 기존 안내가 보인다', async () => {
+  await mount({ embedded: true });
+  fireEvent.click(screen.getByRole('button', { name: '연합 채팅' }));
+  await screen.findByText('우리 학교가 속한 연합이 없어요. 연합을 만들거나 가입이 승인되면 연합 채팅을 이용할 수 있어요.');
+});
+
+test('③ PC 패널에는 닫기 버튼이 없다', async () => {
+  await mount({ embedded: true });
+  assertAbsent(screen.queryByRole('button', { name: '채팅창 닫기' }));
+});
+
+test('④ PC 패널에는 우리 학교 채팅 문구가 없다', async () => {
+  await mount({ embedded: true });
+  assertAbsent(screen.queryByText('우리 학교 채팅'));
 });
 
 test('연합 탭은 처음 열 때 내 연합을 조회하고, 소속 연합이 없으면 안내만 보이며 소켓을 열지 않는다', async () => {

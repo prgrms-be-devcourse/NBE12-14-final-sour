@@ -119,7 +119,10 @@ class AttackIntegrationTest {
                 RedisKey.USER_STATUS.of(user.getId()),
                 RedisKey.USER_CLICKER.of(user.getId()),
                 RedisKey.RATELIMIT_ACTION.of(user.getId()),
-                RedisKey.RATELIMIT_CLICK.of(user.getId())));
+                RedisKey.RATELIMIT_CLICK.of(user.getId()),
+                RedisKey.ATTACKS_CRITICAL.of(user.getId()),
+                RedisKey.CLICKS_CRITICAL.of(user.getId()),
+                RedisKey.ATTACKS_DAMAGE_RATE.of(user.getId())));
 
         // 요청 한도 테스트에서 클릭 API도 부르므로 초별 클릭 키도 지운다
         long nowSec = Instant.now().getEpochSecond();
@@ -188,6 +191,34 @@ class AttackIntegrationTest {
                 .andExpect(jsonPath("$.data.damage").value(60))
                 .andExpect(jsonPath("$.data.targetUniversity.totalScore").value(10))
                 .andExpect(jsonPath("$.data.myAttackScore").value(90));
+    }
+
+    @Test
+    @DisplayName("공격도 공격용 데미지 배율을 곱한 뒤 0.3배를 한다")
+    void attackAppliesDamageRates() throws Exception {
+        givenTargetScore(100);
+        redis.opsForValue().set(RedisKey.ATTACKS_DAMAGE_RATE.of(user.getId()), "[130,130,130,130]");
+
+        attack("sub-1", targetUniversityId, 4)
+                .andExpect(status().isOk())
+                // 4 * 10 * 130 / 100 = 52 → 52 * 0.3 = 15.6 → 15 (배율이 없으면 12)
+                .andExpect(jsonPath("$.data.damage").value(15));
+    }
+
+    @Test
+    @DisplayName("공격은 공격용 크리티컬 위치만 2배로 계산하고, 클릭용 위치는 쓰지 않는다")
+    void attackUsesOnlyAttackCriticalIndex() throws Exception {
+        givenTargetScore(100);
+        redis.opsForValue().set(RedisKey.ATTACKS_CRITICAL.of(user.getId()), "[0]");
+        redis.opsForValue().set(RedisKey.CLICKS_CRITICAL.of(user.getId()), "[0,1,2,3]");
+
+        attack("sub-1", targetUniversityId, 4)
+                .andExpect(status().isOk())
+                // (20 + 10 + 10 + 10) * 0.3
+                .andExpect(jsonPath("$.data.damage").value(15));
+
+        assertThat(redis.opsForValue().get(RedisKey.ATTACKS_CRITICAL.of(user.getId()))).isEqualTo("[]");
+        assertThat(redis.opsForValue().get(RedisKey.CLICKS_CRITICAL.of(user.getId()))).isEqualTo("[0,1,2,3]");
     }
 
     @Test

@@ -4,8 +4,8 @@ import com.back.nbe1214finalsour.domain.alliance.service.AllianceAllyChecker;
 import com.back.nbe1214finalsour.domain.click.dto.AttackApplyResponse;
 import com.back.nbe1214finalsour.domain.click.dto.AttackRequest;
 import com.back.nbe1214finalsour.domain.click.dto.AttackResponse;
-import com.back.nbe1214finalsour.domain.university.service.rival.RivalChecker;
 import com.back.nbe1214finalsour.domain.university.repository.UniversityCache;
+import com.back.nbe1214finalsour.domain.university.service.rival.RivalChecker;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import com.back.nbe1214finalsour.global.redis.RedisKey;
@@ -46,13 +46,13 @@ public class AttackService {
         }
 
         // 점수 구하기
-        long base = clickActionGuard.verifyAndGetBaseScore(userId, submissionId, clickCount);
+        ClickActionGuard.Score scoreVo = clickActionGuard.verifyAndGetBaseScore(userId, submissionId, clickCount, ClickActionGuard.ClickType.ATTACK);
 
         // 경쟁 학교 인지 계산 + 최종 점수 계산(* 0.3)
         // TODO: 경쟁 학교 계산, 기본값 1.0
         boolean isRival = rivalChecker.isRival(universityId, targetUniversityId);
-        long requestedDamage = isRival ? base * 33 / 100
-                : base * 3 / 10;
+        long requestedDamage = isRival ? scoreVo.score() * 33 / 100
+                : scoreVo.score() * 3 / 10;
 
         // Redis에 반영
         // 숨김 학교도 일반 학교처럼 공격받지만, 점수는 공개 학교 순위에 넣지 않는다 (SCRUM-238)
@@ -76,6 +76,8 @@ public class AttackService {
                 Long.valueOf(r.get(2)),
                 Long.valueOf(r.get(3)));
 
-        return AttackResponse.from(attackApplyResponse, clickCount, isRival, targetUniversityId, targetName);
+        return AttackResponse.from(
+                attackApplyResponse, clickCount, isRival, targetUniversityId,
+                targetName, scoreVo.criticalIndex(), scoreVo.damageRateIndex());
     }
 }

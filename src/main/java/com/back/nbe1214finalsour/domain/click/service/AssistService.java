@@ -53,11 +53,11 @@ public class AssistService {
                     "동맹 아님 userId=" + userId + ", target=" + targetUniversityId);
         }
 
-        long base = clickActionGuard.verifyAndGetBaseScore(userId, request.submissionId(), clickCount);
-        long assistScore = base * 3 / 10;
+        ClickActionGuard.Score scoreVo = clickActionGuard.verifyAndGetBaseScore(userId, request.submissionId(), clickCount, ClickActionGuard.ClickType.ASSIST);
+        long assistScore = scoreVo.score() * 3 / 10;
         BigDecimal itemMultiplier = BigDecimal.valueOf(redisHandler.getHash(RedisKey.USER_EFFECT.of(userId), "multiplier", Double.class)
                 .orElse(1.0));
-        long contribScore = itemMultiplier.multiply(BigDecimal.valueOf(base))
+        long contribScore = itemMultiplier.multiply(BigDecimal.valueOf(scoreVo.score()))
                 .setScale(0, RoundingMode.FLOOR).longValueExact();
 
         // 연합·대결 확인
@@ -83,6 +83,6 @@ public class AssistService {
                 assistScore,
                 new AssistResponse.AssistUniversityResponse(targetUniversityId, targetName,
                         Long.valueOf(r.get(0)), Long.valueOf(r.get(1))),
-                Long.valueOf(r.get(2)));
+                Long.valueOf(r.get(2)), scoreVo.criticalIndex(), scoreVo.damageRateIndex());
     }
 }

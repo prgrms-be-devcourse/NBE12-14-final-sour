@@ -16,6 +16,16 @@ final class PaymentErrorDocs {
             `COMMON_INVALID_INPUT` amount가 없거나 본문이 올바른 JSON이 아님 / \
             `PAY_INVALID_AMOUNT` 허용 금액(2,500·5,000·10,000)이 아님""";
 
+    static final String FAIL_BAD_REQUEST = """
+            `COMMON_INVALID_INPUT` orderId·code가 없거나 공백, 길이 초과(orderId 64·code 100·message 255자), \
+            본문이 올바른 JSON이 아님""";
+
+    static final String FAIL_NOT_FOUND = """
+            `PAY_ORDER_NOT_FOUND` 주문이 없음 (다른 회원의 주문도 같은 응답)""";
+
+    static final String FAIL_CONFLICT = """
+            `PAY_ALREADY_PROCESSED` 이미 승인 진행 중이거나 완료·만료·취소된 주문. 결제 내역을 확인하도록 안내한다""";
+
     private PaymentErrorDocs() {
     }
 }
