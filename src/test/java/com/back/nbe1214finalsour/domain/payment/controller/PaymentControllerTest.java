@@ -343,4 +343,48 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.data.tossCode").value("REJECT_CARD_PAYMENT"))
                 .andExpect(jsonPath("$.data.tossMessage").value("한도초과 혹은 잔액부족으로 결제에 실패했습니다."));
     }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidConfirmRequests")
+    @DisplayName("필수 값이 없거나 길이를 넘으면 400 COMMON_INVALID_INPUT과 그 필드 오류를 응답하고 승인을 시도하지 않는다")
+    void confirmRejectsInvalidInput(String caseName, String body, String expectedField) throws Exception {
+        // given: 스텁이 없다
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+
+        // then
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_INVALID_INPUT"))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].field").value(expectedField));
+        then(paymentService).shouldHaveNoInteractions();
+    }
+
+    // 잘못된 승인 요청 본문과 오류가 나야 하는 필드. 길이 초과는 각 한도 + 1자 (paymentKey 200, orderId 64)
+    // Stream.of는 케이스들을 JUnit에 넘길 묶음으로 만들기만 한다 (변환·필터 없음). 팀의 @MethodSource 관례(Stream<Arguments>)를 따른다
+    static Stream<Arguments> invalidConfirmRequests() {
+        return Stream.of(
+                arguments("paymentKey 없음", confirmBody(null, ORDER_ID, 5_000L), "paymentKey"),
+                arguments("paymentKey 공백", confirmBody("   ", ORDER_ID, 5_000L), "paymentKey"),
+                arguments("paymentKey 201자", confirmBody("k".repeat(201), ORDER_ID, 5_000L), "paymentKey"),
+                arguments("orderId 없음", confirmBody(PAYMENT_KEY, null, 5_000L), "orderId"),
+                arguments("orderId 공백", confirmBody(PAYMENT_KEY, "   ", 5_000L), "orderId"),
+                arguments("orderId 65자", confirmBody(PAYMENT_KEY, "a".repeat(65), 5_000L), "orderId"),
+                arguments("amount 없음", confirmBody(PAYMENT_KEY, ORDER_ID, null), "amount"));
+    }
+
+    // 승인 요청 본문. 값이 null이면 JSON null로 넣는다 (필드를 빼는 것과 검증 결과가 같다)
+    private static String confirmBody(String paymentKey, String orderId, Long amount) {
+        String amountJson = "null";
+        if (amount != null) {
+            amountJson = String.valueOf(amount);
+        }
+        return "{\"paymentKey\":" + jsonString(paymentKey)
+                + ",\"orderId\":" + jsonString(orderId)
+                + ",\"amount\":" + amountJson + "}";
+    }
 }
