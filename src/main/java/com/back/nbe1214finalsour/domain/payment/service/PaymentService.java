@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final PaymentConfirmTxService paymentConfirmTxService;
     private final CreditWallet creditWallet;
     private final CreditHistoryRepository creditHistoryRepository;
 
@@ -61,5 +62,15 @@ public class PaymentService {
         throw new BusinessException(ErrorCode.PAY_ALREADY_PROCESSED);
     }
 
+
+    private PaymentConfirmResult confirmPayment(Long userId, String orderId, long amount, String paymentKey){
+        PaymentConfirmResult start = paymentConfirmTxService.startConfirm(userId, orderId, paymentKey, amount);
+        if (start.status() == PaymentStatus.DONE) {
+            // 이미 승인된 같은 요청이다 (성공 페이지 새로고침). 토스를 부르지 않는다
+            return start;
+        }
+        // 토스 승인 호출과 결과별 처리는 다음 단계에서 구현한다
+        throw new UnsupportedOperationException("토스 승인 호출 구현 전");
+    }
 
 }
