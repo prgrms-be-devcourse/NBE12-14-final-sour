@@ -289,4 +289,30 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.data.creditBalance").value(12000));
         then(paymentService).should().confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY);
     }
+
+    @Test
+    @DisplayName("토스 결과를 몰라 확인 중이면 202와 orderId·IN_PROGRESS만 응답한다")
+    void confirmReturns202WhenInProgress() throws Exception {
+        // given: 토스 결과를 몰라 서비스가 확인 중 결과를 돌려준다
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY))
+                .willReturn(new PaymentConfirmResult(ORDER_ID));
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"paymentKey": "tgen_20261127160000AbCd1",
+                         "orderId": "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b",
+                         "amount": 5000}
+                        """));
+
+        // then
+        result.andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.orderId").value(ORDER_ID))
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.data.method").doesNotExist())
+                .andExpect(jsonPath("$.data.creditBalance").doesNotExist());
+    }
 }
