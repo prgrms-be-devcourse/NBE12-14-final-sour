@@ -1,6 +1,7 @@
 package com.back.nbe1214finalsour.domain.alliance.repository;
 
 import com.back.nbe1214finalsour.domain.alliance.dto.AllianceLists.*;
+import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceMatchStatus;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceStatus;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
@@ -79,14 +80,14 @@ public class AllianceListReader {
                                           @Nullable Long cursor, int size) {
         var args = page(cursor, size).addValue("alliance", allianceId, Types.BIGINT).addValue("school", school, Types.BIGINT)
                 .addValue("status", name(status), Types.VARCHAR);
-        // Founding membership is recorded as already approved by its own applicant, never as a join request.
+        // 가입 신청만 표시한다. 창립 및 연합 초대는 별도 경로다.
         var rows = jdbc.query("""
                 SELECT au.id, au.status, au.created_at, a.id AS alliance_id, a.name AS alliance_name,
                        u.id AS school_id, u.name AS school_name, u.logo_url
                 FROM alliance_university au JOIN alliance a ON a.id = au.alliance_id
                 JOIN university u ON u.id = au.university_id
                 WHERE a.deleted_at IS NULL AND au.deleted_at IS NULL
-                  AND au.approver_user_id IS DISTINCT FROM au.applicant_user_id
+                  AND au.origin = 'APPLICATION'
                   AND %s
                   AND (:status IS NULL OR au.status = :status)
                   AND (:cursor IS NULL OR au.id < :cursor)
@@ -94,6 +95,39 @@ public class AllianceListReader {
                 """.formatted(allianceId == null ? "au.university_id = :school" : "a.id = :alliance"), args,
                 (rs, _) -> new Application(rs.getLong("id"), new Name(rs.getLong("alliance_id"), rs.getString("alliance_name")),
                         school(rs), AllianceUniversityStatus.valueOf(rs.getString("status")), time(rs, "created_at")));
+        return Page.from(rows, size);
+    }
+
+    public Page<Invitation> invitations(@Nullable Long allianceId, @Nullable Long school, @Nullable AllianceUniversityStatus status,
+                                        OffsetDateTime now, @Nullable Long cursor, int size) {
+        var args = page(cursor, size).addValue("alliance", allianceId, Types.BIGINT).addValue("school", school, Types.BIGINT)
+                .addValue("status", name(status), Types.VARCHAR).addValue("now", now)
+                .addValue("capacity", Alliance.MAX_SCHOOLS);
+        var rows = jdbc.query("""
+                SELECT au.id, au.status, au.created_at, a.id AS alliance_id, a.name AS alliance_name,
+                       u.id AS school_id, u.name AS school_name, u.logo_url,
+                       CASE WHEN au.status <> 'PENDING' THEN 'ALREADY_PROCESSED'
+                            WHEN a.status <> 'ACTIVE' OR a.expired_at <= :now THEN 'ALLIANCE_NOT_ACTIVE'
+                            WHEN (SELECT count(*) FROM alliance_university member
+                                  WHERE member.alliance_id = a.id AND member.status = 'ACCEPTED'
+                                    AND member.deleted_at IS NULL) >= :capacity THEN 'ALLIANCE_FULL'
+                            WHEN EXISTS (SELECT 1 FROM alliance_university member
+                                         WHERE member.university_id = au.university_id AND member.status = 'ACCEPTED'
+                                           AND member.deleted_at IS NULL) THEN 'UNIVERSITY_ALREADY_JOINED'
+                       END AS approval_block_reason
+                FROM alliance_university au JOIN alliance a ON a.id = au.alliance_id
+                JOIN university u ON u.id = au.university_id
+                WHERE a.deleted_at IS NULL AND au.deleted_at IS NULL AND au.origin = 'INVITATION'
+                  AND %s AND (:status IS NULL OR au.status = :status)
+                  AND (:cursor IS NULL OR au.id < :cursor)
+                ORDER BY au.id DESC LIMIT :limit
+                """.formatted(allianceId == null ? "au.university_id = :school" : "a.id = :alliance"), args,
+                (rs, _) -> {
+                    String block = rs.getString("approval_block_reason");
+                    return new Invitation(rs.getLong("id"), new Name(rs.getLong("alliance_id"), rs.getString("alliance_name")),
+                            school(rs), AllianceUniversityStatus.valueOf(rs.getString("status")), time(rs, "created_at"),
+                            block == null ? null : InvitationApprovalBlock.valueOf(block));
+                });
         return Page.from(rows, size);
     }
 

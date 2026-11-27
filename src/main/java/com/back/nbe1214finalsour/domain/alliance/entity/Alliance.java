@@ -20,6 +20,7 @@ import java.time.OffsetDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Alliance extends BaseTimeEntity {
+    public static final int MAX_SCHOOLS = 2;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

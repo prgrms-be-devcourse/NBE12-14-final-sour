@@ -4,6 +4,8 @@ import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceExpirationService;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceInvitationService;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
@@ -31,6 +33,12 @@ class AllianceMembershipIntegrationTest {
 
     @Autowired
     private AllianceService allianceService;
+
+    @Autowired
+    private AllianceInvitationService invitations;
+
+    @Autowired
+    private AllianceExpirationService expiration;
 
     @Autowired
     private UserRepository userRepository;
@@ -330,6 +338,67 @@ class AllianceMembershipIntegrationTest {
 
         assertThat(countByStatus(secondAlliance.getId(), "PENDING"))
                 .isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("초대는 대상 학교만 수락하며 정원 마감 시 남은 신청을 거절한다")
+    void invitationApproval() {
+        Alliance alliance = createAlliance();
+        AllianceUniversity invitation = invitations.invite(founder.userId(), alliance.getId(), applicant.universityId());
+        AllianceUniversity application = allianceService.applyToAlliance(waiting.userId(), alliance.getId());
+        assertThatThrownBy(() -> invitations.approve(waiting.userId(), invitation.getId()))
+                .isInstanceOf(BusinessException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALLY_NOT_MEMBER);
+        invitations.approve(applicant.userId(), invitation.getId());
+        entityManager.flush();
+        assertThat(findStatus(invitation.getId())).isEqualTo("ACCEPTED");
+        assertThat(findStatus(application.getId())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    @DisplayName("중복 초대와 가입 신청 경로의 초대 처리를 거부한다")
+    void invitationAndApplicationAreSeparated() {
+        Alliance alliance = createAlliance();
+        AllianceUniversity invitation = invitations.invite(founder.userId(), alliance.getId(), applicant.universityId());
+        assertThatThrownBy(() -> invitations.invite(founder.userId(), alliance.getId(), applicant.universityId()))
+                .isInstanceOf(BusinessException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALLY_APPLICATION_PENDING);
+        assertThatThrownBy(() -> allianceService.approveApplication(founder.userId(), invitation.getId()))
+                .isInstanceOf(BusinessException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALLY_APPLICATION_NOT_FOUND);
+        invitations.reject(applicant.userId(), invitation.getId());
+        entityManager.flush();
+        assertThat(findStatus(invitation.getId())).isEqualTo("REJECTED");
+    }
+
+    @Test
+    @DisplayName("이미 가입한 학교와 기존 가입 신청이 있는 학교는 초대할 수 없다")
+    void invitationRejectsJoinedAndPendingSchools() {
+        Alliance alliance = createAlliance();
+        allianceService.applyToAlliance(applicant.userId(), alliance.getId());
+        assertThatThrownBy(() -> invitations.invite(founder.userId(), alliance.getId(), applicant.universityId()))
+                .isInstanceOf(BusinessException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALLY_APPLICATION_PENDING);
+        TestMember otherFounder = createTestMember("otherFounder");
+        allianceService.createAlliance(otherFounder.userId(), "소속연합", 24);
+        assertThatThrownBy(() -> invitations.invite(founder.userId(), alliance.getId(), otherFounder.universityId()))
+                .isInstanceOf(BusinessException.class).hasFieldOrPropertyWithValue("errorCode", ErrorCode.ALLY_UNIVERSITY_ALREADY_JOINED);
+    }
+
+    @Test
+    @DisplayName("연합 만료 처리에서 대기 초대와 대기 가입 신청을 함께 종료한다")
+    void expirationRejectsBothPendingRequestTypes() {
+        Alliance alliance = createAlliance();
+        var invitation = invitations.invite(founder.userId(), alliance.getId(), applicant.universityId());
+        var application = allianceService.applyToAlliance(waiting.userId(), alliance.getId());
+        entityManager.flush();
+        jdbcTemplate.update("""
+                UPDATE alliance SET created_at=now()-interval '2 days', expired_at=now()-interval '1 day'
+                WHERE id=?
+                """, alliance.getId());
+        entityManager.clear();
+
+        expiration.expireIfDue(alliance.getId());
+        entityManager.flush();
+
+        assertThat(findStatus(invitation.getId())).isEqualTo("REJECTED");
+        assertThat(findStatus(application.getId())).isEqualTo("REJECTED");
     }
 
     // ===== 공통 테스트 데이터 생성 =====

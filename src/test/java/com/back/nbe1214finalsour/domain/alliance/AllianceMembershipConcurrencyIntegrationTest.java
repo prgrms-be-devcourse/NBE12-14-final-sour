@@ -4,6 +4,7 @@ import com.back.nbe1214finalsour.IntegrationTest;
 import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.service.AllianceService;
+import com.back.nbe1214finalsour.domain.alliance.service.AllianceInvitationService;
 import com.back.nbe1214finalsour.domain.user.entity.User;
 import com.back.nbe1214finalsour.domain.user.repository.UserRepository;
 import com.back.nbe1214finalsour.global.crypto.EmailHasher;
@@ -33,6 +34,9 @@ class AllianceMembershipConcurrencyIntegrationTest {
 
     @Autowired
     private AllianceService allianceService;
+
+    @Autowired
+    private AllianceInvitationService invitations;
 
     @Autowired
     private UserRepository userRepository;
@@ -159,6 +163,78 @@ class AllianceMembershipConcurrencyIntegrationTest {
             assertThat(executor.awaitTermination(30, TimeUnit.SECONDS))
                     .isTrue();
         }
+    }
+
+    @Test
+    @DisplayName("가입 신청과 초대를 동시에 승인해도 정원은 초과되지 않는다")
+    void invitationAndApplicationConcurrentApproval() throws Exception {
+        Long founder = createTestUser();
+        Long invited = createTestUser();
+        Long applicant = createTestUser();
+        Long invitedSchool = userRepository.findById(invited).orElseThrow().getUniversityId();
+        Alliance alliance = allianceService.createAlliance(founder, "동시초대_" + UUID.randomUUID().toString().substring(0, 8), 24);
+        allianceIds.add(alliance.getId());
+        AllianceUniversity invitation = invitations.invite(founder, alliance.getId(), invitedSchool);
+        AllianceUniversity application = allianceService.applyToAlliance(applicant, alliance.getId());
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<Boolean> first = executor.submit(() -> tryApprove(founder, application.getId(), ready, start));
+            Future<Boolean> second = executor.submit(() -> {
+                ready.countDown();
+                if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("시작 신호 시간 초과");
+                try { invitations.approve(invited, invitation.getId()); return true; }
+                catch (BusinessException e) { return false; }
+            });
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(first.get(30, TimeUnit.SECONDS) ^ second.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(countStatus(alliance.getId(), "ACCEPTED")).isEqualTo(2L);
+            assertThat(countStatus(alliance.getId(), "REJECTED")).isEqualTo(1L);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("한 학교가 서로 다른 연합의 초대를 동시에 수락해도 하나에만 가입한다")
+    void sameSchoolConcurrentInvitations() throws Exception {
+        Long firstFounder = createTestUser();
+        Long secondFounder = createTestUser();
+        Long target = createTestUser();
+        Long school = userRepository.findById(target).orElseThrow().getUniversityId();
+        Alliance firstAlliance = allianceService.createAlliance(firstFounder, "초대경쟁1_" + UUID.randomUUID().toString().substring(0, 8), 24);
+        Alliance secondAlliance = allianceService.createAlliance(secondFounder, "초대경쟁2_" + UUID.randomUUID().toString().substring(0, 8), 24);
+        allianceIds.add(firstAlliance.getId());
+        allianceIds.add(secondAlliance.getId());
+        AllianceUniversity firstInvite = invitations.invite(firstFounder, firstAlliance.getId(), school);
+        AllianceUniversity secondInvite = invitations.invite(secondFounder, secondAlliance.getId(), school);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<Boolean> first = executor.submit(() -> tryAcceptInvitation(target, firstInvite.getId(), ready, start));
+            Future<Boolean> second = executor.submit(() -> tryAcceptInvitation(target, secondInvite.getId(), ready, start));
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(first.get(30, TimeUnit.SECONDS) ^ second.get(30, TimeUnit.SECONDS)).isTrue();
+            Long count = jdbcTemplate.queryForObject("SELECT count(*) FROM alliance_university WHERE university_id = ? AND status = 'ACCEPTED' AND deleted_at IS NULL", Long.class, school);
+            assertThat(count).isEqualTo(1L);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    private boolean tryAcceptInvitation(Long user, Long invitation, CountDownLatch ready, CountDownLatch start) throws InterruptedException {
+        ready.countDown();
+        if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("시작 신호 시간 초과");
+        try { invitations.approve(user, invitation); return true; }
+        catch (BusinessException | org.springframework.dao.DataIntegrityViolationException e) { return false; }
     }
 
     // ===== 동시 승인 요청 =====

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { ALLIANCE_MAX_SCHOOLS, ALLIANCE_STATUS_LABEL, MATCH_STATUS_LABEL, type AllianceApplicationStatus } from '../api/alliances';
-import { useAllianceApplications, useAllianceDirectory, useAllianceMatches, useAllianceSchools, type AllianceSummary } from '../api/allianceLists';
+import { useAllianceApplications, useAllianceDirectory, useAllianceInvitations, useAllianceMatches, useAllianceSchools, type AllianceSummary, type InvitationApprovalBlock, type InvitationRow } from '../api/allianceLists';
 import { errorMessage, isApiError } from '../api/errors';
 import { LoadNotice } from './LoadNotice';
 
@@ -69,7 +69,7 @@ export function AllianceSchoolList({ userId, allianceId }: { userId: number; all
 }
 
 export function AllianceApplicationList({ userId, visible, allianceId, busy, onDecide }: {
-  userId: number; visible: boolean; allianceId?: number; busy?: boolean; onDecide?: (id: number, decision: 'approve' | 'reject') => void;
+  userId: number; visible: boolean; allianceId?: number; busy?: boolean; onDecide?: (id: number, decision: 'approve' | 'reject', universityName: string) => void;
 }) {
   const query = useAllianceApplications(userId, visible, allianceId);
   const sent = allianceId === undefined;
@@ -81,11 +81,45 @@ export function AllianceApplicationList({ userId, visible, allianceId, busy, onD
       <p>{date.format(new Date(item.createdAt))} 신청</p>
       {item.status === 'PENDING' && onDecide && <div className="flex flex-wrap gap-2">
         <button type="button" className={`${BUTTON} plaque-yellow`} disabled={busy} aria-label={`${item.university.name} 가입 신청 승인`}
-          onClick={() => onDecide(item.id, 'approve')}>승인</button>
+          onClick={() => onDecide(item.id, 'approve', item.university.name)}>승인</button>
         <button type="button" className={BUTTON} disabled={busy} aria-label={`${item.university.name} 가입 신청 거절`}
-          onClick={() => onDecide(item.id, 'reject')}>거절</button>
+          onClick={() => onDecide(item.id, 'reject', item.university.name)}>거절</button>
       </div>}
     </>} />
+  </section>;
+}
+
+const invitationBlockLabel: Record<InvitationApprovalBlock, string> = {
+  ALREADY_PROCESSED: '이미 처리된 초대예요.',
+  ALLIANCE_NOT_ACTIVE: '대결 중이거나 만료된 연합의 초대는 처리할 수 없어요.',
+  ALLIANCE_FULL: '연합 정원이 찼어요.',
+  UNIVERSITY_ALREADY_JOINED: '초대받은 학교가 이미 다른 연합에 속해 있어요.',
+};
+
+export function AllianceInvitationList({ userId, visible, allianceId, busy, onDecide }: {
+  userId: number; visible: boolean; allianceId?: number; busy?: boolean;
+  onDecide?: (item: InvitationRow, decision: 'approve' | 'reject') => void;
+}) {
+  const query = useAllianceInvitations(userId, visible, allianceId);
+  const received = allianceId === undefined;
+  const name = received ? '받은 연합 초대' : '보낸 연합 초대';
+  return <section aria-label={name} className={PANEL}>
+    <h3 className="text-sm font-black">{name}</h3>
+    <PageRows name={name} query={query} empty="연합 초대가 없어요." row={(item) => {
+      const target = received ? item.alliance.name : item.university.name;
+      const block = item.approvalBlockReason;
+      return <>
+        <p className="font-bold">{target} · {applicationLabel[item.status]}</p>
+        <p>{date.format(new Date(item.createdAt))} 초대</p>
+        {item.status === 'PENDING' && block && <p>{invitationBlockLabel[block]}</p>}
+        {item.status === 'PENDING' && onDecide && <div className="flex flex-wrap gap-2">
+          <button type="button" className={`${BUTTON} plaque-yellow`} disabled={busy || block !== null}
+            aria-label={`${target} 초대 승인`} onClick={() => onDecide(item, 'approve')}>승인</button>
+          <button type="button" className={BUTTON} disabled={busy || block === 'ALLIANCE_NOT_ACTIVE'}
+            aria-label={`${target} 초대 거절`} onClick={() => onDecide(item, 'reject')}>거절</button>
+        </div>}
+      </>;
+    }} />
   </section>;
 }
 

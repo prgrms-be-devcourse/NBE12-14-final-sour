@@ -755,7 +755,8 @@ function AppContent() {
           <div className={viewWrap}>
             <MockLoadGate key="ranking" name="순위" onBack={goToMySchool}>
               <RankingScreenPhone
-                currentSchoolScore={schoolScore}
+                currentSchoolScore={schoolScore} onVisitSchool={openSchool} visitBlocked={visitBlocked}
+                onGoToLogin={() => setViewMode('login')}
                 onNavigateTab={(tab) => {
                   if (tab === 'campus') {
                     setActiveTab('campus');
@@ -945,7 +946,8 @@ function AppContent() {
               {centerTab === 'rankings' && (
                 <MockLoadGate name="순위" variant="panel" onBack={() => setActiveTab('campus')} backLabel="캠퍼스로">
                   <RankingsView
-                    currentSchoolScore={schoolScore}
+                    currentSchoolScore={schoolScore} onVisitSchool={openSchool} visitBlocked={visitBlocked}
+                    onGoToLogin={() => setViewMode('login')}
                     onBackToCampus={() => setActiveTab('campus')}
                   />
                 </MockLoadGate>

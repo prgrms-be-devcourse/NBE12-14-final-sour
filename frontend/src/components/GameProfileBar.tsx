@@ -38,14 +38,23 @@ function MemberProfile({ nickname, onNavigate }: Pick<GameProfileBarProps, 'nick
         summary.current?.focus();
       }
     }}>
-      <summary ref={summary} className="game-workspace-action">프로필 <span className="game-profile-name">· {nickname}</span></summary>
+      <summary ref={summary} className="game-profile-trigger">
+        <span className="game-profile-label">프로필 ·</span>{' '}
+        <span className="game-profile-name">{nickname}</span>
+      </summary>
       <div className="game-profile-actions">
-        <button type="button" onClick={() => navigate('my_info')}>내 정보</button>
-        <button type="button" onClick={() => navigate('member_support')}>문의</button>
+        <button type="button" onClick={() => navigate('my_info')}>
+          <span className="game-profile-icon" aria-hidden="true">👤</span>내 정보
+        </button>
+        <button type="button" onClick={() => navigate('member_support')}>
+          <span className="game-profile-icon" aria-hidden="true">💬</span>문의
+        </button>
         <button type="button" aria-disabled={signOut.isPending || undefined} onClick={(event) => {
           event.currentTarget.focus();
           if (!signOut.isPending) signOut.mutate();
-        }}>{signOut.isPending ? '로그아웃 중…' : '로그아웃'}</button>
+        }}>
+          <span className="game-profile-icon" aria-hidden="true">🚪</span>{signOut.isPending ? '로그아웃 중…' : '로그아웃'}
+        </button>
         {signOut.isError && <p role="alert" className="p-2 text-red-800">로그아웃하지 못했어요. {errorMessage(signOut.error)}</p>}
       </div>
     </details>

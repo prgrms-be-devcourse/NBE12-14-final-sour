@@ -33,6 +33,7 @@ class AllianceUniversityApplicationTest {
 
         assertThat(application.getApplicantUserId())
                 .isEqualTo(userId);
+        assertThat(application.getOrigin()).isEqualTo(AllianceMembershipOrigin.APPLICATION);
 
         assertThat(application.getStatus())
                 .isEqualTo(AllianceUniversityStatus.PENDING);
@@ -42,6 +43,13 @@ class AllianceUniversityApplicationTest {
 
         assertThat(application.getTotalScore())
                 .isZero();
+    }
+
+    @Test
+    @DisplayName("창립 소속은 창립 출처로 기록된다")
+    void createFounder_recordsOrigin() {
+        AllianceUniversity founder = AllianceUniversity.createFounder(1L, 2L, 3L);
+        assertThat(founder.getOrigin()).isEqualTo(AllianceMembershipOrigin.FOUNDER);
     }
 
     @Test

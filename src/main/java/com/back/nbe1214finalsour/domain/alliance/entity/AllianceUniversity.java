@@ -44,6 +44,10 @@ public class AllianceUniversity extends BaseTimeEntity {
     @Column(name = "status", nullable = false, length = 20)
     private AllianceUniversityStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "origin", nullable = false, length = 20, updatable = false)
+    private AllianceMembershipOrigin origin;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
@@ -65,6 +69,7 @@ public class AllianceUniversity extends BaseTimeEntity {
         member.approverUserId = userId;
         member.totalScore = 0L;
         member.status = AllianceUniversityStatus.ACCEPTED;
+        member.origin = AllianceMembershipOrigin.FOUNDER;
 
         return member;
     }
@@ -88,8 +93,16 @@ public class AllianceUniversity extends BaseTimeEntity {
         application.approverUserId = null;
         application.totalScore = 0L;
         application.status = AllianceUniversityStatus.PENDING;
+        application.origin = AllianceMembershipOrigin.APPLICATION;
 
         return application;
+    }
+
+    /** 초대를 보낸 회원과 초대받은 학교를 기록한다. */
+    public static AllianceUniversity createInvitation(Long allianceId, Long universityId, Long inviterUserId) {
+        AllianceUniversity invitation = createApplication(allianceId, universityId, inviterUserId);
+        invitation.origin = AllianceMembershipOrigin.INVITATION;
+        return invitation;
     }
 
     public void approve(Long approverUserId) {

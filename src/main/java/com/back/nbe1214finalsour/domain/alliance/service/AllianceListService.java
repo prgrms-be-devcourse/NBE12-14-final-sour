@@ -48,6 +48,15 @@ public class AllianceListService {
         return reader.applications(null, school, status, cursor, size);
     }
 
+    public Page<Invitation> receivedInvitations(@Nullable Long school, @Nullable AllianceUniversityStatus status, @Nullable Long cursor, int size) {
+        return reader.invitations(null, school, status, OffsetDateTime.now(clock), cursor, size);
+    }
+
+    public Page<Invitation> sentInvitations(long allianceId, @Nullable Long school, @Nullable AllianceUniversityStatus status, @Nullable Long cursor, int size) {
+        requireAccess(allianceId, school, false);
+        return reader.invitations(allianceId, null, status, OffsetDateTime.now(clock), cursor, size);
+    }
+
     public Page<Match> matches(long allianceId, @Nullable Long school, @Nullable Direction direction,
                                @Nullable AllianceMatchStatus status, @Nullable Long cursor, int size) {
         requireAccess(allianceId, school, status == AllianceMatchStatus.FINISHED);

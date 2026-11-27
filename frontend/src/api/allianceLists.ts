@@ -9,6 +9,10 @@ export interface AllianceSchool extends AllianceName { logoUrl: string | null }
 export interface ApplicationRow {
   id: number; alliance: AllianceName; university: AllianceSchool; status: AllianceApplicationStatus; createdAt: string;
 }
+export type InvitationApprovalBlock = 'ALREADY_PROCESSED' | 'ALLIANCE_NOT_ACTIVE' | 'ALLIANCE_FULL' | 'UNIVERSITY_ALREADY_JOINED';
+export interface InvitationRow extends ApplicationRow {
+  approvalBlockReason: InvitationApprovalBlock | null;
+}
 export interface MatchRow extends Pick<AllianceMatch, 'id' | 'status' | 'durationHours' | 'requestExpiredAt' | 'scheduledStartAt' | 'startedAt' | 'endedAt'> {
   opponent: AllianceName; direction: 'INCOMING' | 'OUTGOING'; myScore: number | null; opponentScore: number | null;
   result: 'WIN' | 'LOSE' | 'DRAW' | null;
@@ -50,6 +54,10 @@ export function useAllianceSchools(userId: number, allianceId: number) {
 
 export function useAllianceApplications(userId: number, visible: boolean, allianceId?: number) {
   return usePages<ApplicationRow>(userId, allianceId === undefined ? '/alliances/applications/me' : `/alliances/${allianceId}/applications`, {}, visible);
+}
+
+export function useAllianceInvitations(userId: number, visible: boolean, allianceId?: number) {
+  return usePages<InvitationRow>(userId, allianceId === undefined ? '/alliances/invitations/me' : `/alliances/${allianceId}/invitations`, {}, visible);
 }
 
 export function useAllianceMatches(userId: number, allianceId: number, history: boolean, visible: boolean) {

@@ -5,6 +5,7 @@ import { after, afterEach, test, type TestContext } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
 import { JSDOM } from 'jsdom';
+import { installDialogStub } from './helpers/dialogStub';
 
 const assets = registerHooks({ load(url, context, nextLoad) {
   if (/\.(jpg|png|webp|svg)(\?.*)?$/.test(url)) return { format: 'module', source: 'export default "/asset";', shortCircuit: true };
@@ -17,6 +18,8 @@ for (const [key, value] of Object.entries({ window: dom.window, document: dom.wi
   cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
   IS_REACT_ACT_ENVIRONMENT: true,
 })) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+
+installDialogStub(dom.window);
 
 const { render, screen, fireEvent, cleanup, waitFor, within, act } = await import('@testing-library/react');
 const { timeoutManager } = await import('@tanstack/react-query');
@@ -108,13 +111,14 @@ function fakeStorage(initial: Record<string, string> = {}) {
 }
 
 interface Call { route: string; body: unknown }
-function mount({ create, detail, mine, apply, decide, matchRequest, match, matchDecision, list, signedIn = true, store = fakeStorage(), now = () => NOW, profile = () => ME, watchSession = false }: {
+function mount({ create, detail, mine, apply, decide, matchRequest, match, matchDecision, list, signedIn = true, store = fakeStorage(), now = () => NOW, profile = () => ME, watchSession = false, invitationsEnabled = false, decideInvitation }: {
   create?: (body: unknown) => Response; detail?: (id: number) => Response; signedIn?: boolean;
   mine?: () => Response | Promise<Response>; now?: () => number; profile?: () => MyInfo | Promise<MyInfo>; watchSession?: boolean;
   apply?: (allianceId: number) => Response | Promise<Response>; decide?: (applicationId: number, decision: string) => Response;
   matchRequest?: (allianceId: number, body: unknown) => Response; match?: (matchId: number) => Response;
   matchDecision?: (matchId: number, decision: string) => Response;
   list?: (url: URL) => Response | undefined;
+  invitationsEnabled?: boolean; decideInvitation?: (id: number, decision: string) => Response | Promise<Response>;
   store?: ReturnType<typeof fakeStorage>;
 } = {}) {
   const calls: Call[] = [];
@@ -160,9 +164,11 @@ function mount({ create, detail, mine, apply, decide, matchRequest, match, match
     const decided = /^PATCH \/api\/v1\/alliances\/applications\/(\d+)\/(approve|reject)$/.exec(call.route);
     if (decided) return decide ? decide(Number(decided[1]), decided[2])
       : ok(application(Number(decided[1]), 7, decided[2] === 'approve' ? 'ACCEPTED' : 'REJECTED'));
+    const invitation = /^PATCH \/api\/v1\/alliances\/invitations\/(\d+)\/(approve|reject)$/.exec(call.route);
+    if (invitation && decideInvitation) return decideInvitation(Number(invitation[1]), invitation[2]);
     const school = /^GET \/api\/v1\/universities\/(\d+)$/.exec(call.route);
     if (school) return Number(school[1]) === YONSEI ? ok({ id: YONSEI, name: '연세대학교' }) : fail(404, 'UNIVERSITY_NOT_FOUND', '학교 없음');
-    if (/^GET \/api\/v1\/alliances(?:\/(?:applications\/me|\d+\/(?:applications|matches|universities)))?$/.test(call.route)) {
+    if (/^GET \/api\/v1\/alliances(?:\/(?:(?:applications|invitations)\/me|\d+\/(?:applications|invitations|matches|universities)))?$/.test(call.route)) {
       return list?.(url) ?? (url.pathname.endsWith('/universities') ? ok([]) : ok({ items: [], nextCursor: null }));
     }
     const found = /^GET \/api\/v1\/alliances\/(\d+)$/.exec(call.route);
@@ -176,7 +182,7 @@ function mount({ create, detail, mine, apply, decide, matchRequest, match, match
   const ui = render(React.createElement(ApiProvider, { client, queryClient, children: React.createElement(React.Fragment, null,
     watchSession && React.createElement(ApiSessionWatcher, { onEnded: () => {} }),
     React.createElement(ApiAllianceScreenPhone, {
-      onBack: () => navigation.push('back'), onGoToLogin: () => navigation.push('login'),
+      onBack: () => navigation.push('back'), onGoToLogin: () => navigation.push('login'), invitationsEnabled,
       applications: createSentApplicationMemory(() => store.storage), matches: createMatchMemory(() => store.storage), now,
     }),
   ) }));
@@ -195,7 +201,10 @@ const openApplicationDecision = async () => within(await openAllianceTab('가입
 const openMatchRequest = async () => within(await openAllianceTab('대결')).findByRole('form', { name: '대결 신청' });
 const createForm = () => screen.getByRole('form', { name: '연합 만들기' });
 const fillName = (value: string) => fireEvent.change(within(createForm()).getByLabelText('연합 이름'), { target: { value } });
-const submitCreate = () => fireEvent.click(within(createForm()).getByRole('button', { name: '연합 만들기' }));
+const openCreateConfirmation = () => fireEvent.click(within(createForm()).getByRole('button', { name: '연합 만들기' }));
+const confirmation = (label: string) => within(screen.getByRole('dialog', { name: `${label} 확인` }));
+const confirmAction = (label: string) => fireEvent.click(confirmation(label).getByRole('button', { name: label }));
+const submitCreate = () => { openCreateConfirmation(); confirmAction('연합 만들기'); };
 const field = (detail: HTMLElement, term: string) => {
   const terms = [...detail.querySelectorAll('dt')];
   return terms.find((dt) => dt.textContent === term)?.nextElementSibling?.textContent;
@@ -309,6 +318,12 @@ test('연합을 만들면 다듬은 이름과 기간을 보내고 서버 소속�
   screen.getByText('5/50자 · 앞뒤 공백은 빼고 저장돼요');
   fireEvent.click(within(screen.getByRole('group', { name: '연합 유지 기간' })).getByRole('button', { name: '48h' }));
   screen.getByText('만들면 48시간 (2일) 뒤에 만료돼요.');
+  openCreateConfirmation();
+  confirmation('연합 만들기').getByText('연합 이름: 한양 연합');
+  confirmation('연합 만들기').getByText('유지 기간: 48시간 (2일)');
+  fireEvent.click(confirmation('연합 만들기').getByRole('button', { name: '취소' }));
+  assert.deepEqual(f.posts(), [], '취소한 생성은 보내지 않는다');
+  assert.equal((within(createForm()).getByLabelText('연합 이름') as HTMLInputElement).value, '  한양 연합  ');
   submitCreate();
 
   const detail = await screen.findByTestId('alliance-detail');
@@ -399,7 +414,7 @@ test('이름이 비었거나 50자를 넘으면 보내지 않는다. 앞뒤 공�
   const input = within(createForm()).getByLabelText('연합 이름');
   for (const [value, message] of [['   ', '연합 이름을 입력해 주세요.'], ['가'.repeat(51), '연합 이름은 50자 이하로 입력해 주세요.']]) {
     fillName(value);
-    submitCreate();
+    openCreateConfirmation();
     assert.equal(screen.getByRole('alert').textContent, message);
     assert.equal(input.getAttribute('aria-invalid'), 'true');
   }
@@ -455,6 +470,63 @@ test('브라우저 저장소를 쓸 수 없어도 만든 연합을 보인다', a
   const detail = await screen.findByTestId('alliance-detail');
   await waitFor(() => assert.equal(field(detail, '연합 ID'), '#7'));
   assertAbsent(screen.queryByRole('form', { name: '연합 만들기' }));
+});
+
+test('배포 플래그가 꺼져 있으면 초대 탭을 노출하거나 조회하지 않는다', async () => {
+  const f = mount();
+  await screen.findByRole('form', { name: '연합 만들기' });
+  assertAbsent(screen.queryByRole('tab', { name: '연합 초대' }));
+  assert.deepEqual(f.calls.filter(({ route }) => route.includes('/invitations')), []);
+});
+
+test('초대 내역을 구분하고, 받은 초대를 확인한 뒤 한 번만 처리해 목록과 소속을 갱신한다', async () => {
+  const incoming = { id: 61, alliance: { id: 7, name: '보낸 연합' }, university: ME.university,
+    status: 'PENDING', createdAt: new Date(NOW).toISOString(), approvalBlockReason: null };
+  let membership: Alliance | null = null;
+  let state = 'PENDING';
+  const f = mount({ invitationsEnabled: true, mine: () => ok(membership), list: (url) => {
+    if (url.pathname.endsWith('/invitations/me')) return ok({ items: [{ ...incoming, status: state }], nextCursor: null });
+    if (url.pathname.endsWith('/7/invitations')) return ok({ items: [{ ...incoming, id: 62, university: { id: YONSEI, name: '연세대학교' },
+      approvalBlockReason: 'UNIVERSITY_ALREADY_JOINED' }], nextCursor: null });
+  }, decideInvitation: (id) => {
+    membership = alliance(7);
+    state = 'ACCEPTED';
+    return ok(application(id, 7, 'ACCEPTED', ME.university.id));
+  } });
+  assert.deepEqual(f.routes('GET /api/v1/alliances/invitations'), []);
+  const panel = within(await openAllianceTab('연합 초대'));
+  const received = within(panel.getByRole('region', { name: '받은 연합 초대' }));
+  assertAbsent(panel.queryByRole('region', { name: '보낸 연합 초대' }));
+  const approve = await received.findByRole('button', { name: '보낸 연합 초대 승인' });
+  fireEvent.click(approve);
+  confirmation('초대 승인').getByText('보낸 연합에서 보낸 연합 초대');
+  fireEvent.click(confirmation('초대 승인').getByRole('button', { name: '취소' }));
+  assert.deepEqual(f.routes('PATCH'), []);
+  fireEvent.click(approve);
+  const execute = confirmation('초대 승인').getByRole('button', { name: '초대 승인' });
+  fireEvent.click(execute);
+  fireEvent.click(execute);
+  await panel.findByText('연합에 가입했어요.');
+  await received.findByText('보낸 연합 · 승인');
+  const sent = within(await panel.findByRole('region', { name: '보낸 연합 초대' }));
+  await sent.findByText('초대받은 학교가 이미 다른 연합에 속해 있어요.');
+  assertAbsent(sent.queryByRole('button', { name: '연세대학교 초대 승인' }));
+  assert.deepEqual(f.routes('PATCH'), ['PATCH /api/v1/alliances/invitations/61/approve']);
+});
+
+test('승인 불가 사유를 표시하고 거절 응답이 끊기면 성공으로 표시하지 않는다', async () => {
+  const f = mount({ invitationsEnabled: true, list: (url) => url.pathname.endsWith('/invitations/me') ? ok({
+    items: [{ id: 62, alliance: { id: 7, name: '대상 연합' }, university: ME.university, status: 'PENDING',
+      createdAt: new Date(NOW).toISOString(), approvalBlockReason: 'UNIVERSITY_ALREADY_JOINED' }], nextCursor: null,
+  }) : undefined, decideInvitation: () => { throw new TypeError('network down'); } });
+  const panel = within(await openAllianceTab('연합 초대'));
+  const approve = await panel.findByRole('button', { name: '대상 연합 초대 승인' });
+  assert.equal((approve as HTMLButtonElement).disabled, true);
+  fireEvent.click(panel.getByRole('button', { name: '대상 연합 초대 거절' }));
+  confirmAction('초대 거절');
+  await panel.findByText(/서버 응답을 확인하지 못했어요/);
+  assertAbsent(panel.queryByText('연합 초대를 거절했어요.'));
+  assert.deepEqual(f.routes('PATCH'), ['PATCH /api/v1/alliances/invitations/62/reject']);
 });
 
 test('로그인하지 않았으면 로그인 안내만 보이고 서버를 부르지 않는다', async () => {
@@ -590,13 +662,14 @@ test('우리 연합에서 신청 번호를 승인하면 확인을 거쳐 보내�
   assert.equal(within(form).getByRole('alert').textContent, '신청 번호를 입력해 주세요.');
   fireEvent.change(input, { target: { value: '31' } });
   fireEvent.click(within(form).getByRole('button', { name: '승인' }));
-  const confirm = within(form).getByRole('group', { name: '처리 확인' });
-  within(confirm).getByText('신청 #31을(를) 승인할까요? 되돌릴 수 없어요.');
+  const confirm = confirmation('가입 승인');
+  confirm.getByText('가입 신청 #31');
+  confirm.getByText('처리하면 되돌릴 수 없어요.');
   assert.deepEqual(f.routes('PATCH'), [], '확인 전에는 보내지 않는다');
-  fireEvent.click(within(confirm).getByRole('button', { name: '취소' }));
+  fireEvent.click(confirm.getByRole('button', { name: '취소' }));
   assert.deepEqual(f.routes('PATCH'), []);
   fireEvent.click(within(form).getByRole('button', { name: '승인' }));
-  fireEvent.click(within(form).getByRole('button', { name: '승인하기' }));
+  confirmAction('가입 승인');
   const result = await within(form).findByTestId('application-decision-result');
   await waitFor(() => assert.equal(result.textContent, '연세대학교이(가) 연합에 들어왔어요.연합 #7 학교 2/2 · 정원이 찼어요. 남은 대기 신청은 서버가 자동으로 거절해요.'));
   assert.deepEqual(f.routes('PATCH'), ['PATCH /api/v1/alliances/applications/31/approve']);
@@ -610,7 +683,7 @@ test('거절은 확인 뒤 보내고, 학교 이름을 못 읽으면 번호로 �
   const form = await openApplicationDecision();
   fireEvent.change(within(form).getByLabelText('신청 번호'), { target: { value: ' 40 ' } });
   fireEvent.click(within(form).getByRole('button', { name: '거절' }));
-  fireEvent.click(within(form).getByRole('button', { name: '거절하기' }));
+  confirmAction('가입 거절');
   const result = await within(form).findByTestId('application-decision-result');
   await waitFor(() => assert.match(result.textContent ?? '', /^신청 #40\(학교 #99\)을\(를\) 거절했어요\./));
   assert.match(result.textContent ?? '', /우리 연합 #7이 아니라 연합 #8에 온 신청이었어요/);
@@ -632,7 +705,7 @@ test('신청 처리 오류는 코드마다 알린다', async () => {
   for (; index < cases.length; index++) {
     fireEvent.change(within(form).getByLabelText('신청 번호'), { target: { value: '31' } });
     fireEvent.click(within(form).getByRole('button', { name: '승인' }));
-    fireEvent.click(within(form).getByRole('button', { name: '승인하기' }));
+    confirmAction('가입 승인');
     await waitFor(() => assert.match(within(form).getByTestId('application-decision-error').textContent ?? '', cases[index][2]));
     assert.equal((within(form).getByLabelText('신청 번호') as HTMLInputElement).value, '31', '실패하면 번호를 남긴다');
   }
@@ -952,7 +1025,7 @@ test('계약 센서: 연합 생성·상세 계약이 바뀌면 화면을 다시 
   assert.match(controller, /@PatchMapping\("\/applications\/\{applicationId\}\/reject"\)/, fix);
   assert.match(read('domain/alliance/dto/AllianceApplicationResponse.java'),
     /Long id,\s*Long allianceId,\s*Long universityId,\s*AllianceUniversityStatus status/, fix);
-  assert.match(read('domain/alliance/service/AllianceService.java'), /MAX_ALLIANCE_SIZE = 2;/,
+  assert.match(read('domain/alliance/entity/Alliance.java'), /MAX_SCHOOLS = 2;/,
     '정원이 2가 아니면 승인 결과의 "학교 2/2"와 ALLIANCE_MAX_SCHOOLS를 고치세요.');
   const errors = read('global/exception/ErrorCode.java');
   assert.match(errors, /ALLY_UNIVERSITY_ALREADY_JOINED\(HttpStatus\.CONFLICT, "ALLY_UNIVERSITY_ALREADY_JOINED"/, fix);
@@ -1025,7 +1098,7 @@ test('받은 신청 목록은 번호 없이 승인되고 권한 오류가 나면
   } });
   await openApplicationDecision();
   fireEvent.click(await screen.findByRole('button', { name: '연세대학교 가입 신청 승인' }));
-  fireEvent.click(screen.getByRole('button', { name: '승인하기' }));
+  confirmAction('가입 승인');
   const inbox = screen.getByRole('region', { name: '받은 가입 신청' });
   await within(inbox).findByRole('alert');
   assertAbsent(within(inbox).queryByRole('button', { name: '연세대학교 가입 신청 승인' }));
