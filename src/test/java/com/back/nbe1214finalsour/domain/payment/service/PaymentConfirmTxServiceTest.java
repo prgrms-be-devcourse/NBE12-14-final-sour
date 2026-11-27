@@ -9,6 +9,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.withSettings;
 
+import com.back.nbe1214finalsour.domain.credit.entity.CreditHistory;
+import com.back.nbe1214finalsour.domain.credit.entity.CreditHistoryType;
 import com.back.nbe1214finalsour.domain.credit.repository.CreditHistoryRepository;
 import com.back.nbe1214finalsour.domain.credit.repository.CreditWallet;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,6 +38,7 @@ class PaymentConfirmTxServiceTest {
     // 값이 서로 달라서 인자 순서가 바뀌면 테스트가 잡는다
     private static final Long USER_ID = 1L;
     private static final Long OTHER_USER_ID = 2L;
+    private static final Long PAYMENT_ID = 77L;
     private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
     private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
     private static final String OTHER_PAYMENT_KEY = "tgen_20261127160000ZzZz9";
@@ -220,5 +224,38 @@ class PaymentConfirmTxServiceTest {
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining(ORDER_ID);
         }
+    }
+
+    @Test
+    @DisplayName("승인 완료 UPDATE가 1행이면 잔액을 충전하고 충전 원장을 저장한 뒤 DONE 결과를 돌려준다")
+    void completeConfirmChargesAndRecordsWhenUpdated() {
+        // given
+        Payment payment = mock(Payment.class);
+        given(payment.getId()).willReturn(PAYMENT_ID);
+        given(payment.getUserId()).willReturn(USER_ID);
+        given(payment.getAmount()).willReturn(AMOUNT);
+        given(paymentRepository.completeIfInProgress(ORDER_ID, METHOD, APPROVED_AT)).willReturn(1);
+        given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(payment));
+        given(creditWallet.charge(USER_ID, AMOUNT)).willReturn(12_000L);
+
+        // when
+        PaymentConfirmResult result = service.completeConfirm(ORDER_ID, METHOD, APPROVED_AT);
+
+        // then
+        ArgumentCaptor<CreditHistory> captor = ArgumentCaptor.forClass(CreditHistory.class);
+        then(creditHistoryRepository).should().save(captor.capture());
+        CreditHistory saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo(USER_ID);
+        assertThat(saved.getPaymentId()).isEqualTo(PAYMENT_ID);
+        assertThat(saved.getAmount()).isEqualTo(5_000L);
+        assertThat(saved.getBalanceAfter()).isEqualTo(12_000L);
+        assertThat(saved.getType()).isEqualTo(CreditHistoryType.CHARGE);
+        assertThat(saved.getUserItemId()).isNull();
+        assertThat(result.status()).isEqualTo(PaymentStatus.DONE);
+        assertThat(result.method()).isEqualTo(METHOD);
+        assertThat(result.approvedAt()).isEqualTo(APPROVED_AT);
+        assertThat(result.chargedCredit()).isEqualTo(5_000L);
+        assertThat(result.creditBalance()).isEqualTo(12_000L);
+        then(creditWallet).should().charge(USER_ID, AMOUNT); // 정확히 1번
     }
 }
