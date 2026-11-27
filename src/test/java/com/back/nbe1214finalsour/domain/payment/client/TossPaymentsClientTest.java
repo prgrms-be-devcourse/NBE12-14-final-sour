@@ -150,4 +150,32 @@ class TossPaymentsClientTest {
         assertThat(result.code()).isEqualTo("REJECT_CARD_PAYMENT");
         assertThat(result.message()).isEqualTo("한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
     }
+
+    // 시크릿 키 설정 오류 코드와 토스 공식 에러 목록의 상태 코드를 묶어 돌려준다
+    static Stream<Arguments> keyErrorResponses() {
+        return Stream.of(
+                Arguments.of("UNAUTHORIZED_KEY", HttpStatus.UNAUTHORIZED),
+                Arguments.of("INVALID_API_KEY", HttpStatus.BAD_REQUEST),
+                Arguments.of("INCORRECT_BASIC_AUTH_FORMAT", HttpStatus.FORBIDDEN));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("keyErrorResponses")
+    @DisplayName("시크릿 키 설정 오류 코드면 KEY_ERROR를 돌려준다")
+    void returnsKeyErrorWhenSecretKeyWrong(String code, HttpStatus status) {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withStatus(status)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code":"%s","message":"키 오류 메시지"}
+                                """.formatted(code)));
+
+        // when
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.KEY_ERROR);
+        assertThat(result.code()).isEqualTo(code);
+    }
 }
