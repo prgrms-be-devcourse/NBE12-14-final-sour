@@ -1,7 +1,6 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
-import com.back.nbe1214finalsour.domain.credit.repository.CreditHistoryRepository;
-import com.back.nbe1214finalsour.domain.credit.repository.CreditWallet;
+import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
@@ -18,8 +17,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentConfirmTxService paymentConfirmTxService;
-    private final CreditWallet creditWallet;
-    private final CreditHistoryRepository creditHistoryRepository;
+    private final TossPaymentsClient tossPaymentsClient;
 
     // 충전 주문을 READY로 저장한다. 토스 호출은 없다 (프론트가 응답 값으로 결제창을 연다)
     @Transactional
@@ -63,14 +61,17 @@ public class PaymentService {
     }
 
 
-    private PaymentConfirmResult confirmPayment(Long userId, String orderId, long amount, String paymentKey){
+    public PaymentConfirmResult confirmPayment(Long userId, String orderId, long amount, String paymentKey){
         PaymentConfirmResult start = paymentConfirmTxService.startConfirm(userId, orderId, paymentKey, amount);
         if (start.status() == PaymentStatus.DONE) {
             // 이미 승인된 같은 요청이다 (성공 페이지 새로고침). 토스를 부르지 않는다
             return start;
         }
-        // 토스 승인 호출과 결과별 처리는 다음 단계에서 구현한다
-        throw new UnsupportedOperationException("토스 승인 호출 구현 전");
+
+        tossPaymentsClient.confirm(paymentKey, orderId, amount);
+
+        // 토스 응답 처리(충전, 거절 기록, 확인 중)는 다음 단계에서 구현한다
+        throw new UnsupportedOperationException("토스 응답 처리 구현 전");
     }
 
 }
