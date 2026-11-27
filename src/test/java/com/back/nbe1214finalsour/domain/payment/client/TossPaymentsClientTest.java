@@ -5,6 +5,7 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -200,5 +201,24 @@ class TossPaymentsClientTest {
         // REJECTED가 아니어야 이미 승인됐을 수 있는 결제를 실패로 닫지 않는다
         assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
         assertThat(result.code()).isEqualTo(code);
+    }
+
+    @Test
+    @DisplayName("토스가 5xx를 주면 UNKNOWN을 돌려준다")
+    void returnsUnknownWhenServerError() {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withServerError()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code":"FAILED_INTERNAL_SYSTEM_PROCESSING","message":"내부 시스템 처리 작업이 실패했습니다. 잠시 후 다시 시도해주세요."}
+                                """));
+
+        // when
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
+        assertThat(result.message()).contains("500");
     }
 }
