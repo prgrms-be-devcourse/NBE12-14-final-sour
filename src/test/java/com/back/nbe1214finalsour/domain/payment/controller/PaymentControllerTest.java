@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -386,5 +387,27 @@ class PaymentControllerTest {
         return "{\"paymentKey\":" + jsonString(paymentKey)
                 + ",\"orderId\":" + jsonString(orderId)
                 + ",\"amount\":" + amountJson + "}";
+    }
+
+    // @EnumSource(names = ...)는 나열한 enum 상수 하나하나를 인자로 넣어 테스트를 상수 수만큼 반복 실행한다
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ErrorCode.class,
+            names = {"PAY_ORDER_NOT_FOUND", "PAY_AMOUNT_MISMATCH", "PAY_ALREADY_PROCESSED", "COMMON_INTERNAL_ERROR"})
+    @DisplayName("서비스가 비즈니스 예외를 던지면 그 에러 코드의 상태와 코드로 응답하고 data는 비운다")
+    void confirmReturnsServiceErrorCode(ErrorCode errorCode) throws Exception {
+        // given: 서비스가 그 에러 코드의 예외를 던진다
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY))
+                .willThrow(new BusinessException(errorCode));
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(confirmBody(PAYMENT_KEY, ORDER_ID, 5_000L)));
+
+        // then
+        result.andExpect(status().is(errorCode.getStatus().value()))
+                .andExpect(jsonPath("$.code").value(errorCode.getCode()))
+                .andExpect(jsonPath("$.data").value(nullValue()));
     }
 }
