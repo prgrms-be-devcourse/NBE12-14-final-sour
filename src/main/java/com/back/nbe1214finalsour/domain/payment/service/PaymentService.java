@@ -1,5 +1,6 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
+import com.back.nbe1214finalsour.domain.payment.client.TossConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
@@ -8,11 +9,13 @@ import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -68,10 +71,18 @@ public class PaymentService {
             return start;
         }
 
-        tossPaymentsClient.confirm(paymentKey, orderId, amount);
+        // 토스 승인 요청 (트랜잭션 밖)
+        TossConfirmResult result = tossPaymentsClient.confirm(paymentKey, orderId, amount);
 
-        // 토스 응답 처리(충전, 거절 기록, 확인 중)는 다음 단계에서 구현한다
-        throw new UnsupportedOperationException("토스 응답 처리 구현 전");
+        // 결과를 모르면 충전하지 않고 확인 중(202)으로 응답한다. 확정은 스케줄러가 한다
+        if (result.type() == TossConfirmResult.Type.UNKNOWN) {
+            log.warn("토스 승인 결과 모름, 확인 중으로 응답: orderId={}, code={}, reason={}",
+                    orderId, result.code(), result.message());
+            return new PaymentConfirmResult(orderId);
+        }
+
+        // 승인됨(APPROVED) → 승인 완료(tx2), 거절(REJECTED)·키 오류(KEY_ERROR) → 거절 기록은 다음 단계에서 구현한다
+        throw new UnsupportedOperationException("승인 완료·거절 기록 구현 전");
     }
 
 }
