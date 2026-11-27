@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -176,6 +177,28 @@ class TossPaymentsClientTest {
 
         // then
         assertThat(result.type()).isEqualTo(TossConfirmResult.Type.KEY_ERROR);
+        assertThat(result.code()).isEqualTo(code);
+    }
+
+    // @ValueSource는 나열한 문자열 하나하나를 인자로 넣어 테스트를 개수만큼 반복 실행한다
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"ALREADY_PROCESSED_PAYMENT", "ALREADY_PROCESSING_REQUEST", "PROVIDER_ERROR"})
+    @DisplayName("4xx여도 승인 여부를 알 수 없는 코드면 UNKNOWN을 돌려주고 코드를 남긴다")
+    void returnsUnknownWhenOutcomeUncertainCode(String code) {
+        // given
+        server.expect(once(), requestTo(URL))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code":"%s","message":"승인 여부를 알 수 없는 메시지"}
+                                """.formatted(code)));
+
+        // when
+        TossConfirmResult result = client.confirm("tgen_20261127160000AbCd1", "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b", 5_000L);
+
+        // then
+        // REJECTED가 아니어야 이미 승인됐을 수 있는 결제를 실패로 닫지 않는다
+        assertThat(result.type()).isEqualTo(TossConfirmResult.Type.UNKNOWN);
         assertThat(result.code()).isEqualTo(code);
     }
 }
