@@ -1,14 +1,5 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.withSettings;
-
 import com.back.nbe1214finalsour.domain.payment.client.TossConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
@@ -18,8 +9,6 @@ import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejected
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
-import java.time.OffsetDateTime;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,6 +20,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.quality.Strictness;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
@@ -197,7 +196,7 @@ class PaymentServiceTest {
             // given
             PaymentConfirmResult stored =
                     new PaymentConfirmResult(ORDER_ID, PaymentStatus.DONE, METHOD, APPROVED_AT, 5_000L, 12_000L);
-            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT)).willReturn(stored);
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT)).willReturn(Optional.of(stored));
 
             // when
             PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
@@ -209,11 +208,29 @@ class PaymentServiceTest {
         }
 
         @Test
+        @DisplayName("승인 시작이 확인 중 결과를 돌려주면 토스를 부르지 않고 그 결과를 그대로 돌려준다")
+        void returnsInProgressWithoutCallingTossWhenAlreadyInProgress() {
+            // given: 같은 결제 키로 이미 진행 중인 주문에 다시 요청이 왔다
+            PaymentConfirmResult inProgress = new PaymentConfirmResult(ORDER_ID);
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(Optional.of(inProgress));
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result).isSameAs(inProgress);
+            then(tossPaymentsClient).shouldHaveNoInteractions();
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+            then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
+        }
+
+        @Test
         @DisplayName("토스가 승인하면 승인 완료 결과를 돌려준다")
         void completesWhenTossApproved() {
             // given
             given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
-                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+                    .willReturn(Optional.empty());
             given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
                     .willReturn(new TossConfirmResult(TossConfirmResult.Type.APPROVED, METHOD, APPROVED_AT, null, null));
             PaymentConfirmResult done =
@@ -233,7 +250,7 @@ class PaymentServiceTest {
         void returnsInProgressWhenTossOutcomeUnknown() {
             // given
             given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
-                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+                    .willReturn(Optional.empty());
             given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
                     .willReturn(new TossConfirmResult(TossConfirmResult.Type.UNKNOWN, null, null, null, "HTTP 500"));
 
@@ -254,7 +271,7 @@ class PaymentServiceTest {
             String tossCode = "REJECT_CARD_PAYMENT";
             String tossMessage = "한도초과 혹은 잔액부족으로 결제에 실패했습니다.";
             given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
-                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+                    .willReturn(Optional.empty());
             given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
                     .willReturn(new TossConfirmResult(TossConfirmResult.Type.REJECTED, null, null, tossCode, tossMessage));
 
@@ -275,7 +292,7 @@ class PaymentServiceTest {
             String tossCode = "UNAUTHORIZED_KEY";
             String tossMessage = "인증되지 않은 시크릿 키 혹은 클라이언트 키 입니다.";
             given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
-                    .willReturn(new PaymentConfirmResult(ORDER_ID));
+                    .willReturn(Optional.empty());
             given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
                     .willReturn(new TossConfirmResult(TossConfirmResult.Type.KEY_ERROR, null, null, tossCode, tossMessage));
 

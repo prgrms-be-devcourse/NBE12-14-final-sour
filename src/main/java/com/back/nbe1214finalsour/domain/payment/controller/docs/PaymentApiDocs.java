@@ -6,7 +6,7 @@ import com.back.nbe1214finalsour.global.security.AuthUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletResponse;
 
 /** {@link com.back.nbe1214finalsour.domain.payment.controller.PaymentController}의 API 문서. */
 @Tag(name = "결제", description = "토스페이먼츠 크레딧 충전 (1원 = 1크레딧)")
@@ -80,5 +80,5 @@ public interface PaymentApiDocs {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500",
                     description = PaymentErrorDocs.CONFIRM_SERVER_ERROR)
     })
-    ResponseEntity<ApiResponse<?>> confirm(AuthUser user, PaymentConfirmRequest request);
+    ApiResponse<?> confirm(AuthUser user, PaymentConfirmRequest request, HttpServletResponse response);
 }

@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -67,10 +69,10 @@ public class PaymentService {
 
     public PaymentConfirmResult confirmPayment(Long userId, String orderId, long amount, String paymentKey){
         // 트렌젝션 1: 주문 검증과 IN_PROGRESS로 변경
-        PaymentConfirmResult start = paymentConfirmTxService.startConfirm(userId, orderId, paymentKey, amount);
-        if (start.status() == PaymentStatus.DONE) {
-            // 이미 승인된 같은 요청이다 (성공 페이지 새로고침). 토스를 부르지 않는다
-            return start;
+        Optional<PaymentConfirmResult> decided = paymentConfirmTxService.startConfirm(userId, orderId, paymentKey, amount);
+        if (decided.isPresent()) {
+            // 같은 요청이 다시 왔다 (DONE이면 저장된 결과, IN_PROGRESS면 확인 중). 토스를 부르지 않는다
+            return decided.get();
         }
 
         // 토스 승인 요청 (트랜잭션 밖)

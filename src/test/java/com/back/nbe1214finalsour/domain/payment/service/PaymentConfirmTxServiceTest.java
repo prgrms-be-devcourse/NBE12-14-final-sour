@@ -1,15 +1,5 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.withSettings;
-
 import com.back.nbe1214finalsour.domain.credit.entity.CreditHistory;
 import com.back.nbe1214finalsour.domain.credit.entity.CreditHistoryType;
 import com.back.nbe1214finalsour.domain.credit.repository.CreditHistoryRepository;
@@ -19,8 +9,6 @@ import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
-import java.time.OffsetDateTime;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,6 +20,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.quality.Strictness;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentConfirmTxServiceTest {
@@ -60,18 +59,16 @@ class PaymentConfirmTxServiceTest {
     private PaymentConfirmTxService service;
 
     @Test
-    @DisplayName("승인 시작 UPDATE가 1행이면 IN_PROGRESS 결과를 돌려주고 주문을 조회하지 않는다")
-    void startConfirmReturnsInProgressWhenUpdated() {
+    @DisplayName("승인 시작 UPDATE가 1행이면 빈 결과를 돌려주고 주문을 조회하지 않는다")
+    void startConfirmReturnsEmptyWhenUpdated() {
         // given
         given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(1);
 
         // when
-        PaymentConfirmResult result = service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT);
+        Optional<PaymentConfirmResult> result = service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT);
 
-        // then
-        assertThat(result.orderId()).isEqualTo(ORDER_ID);
-        assertThat(result.status()).isEqualTo(PaymentStatus.IN_PROGRESS);
-        assertThat(result.creditBalance()).isNull();
+        // then: 비어 있으면 승인을 시작했다는 뜻이라 서비스가 토스를 부른다
+        assertThat(result).isEmpty();
         then(paymentRepository).should().startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY);
         then(paymentRepository).shouldHaveNoMoreInteractions();
         then(creditWallet).shouldHaveNoInteractions();
@@ -152,7 +149,7 @@ class PaymentConfirmTxServiceTest {
             given(creditWallet.findBalance(USER_ID)).willReturn(12_000L);
 
             // when
-            PaymentConfirmResult result = service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT);
+            PaymentConfirmResult result = service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT).orElseThrow();
 
             // then
             assertThat(result.status()).isEqualTo(PaymentStatus.DONE);
@@ -185,17 +182,60 @@ class PaymentConfirmTxServiceTest {
             then(creditWallet).shouldHaveNoInteractions();
         }
 
+        @Test
+        @DisplayName("승인 진행 중인 주문에 같은 결제 키로 요청하면 확인 중 결과를 돌려준다")
+        void returnsInProgressWhenAlreadyInProgressWithSameKey() {
+            // given
+            Payment inProgressPayment = mock(Payment.class);
+            given(inProgressPayment.getUserId()).willReturn(USER_ID);
+            given(inProgressPayment.getAmount()).willReturn(AMOUNT);
+            given(inProgressPayment.getStatus()).willReturn(PaymentStatus.IN_PROGRESS);
+            given(inProgressPayment.getPaymentKey()).willReturn(PAYMENT_KEY);
+            given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(0);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(inProgressPayment));
+
+            // when
+            PaymentConfirmResult result = service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT).orElseThrow();
+
+            // then
+            assertThat(result.orderId()).isEqualTo(ORDER_ID);
+            assertThat(result.status()).isEqualTo(PaymentStatus.IN_PROGRESS);
+            assertThat(result.creditBalance()).isNull();
+            then(creditWallet).shouldHaveNoInteractions();
+        }
+
+        @Test
+        @DisplayName("승인 진행 중인 주문에 다른 결제 키로 요청하면 PAY_ALREADY_PROCESSED 예외를 던진다")
+        void throwsAlreadyProcessedWhenInProgressWithOtherKey() {
+            // given
+            Payment inProgressPayment = mock(Payment.class);
+            given(inProgressPayment.getUserId()).willReturn(USER_ID);
+            given(inProgressPayment.getAmount()).willReturn(AMOUNT);
+            given(inProgressPayment.getStatus()).willReturn(PaymentStatus.IN_PROGRESS);
+            given(inProgressPayment.getPaymentKey()).willReturn(OTHER_PAYMENT_KEY); // 요청의 PAYMENT_KEY와 다르다
+            given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(0);
+            given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(inProgressPayment));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> service.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_ALREADY_PROCESSED);
+            then(creditWallet).shouldHaveNoInteractions();
+        }
+
         // @EnumSource(names = ...)는 나열한 enum 상수 하나하나를 인자로 넣어 테스트를 상수 수만큼 반복 실행한다
         @ParameterizedTest(name = "{0}")
-        @EnumSource(value = PaymentStatus.class, names = {"IN_PROGRESS", "ABORTED", "EXPIRED", "CANCELED"})
-        @DisplayName("본인 주문이 READY도 DONE도 아니면 PAY_ALREADY_PROCESSED 예외를 던진다")
+        @EnumSource(value = PaymentStatus.class, names = {"ABORTED", "EXPIRED", "CANCELED"})
+        @DisplayName("본인 주문이 READY·DONE·IN_PROGRESS가 아니면 PAY_ALREADY_PROCESSED 예외를 던진다")
         void throwsAlreadyProcessedWhenNotReady(PaymentStatus status) {
             // given
             Payment payment = mock(Payment.class);
             given(payment.getUserId()).willReturn(USER_ID);
             given(payment.getAmount()).willReturn(AMOUNT);
             given(payment.getStatus()).willReturn(status);
-            // getPaymentKey()는 스텁하지 않는다: DONE이 아니면 읽지 않는다
+            // getPaymentKey()는 스텁하지 않는다: DONE·IN_PROGRESS가 아니면 읽지 않는다
             given(paymentRepository.startIfReady(ORDER_ID, USER_ID, AMOUNT, PAYMENT_KEY)).willReturn(0);
             given(paymentRepository.findByOrderId(ORDER_ID)).willReturn(Optional.of(payment));
 

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,16 +25,16 @@ public class PaymentConfirmTxService {
 
     // 주문 상태 -> IN_PROGRESS로 변경 + payment_key 저장
     @Transactional
-    public PaymentConfirmResult startConfirm(Long userId, String orderId, String paymentKey, long amount){
+    public Optional<PaymentConfirmResult> startConfirm(Long userId, String orderId, String paymentKey, long amount){
         int updated = this.paymentRepository.startIfReady(orderId, userId, amount, paymentKey);
         if (updated == 1){
-            return new PaymentConfirmResult(orderId);
+            return Optional.empty();
         }
         return checkWhyNotStarted(userId, orderId, paymentKey, amount);
     }
 
      // IN_PROGRESS로 상태 변경 실패 시 유형 분석 후 예외 처리
-    private PaymentConfirmResult checkWhyNotStarted(Long userId, String orderId, String paymentKey, long amount){
+    private Optional<PaymentConfirmResult> checkWhyNotStarted(Long userId, String orderId, String paymentKey, long amount){
         // 주문이 없으면 404
         Payment payment = this.paymentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAY_ORDER_NOT_FOUND));
@@ -51,14 +52,19 @@ public class PaymentConfirmTxService {
         // 이미 승인됐고 같은 결제 키면 같은 요청이 다시 온 것. 충전하지 않고 저장된 값을 응답
         if (payment.getStatus() == PaymentStatus.DONE && paymentKey.equals(payment.getPaymentKey())){
             long balance = this.creditWallet.findBalance(userId);
-            return new PaymentConfirmResult(orderId, PaymentStatus.DONE, payment.getMethod(), payment.getApprovedAt(), payment.getAmount(), balance);
+            return Optional.of(new PaymentConfirmResult(orderId, PaymentStatus.DONE, payment.getMethod(), payment.getApprovedAt(), payment.getAmount(), balance));
+        }
+
+        // 승인 진행 중이고 같은 결제 키면 같은 요청이 다시 온 것 (확인 중 응답 뒤 재요청, 더블클릭). 토스를 다시 부르지 않고 확인 중으로 응답
+        if (payment.getStatus() == PaymentStatus.IN_PROGRESS && paymentKey.equals(payment.getPaymentKey())){
+            return Optional.of(new PaymentConfirmResult(orderId));
         }
 
         // 0행인데 본인 READY이고 금액도 같으면 UPDATE 쿼리 자체가 잘못된 것이다. 숨기지 않고 500으로 드러낸다
         if (payment.getStatus() == PaymentStatus.READY) {
             throw new IllegalStateException("READY 주문인데 승인 시작 UPDATE가 0행: orderId=" + orderId);
         }
-        // 그 외(IN_PROGRESS·ABORTED·EXPIRED·CANCELED, 다른 결제 키의 DONE)는 이미 처리된 주문이다
+        // 그 외(ABORTED·EXPIRED·CANCELED, 다른 결제 키의 IN_PROGRESS·DONE)는 이미 처리된 주문이다
         throw new BusinessException(ErrorCode.PAY_ALREADY_PROCESSED);
     }
 

@@ -9,6 +9,7 @@ import com.back.nbe1214finalsour.domain.payment.service.PaymentConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.service.PaymentService;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
 import com.back.nbe1214finalsour.global.security.AuthUser;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -49,18 +50,20 @@ public class PaymentController implements PaymentApiDocs {
 
     // 결제 승인. successUrl의 세 값을 받아 토스 승인 후 크레딧을 충전한다
     // 토스 결과를 모르면 202(확인 중), 이미 승인된 같은 요청이면 저장된 값으로 200
-    // 200과 202를 나눠야 해서 이 메서드만 ResponseEntity를 돌려준다
+    // 결과에 따라 상태 코드가 달라서 HttpServletResponse로 202를 직접 지정한다 (지정하지 않으면 200)
     @PostMapping("/confirm")
-    public ResponseEntity<ApiResponse<?>> confirm(
+    public ApiResponse<?> confirm(
             @AuthenticationPrincipal AuthUser user,
-            @Valid @RequestBody PaymentConfirmRequest request
+            @Valid @RequestBody PaymentConfirmRequest request,
+            HttpServletResponse response
     ) {
         PaymentConfirmResult result = paymentService.confirmPayment(
                 user.userId(), request.orderId(), request.amount(), request.paymentKey());
         if (result.status() == PaymentStatus.IN_PROGRESS) {
-            return ResponseEntity.status(HttpStatus.ACCEPTED)
-                    .body(ApiResponse.ok(new PaymentPendingResponse(result.orderId())));
+            // 토스 결과를 몰라 확인 중이다. 상태 코드만 202로 바꾸고 본문은 그대로 돌려준다
+            response.setStatus(HttpStatus.ACCEPTED.value());
+            return ApiResponse.ok(new PaymentPendingResponse(result.orderId()));
         }
-        return ResponseEntity.ok(ApiResponse.ok(new PaymentConfirmResponse(result)));
+        return ApiResponse.ok(new PaymentConfirmResponse(result));
     }
 }
