@@ -147,6 +147,23 @@ class PaymentRepositoryTest {
         assertThat(found.getFailCode()).isEqualTo("PAY_PROCESS_CANCELED");
     }
 
+    @Test
+    @DisplayName("본인의 READY 주문이고 금액이 같으면 IN_PROGRESS로 바꾸고 결제 키를 저장한다")
+    void startIfReadyStartsOwnReadyOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.IN_PROGRESS);
+        assertThat(found.getPaymentKey()).isEqualTo(PAYMENT_KEY);
+    }
+
     // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
     private Long insertOtherUser() {
         return jdbcTemplate.queryForObject("""
