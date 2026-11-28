@@ -181,4 +181,18 @@ class CreditHistoryRepositoryTest {
         assertThat(found.getIdempotencyKey()).isNull();
         assertThat(found.getCreatedAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("같은 결제로 충전 내역을 두 번 저장하면 DB가 거부한다")
+    void rejectsSecondChargeForSamePayment() {
+        // given
+        Long paymentId = insertPayment(userId);
+        creditHistoryRepository.saveAndFlush(CreditHistory.charge(userId, paymentId, 5_000L, 12_000L));
+
+        // when & then
+        assertThatThrownBy(() -> creditHistoryRepository.saveAndFlush(
+                CreditHistory.charge(userId, paymentId, 5_000L, 17_000L)))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasStackTraceContaining("uk_credit_history_payment");
+    }
 }
