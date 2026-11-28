@@ -289,6 +289,31 @@ class PaymentRepositoryTest {
         assertThat(found.getFailMessage()).isEqualTo("한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
     }
 
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = PaymentStatus.class,
+            names = {"READY", "DONE", "ABORTED", "EXPIRED", "CANCELED"})
+    @DisplayName("IN_PROGRESS가 아닌 주문이면 거절로 바꾸지 않고 0을 돌려준다")
+    void abortIfInProgressIgnoresOtherStatus(PaymentStatus status) {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        if (status != PaymentStatus.READY) { // READY는 만든 상태 그대로 둔다
+            forceStatus(payment.getId(), status);
+        }
+        entityManager.clear(); // JDBC로 바꾼 상태를 모르는 READY 엔티티를 컨텍스트에 남기지 않음
+
+        // when
+        int updated = paymentRepository.abortIfInProgress(
+                payment.getOrderId(), "REJECT_CARD_PAYMENT", "한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(status);
+        assertThat(found.getFailCode()).isNull();
+    }
+
     // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
     private Long insertOtherUser() {
         return jdbcTemplate.queryForObject("""
