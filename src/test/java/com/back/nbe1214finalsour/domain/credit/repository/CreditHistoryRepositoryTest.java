@@ -76,6 +76,15 @@ class CreditHistoryRepositoryTest {
                 """, Long.class, universityId, departmentId, nickname, email, hashChar.repeat(64));
     }
 
+    // 이 회원의 결제 한 건. status는 기본값 READY이고, 원장 FK는 (payment_id, user_id)만 본다
+    private Long insertPayment(Long ownerId) {
+        return jdbcTemplate.queryForObject("""
+                INSERT INTO payment (order_id, order_name, user_id, amount)
+                VALUES ('charge-test-order-0001', '크레딧 5,000', ?, 5000)
+                RETURNING id
+                """, Long.class, ownerId);
+    }
+
     @Test
     @DisplayName("크레딧 사용 내역(USE)을 저장하면 입력한 값 그대로 DB에서 다시 읽힌다")
     void saveUseHistory() {
@@ -148,5 +157,42 @@ class CreditHistoryRepositoryTest {
                 "SELECT count(*) FROM credit_history WHERE user_id = ? AND idempotency_key IS NULL",
                 Long.class, userId))
                 .isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("충전 내역(CHARGE)을 저장하면 결제에 연결되고 입력한 값 그대로 DB에서 다시 읽힌다")
+    void saveChargeHistory() {
+        // given
+        Long paymentId = insertPayment(userId);
+
+        // when
+        CreditHistory saved = creditHistoryRepository.saveAndFlush(
+                CreditHistory.charge(userId, paymentId, 5_000L, 12_000L));
+        entityManager.clear();   // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        CreditHistory found = creditHistoryRepository.findById(saved.getId()).orElseThrow();
+        assertThat(found.getType()).isEqualTo(CreditHistoryType.CHARGE);
+        assertThat(found.getUserId()).isEqualTo(userId);
+        assertThat(found.getPaymentId()).isEqualTo(paymentId);
+        assertThat(found.getUserItemId()).isNull();
+        assertThat(found.getAmount()).isEqualTo(5_000L);
+        assertThat(found.getBalanceAfter()).isEqualTo(12_000L);
+        assertThat(found.getIdempotencyKey()).isNull();
+        assertThat(found.getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("같은 결제로 충전 내역을 두 번 저장하면 DB가 거부한다")
+    void rejectsSecondChargeForSamePayment() {
+        // given
+        Long paymentId = insertPayment(userId);
+        creditHistoryRepository.saveAndFlush(CreditHistory.charge(userId, paymentId, 5_000L, 12_000L));
+
+        // when & then
+        assertThatThrownBy(() -> creditHistoryRepository.saveAndFlush(
+                CreditHistory.charge(userId, paymentId, 5_000L, 17_000L)))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasStackTraceContaining("uk_credit_history_payment");
     }
 }

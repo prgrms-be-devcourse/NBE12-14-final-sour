@@ -1,20 +1,29 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
+import com.back.nbe1214finalsour.domain.payment.client.TossConfirmResult;
+import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final PaymentConfirmTxService paymentConfirmTxService;
+    private final TossPaymentsClient tossPaymentsClient;
 
     // 충전 주문을 READY로 저장한다. 토스 호출은 없다 (프론트가 응답 값으로 결제창을 연다)
     @Transactional
@@ -56,4 +65,47 @@ public class PaymentService {
         // 그 외(IN_PROGRESS·DONE·EXPIRED·CANCELED)는 이미 다른 결과가 난 주문이다
         throw new BusinessException(ErrorCode.PAY_ALREADY_PROCESSED);
     }
+
+
+    public PaymentConfirmResult confirmPayment(Long userId, String orderId, long amount, String paymentKey){
+        // 트렌젝션 1: 주문 검증과 IN_PROGRESS로 변경
+        Optional<PaymentConfirmResult> decided = paymentConfirmTxService.startConfirm(userId, orderId, paymentKey, amount);
+        if (decided.isPresent()) {
+            // 같은 요청이 다시 왔다 (DONE이면 저장된 결과, IN_PROGRESS면 확인 중). 토스를 부르지 않는다
+            return decided.get();
+        }
+
+        // 토스 승인 요청 (트랜잭션 밖)
+        TossConfirmResult result = tossPaymentsClient.confirm(paymentKey, orderId, amount);
+
+        // 결과를 모르면 충전하지 않고 확인 중(202)으로 응답한다. 확정은 스케줄러가 한다
+        if (result.type() == TossConfirmResult.Type.UNKNOWN) {
+            log.warn("토스 승인 결과 모름, 확인 중으로 응답: orderId={}, code={}, reason={}",
+                    orderId, result.code(), result.message());
+            return new PaymentConfirmResult(orderId);
+        }
+
+        // 승인됨: DONE 저장, 잔액 충전, 원장 기록 (tx2)
+        if (result.type() == TossConfirmResult.Type.APPROVED) {
+            return paymentConfirmTxService.completeConfirm(orderId, result.method(), result.approvedAt());
+        }
+
+        // 거절: 주문을 실패로 닫고, 토스 거절 사유를 담은 예외를 던진다 → 400
+        if (result.type() == TossConfirmResult.Type.REJECTED) {
+            paymentConfirmTxService.abortConfirm(orderId, result.code(), result.message());
+            log.info("토스 승인 거절: orderId={}, code={}", orderId, result.code());
+            throw new PaymentConfirmRejectedException(result.code(), result.message());
+        }
+
+        // 키 오류: 우리 설정 문제라 사용자에게 내부 사유를 보이지 않고 500으로 응답한다
+        if (result.type() == TossConfirmResult.Type.KEY_ERROR) {
+            paymentConfirmTxService.abortConfirm(orderId, result.code(), result.message());
+            log.error("토스 시크릿 키 설정 오류: code={}. TOSS_SECRET_KEY를 확인하세요", result.code());
+            throw new BusinessException(ErrorCode.COMMON_INTERNAL_ERROR);
+        }
+
+        // 네 종류를 모두 처리했으므로 여기 오면 분류 코드에 새 종류가 생긴 것이다
+        throw new IllegalStateException("처리하지 않은 토스 결과: " + result.type());
+    }
+
 }

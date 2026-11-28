@@ -1,11 +1,13 @@
 package com.back.nbe1214finalsour.domain.payment.repository;
 
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
@@ -29,4 +31,54 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     // 실패 기록 UPDATE가 0행일 때 이유를 가리려고 주문을 찾는다 (uk_payment_order_id로 한 행)
     Optional<Payment> findByOrderId(String orderId);
+
+    /**
+     * READY인 본인 주문이고 금액이 같을 때만 IN_PROGRESS로 바꾸고 토스 결제 키를 저장한다.
+     * 같은 주문에 승인 요청이 동시에 와도 한쪽만 1을 받는다.
+     *
+     * @return 바뀐 행 수. 0이면 주문이 없거나, 남의 주문이거나, 금액이 다르거나, READY가 아니다
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE payment
+               SET status = 'IN_PROGRESS', payment_key = :paymentKey
+             WHERE order_id = :orderId
+               AND user_id = :userId
+               AND amount = :amount
+               AND status = 'READY'
+            """, nativeQuery = true)
+    int startIfReady(@Param("orderId") String orderId, @Param("userId") Long userId,
+                     @Param("amount") long amount, @Param("paymentKey") String paymentKey);
+
+
+    /**
+     * IN_PROGRESS 주문만 DONE으로 바꾸고 토스의 결제수단·승인 시각을 저장한다.
+     * 스케줄러가 같은 주문을 먼저 처리했으면 0이 되어 충전이 두 번 일어나지 않는다.
+     *
+     * @return 바뀐 행 수. 0이면 IN_PROGRESS가 아니다
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE payment
+               SET status = 'DONE', method = :method, approved_at = :approvedAt
+             WHERE order_id = :orderId
+               AND status = 'IN_PROGRESS'
+            """, nativeQuery = true)
+    int completeIfInProgress(@Param("orderId") String orderId, @Param("method") String method,
+                             @Param("approvedAt") OffsetDateTime approvedAt);
+
+    /**
+     * IN_PROGRESS 주문만 ABORTED로 바꾸고 토스의 거절 코드·메시지를 저장한다.
+     *
+     * @return 바뀐 행 수. 0이면 IN_PROGRESS가 아니다 (스케줄러가 먼저 처리함)
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE payment
+               SET status = 'ABORTED', fail_code = :failCode, fail_message = :failMessage
+             WHERE order_id = :orderId
+               AND status = 'IN_PROGRESS'
+            """, nativeQuery = true)
+    int abortIfInProgress(@Param("orderId") String orderId, @Param("failCode") String failCode,
+                          @Param("failMessage") String failMessage);
 }

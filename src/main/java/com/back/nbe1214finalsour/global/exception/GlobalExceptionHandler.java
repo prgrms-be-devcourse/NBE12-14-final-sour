@@ -1,5 +1,7 @@
 package com.back.nbe1214finalsour.global.exception;
 
+import com.back.nbe1214finalsour.domain.payment.dto.PaymentRejectReason;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
 import com.back.nbe1214finalsour.global.response.FieldErrorDetail;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +49,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleBusinessException(BusinessException ex, WebRequest request) {
         ErrorCode errorCode = ex.getErrorCode();
         return handleExceptionInternal(ex, ApiResponse.fail(errorCode), new HttpHeaders(), errorCode.getStatus(), request);
+    }
+
+    // 토스 승인 거절. 사용자가 거절 사유(한도초과 등)를 보도록 토스 code·message를 data에 담는다
+    @ExceptionHandler(PaymentConfirmRejectedException.class)
+    public ResponseEntity<Object> handlePaymentConfirmRejected(PaymentConfirmRejectedException ex, WebRequest request) {
+        ErrorCode errorCode = ex.getErrorCode();
+        PaymentRejectReason reason = new PaymentRejectReason(ex.getTossCode(), ex.getTossMessage());
+        return handleExceptionInternal(ex, ApiResponse.fail(errorCode, reason), new HttpHeaders(), errorCode.getStatus(), request);
     }
 
     /**

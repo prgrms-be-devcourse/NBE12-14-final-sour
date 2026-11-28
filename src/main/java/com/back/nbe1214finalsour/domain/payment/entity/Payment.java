@@ -1,18 +1,13 @@
 package com.back.nbe1214finalsour.domain.payment.entity;
 
 import com.back.nbe1214finalsour.global.jpa.BaseTimeEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import java.util.UUID;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "payment")
@@ -49,6 +44,18 @@ public class Payment extends BaseTimeEntity {
 
     @Column(name = "fail_message", length = 255)
     private String failMessage;
+
+    // 토스 결제 키. 승인 시작(tx1) 때 저장한다. 결제 조회·취소에 쓴다 (uk_payment_payment_key)
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
+    // 토스가 돌려준 결제수단 (예: 카드). 승인 완료 때 저장한다
+    @Column(length = 20)
+    private String method;
+
+    // 토스 승인 시각. 승인 완료 때 저장한다
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
 
     public static Payment ready(Long userId, ChargeAmount chargeAmount) {
         Payment payment = new Payment();

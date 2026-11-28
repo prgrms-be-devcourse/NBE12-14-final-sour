@@ -7,6 +7,7 @@ import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
 import jakarta.persistence.EntityManager;
+import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @IntegrationTest
 @Transactional
 class PaymentRepositoryTest {
+
+    private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
 
     @Autowired
     private PaymentRepository paymentRepository;
@@ -91,13 +94,7 @@ class PaymentRepositoryTest {
     void abortIfReadyIgnoresOthersOrder() {
         // given
         Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
-        // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
-        Long otherUserId = jdbcTemplate.queryForObject("""
-                INSERT INTO users (university_id, department_id, nickname, email, email_hash, password, approved_at)
-                SELECT university_id, department_id, '결제타인', 'payment-other@test.com', ?, 'password', now()
-                  FROM users WHERE id = ?
-                RETURNING id
-                """, Long.class, "1".repeat(64), userId);
+        Long otherUserId = insertOtherUser();
 
         // when
         int updated = paymentRepository.abortIfReady(
@@ -149,6 +146,182 @@ class PaymentRepositoryTest {
         assertThat(updated).isEqualTo(1);
         assertThat(found.getFailMessage()).isNull();
         assertThat(found.getFailCode()).isEqualTo("PAY_PROCESS_CANCELED");
+    }
+
+    @Test
+    @DisplayName("본인의 READY 주문이고 금액이 같으면 IN_PROGRESS로 바꾸고 결제 키를 저장한다")
+    void startIfReadyStartsOwnReadyOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.IN_PROGRESS);
+        assertThat(found.getPaymentKey()).isEqualTo(PAYMENT_KEY);
+    }
+
+    @Test
+    @DisplayName("남의 READY 주문이면 바꾸지 않고 0을 돌려준다")
+    void startIfReadyIgnoresOthersOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        Long otherUserId = insertOtherUser();
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), otherUserId, 5_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.READY);
+        assertThat(found.getPaymentKey()).isNull();
+    }
+
+    @Test
+    @DisplayName("금액이 주문 금액과 다르면 바꾸지 않고 0을 돌려준다")
+    void startIfReadyIgnoresAmountMismatch() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), userId, 10_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.READY);
+        assertThat(found.getPaymentKey()).isNull();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = PaymentStatus.class,
+            names = {"IN_PROGRESS", "DONE", "ABORTED", "EXPIRED", "CANCELED"})
+    @DisplayName("READY가 아닌 주문이면 승인을 시작하지 않고 0을 돌려준다")
+    void startIfReadyIgnoresNonReadyOrder(PaymentStatus status) {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        forceStatus(payment.getId(), status);
+        entityManager.clear(); // JDBC로 바꾼 상태를 모르는 READY 엔티티를 컨텍스트에 남기지 않음
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(status);
+        // DONE·CANCELED는 forceStatus가 넣은 다른 키가 남아 있으므로 null이 아니라 "이 키가 아님"을 확인한다
+        assertThat(found.getPaymentKey()).isNotEqualTo(PAYMENT_KEY);
+    }
+
+    @Test
+    @DisplayName("IN_PROGRESS 주문이면 DONE으로 바꾸고 결제수단과 승인 시각을 저장한다")
+    void completeIfInProgressCompletesOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY); // DONE은 결제 키가 있어야 한다(ck_payment_done)
+        OffsetDateTime approvedAt = OffsetDateTime.parse("2026-11-27T16:00:00+09:00");
+
+        // when
+        int updated = paymentRepository.completeIfInProgress(payment.getOrderId(), "카드", approvedAt);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.DONE);
+        assertThat(found.getMethod()).isEqualTo("카드");
+        assertThat(found.getApprovedAt().toInstant()).isEqualTo(approvedAt.toInstant()); // 오프셋이 달라도 같은 순간이면 통과
+        assertThat(found.getPaymentKey()).isEqualTo(PAYMENT_KEY);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = PaymentStatus.class,
+            names = {"READY", "DONE", "ABORTED", "EXPIRED", "CANCELED"})
+    @DisplayName("IN_PROGRESS가 아닌 주문이면 승인 완료로 바꾸지 않고 0을 돌려준다")
+    void completeIfInProgressIgnoresOtherStatus(PaymentStatus status) {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        if (status != PaymentStatus.READY) { // READY는 만든 상태 그대로 둔다
+            forceStatus(payment.getId(), status);
+        }
+        entityManager.clear(); // JDBC로 바꾼 상태를 모르는 READY 엔티티를 컨텍스트에 남기지 않음
+
+        // when
+        int updated = paymentRepository.completeIfInProgress(
+                payment.getOrderId(), "카드", OffsetDateTime.parse("2026-11-27T16:00:00+09:00"));
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(status);
+        assertThat(found.getMethod()).isNull();
+    }
+
+    @Test
+    @DisplayName("IN_PROGRESS 주문이면 ABORTED로 바꾸고 토스 거절 코드·메시지를 저장한다")
+    void abortIfInProgressAbortsOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY);
+
+        // when
+        int updated = paymentRepository.abortIfInProgress(
+                payment.getOrderId(), "REJECT_CARD_PAYMENT", "한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.ABORTED);
+        assertThat(found.getFailCode()).isEqualTo("REJECT_CARD_PAYMENT");
+        assertThat(found.getFailMessage()).isEqualTo("한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = PaymentStatus.class,
+            names = {"READY", "DONE", "ABORTED", "EXPIRED", "CANCELED"})
+    @DisplayName("IN_PROGRESS가 아닌 주문이면 거절로 바꾸지 않고 0을 돌려준다")
+    void abortIfInProgressIgnoresOtherStatus(PaymentStatus status) {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        if (status != PaymentStatus.READY) { // READY는 만든 상태 그대로 둔다
+            forceStatus(payment.getId(), status);
+        }
+        entityManager.clear(); // JDBC로 바꾼 상태를 모르는 READY 엔티티를 컨텍스트에 남기지 않음
+
+        // when
+        int updated = paymentRepository.abortIfInProgress(
+                payment.getOrderId(), "REJECT_CARD_PAYMENT", "한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(status);
+        assertThat(found.getFailCode()).isNull();
+    }
+
+    // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
+    private Long insertOtherUser() {
+        return jdbcTemplate.queryForObject("""
+                INSERT INTO users (university_id, department_id, nickname, email, email_hash, password, approved_at)
+                SELECT university_id, department_id, '결제타인', 'payment-other@test.com', ?, 'password', now()
+                  FROM users WHERE id = ?
+                RETURNING id
+                """, Long.class, "1".repeat(64), userId);
     }
 
     // READY가 아닌 상태로 바꾼다. DB 제약이 요구하는 컬럼을 같이 채운다

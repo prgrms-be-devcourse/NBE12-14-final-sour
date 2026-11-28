@@ -1,20 +1,14 @@
 package com.back.nbe1214finalsour.domain.payment.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.withSettings;
-
+import com.back.nbe1214finalsour.domain.payment.client.TossConfirmResult;
+import com.back.nbe1214finalsour.domain.payment.client.TossPaymentsClient;
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
 import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,6 +21,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.quality.Strictness;
 
+import java.time.OffsetDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
 
@@ -35,9 +39,19 @@ class PaymentServiceTest {
     private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
     private static final String CODE = "PAY_PROCESS_CANCELED";
     private static final String MESSAGE = "사용자에 의해 결제가 취소되었습니다.";
+    private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
+    private static final long AMOUNT = 5_000L;
+    private static final String METHOD = "카드";
+    private static final OffsetDateTime APPROVED_AT = OffsetDateTime.parse("2026-11-27T16:00:00+09:00");
 
     @Mock
     private PaymentRepository paymentRepository;
+
+    @Mock
+    private PaymentConfirmTxService paymentConfirmTxService;
+
+    @Mock
+    private TossPaymentsClient tossPaymentsClient;
 
     @InjectMocks
     private PaymentService paymentService;
@@ -169,6 +183,145 @@ class PaymentServiceTest {
             assertThatThrownBy(() -> paymentService.recordFail(USER_ID, ORDER_ID, CODE, MESSAGE))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining(ORDER_ID);
+        }
+    }
+
+    @Nested
+    @DisplayName("결제 승인을 요청할 때")
+    class WhenConfirming {
+
+        @Test
+        @DisplayName("승인 시작이 이미 DONE인 결과를 돌려주면 토스를 부르지 않고 그 결과를 그대로 돌려준다")
+        void returnsStoredResultWithoutCallingToss() {
+            // given
+            PaymentConfirmResult stored =
+                    new PaymentConfirmResult(ORDER_ID, PaymentStatus.DONE, METHOD, APPROVED_AT, 5_000L, 12_000L);
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT)).willReturn(Optional.of(stored));
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result).isSameAs(stored);
+            then(tossPaymentsClient).shouldHaveNoInteractions();
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("승인 시작이 확인 중 결과를 돌려주면 토스를 부르지 않고 그 결과를 그대로 돌려준다")
+        void returnsInProgressWithoutCallingTossWhenAlreadyInProgress() {
+            // given: 같은 결제 키로 이미 진행 중인 주문에 다시 요청이 왔다
+            PaymentConfirmResult inProgress = new PaymentConfirmResult(ORDER_ID);
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(Optional.of(inProgress));
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result).isSameAs(inProgress);
+            then(tossPaymentsClient).shouldHaveNoInteractions();
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+            then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("토스가 승인하면 승인 완료 결과를 돌려준다")
+        void completesWhenTossApproved() {
+            // given
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(Optional.empty());
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.APPROVED, METHOD, APPROVED_AT, null, null));
+            PaymentConfirmResult done =
+                    new PaymentConfirmResult(ORDER_ID, PaymentStatus.DONE, METHOD, APPROVED_AT, 5_000L, 12_000L);
+            given(paymentConfirmTxService.completeConfirm(ORDER_ID, METHOD, APPROVED_AT)).willReturn(done);
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result).isSameAs(done);
+            then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("토스 결과를 모르면 충전도 거절 기록도 하지 않고 IN_PROGRESS 결과를 돌려준다")
+        void returnsInProgressWhenTossOutcomeUnknown() {
+            // given
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(Optional.empty());
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.UNKNOWN, null, null, null, "HTTP 500"));
+
+            // when
+            PaymentConfirmResult result = paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY);
+
+            // then
+            assertThat(result.orderId()).isEqualTo(ORDER_ID);
+            assertThat(result.status()).isEqualTo(PaymentStatus.IN_PROGRESS);
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+            then(paymentConfirmTxService).should(never()).abortConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("토스가 거절하면 거절을 기록하고 토스 코드·메시지를 담은 거절 예외를 던진다")
+        void abortsAndThrowsRejectedWhenTossRejected() {
+            // given
+            String tossCode = "REJECT_CARD_PAYMENT";
+            String tossMessage = "한도초과 혹은 잔액부족으로 결제에 실패했습니다.";
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(Optional.empty());
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.REJECTED, null, null, tossCode, tossMessage));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting은 예외의 필드를 이름으로 꺼내고, containsExactly는 그 값들을 순서대로 비교한다
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY))
+                    .isInstanceOf(PaymentConfirmRejectedException.class)
+                    .extracting("errorCode", "tossCode", "tossMessage")
+                    .containsExactly(ErrorCode.PAY_CONFIRM_FAILED, tossCode, tossMessage);
+            then(paymentConfirmTxService).should().abortConfirm(ORDER_ID, tossCode, tossMessage);
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("토스 키 설정 오류면 거절을 기록하고 COMMON_INTERNAL_ERROR 예외를 던진다")
+        void abortsAndThrowsInternalErrorWhenKeyError() {
+            // given
+            String tossCode = "UNAUTHORIZED_KEY";
+            String tossMessage = "인증되지 않은 시크릿 키 혹은 클라이언트 키 입니다.";
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willReturn(Optional.empty());
+            given(tossPaymentsClient.confirm(PAYMENT_KEY, ORDER_ID, AMOUNT))
+                    .willReturn(new TossConfirmResult(TossConfirmResult.Type.KEY_ERROR, null, null, tossCode, tossMessage));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            // 거절 예외(400, 토스 사유 노출)가 아니라 일반 BusinessException이어야 우리 설정 오류가 사용자 탓으로 나가지 않는다
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY))
+                    .isInstanceOf(BusinessException.class)
+                    .isNotInstanceOf(PaymentConfirmRejectedException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.COMMON_INTERNAL_ERROR);
+            then(paymentConfirmTxService).should().abortConfirm(ORDER_ID, tossCode, tossMessage);
+            then(paymentConfirmTxService).should(never()).completeConfirm(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("승인 시작에서 예외가 나면 토스를 부르지 않고 그 예외를 그대로 던진다")
+        void doesNotCallTossWhenStartFails() {
+            // given
+            given(paymentConfirmTxService.startConfirm(USER_ID, ORDER_ID, PAYMENT_KEY, AMOUNT))
+                    .willThrow(new BusinessException(ErrorCode.PAY_AMOUNT_MISMATCH));
+
+            // when & then
+            // 람다 안의 호출이 던진 예외를 검사한다. extracting("errorCode")는 예외의 errorCode 필드를 이름으로 꺼낸다
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, ORDER_ID, AMOUNT, PAYMENT_KEY))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.PAY_AMOUNT_MISMATCH);
+            then(tossPaymentsClient).shouldHaveNoInteractions();
         }
     }
 }

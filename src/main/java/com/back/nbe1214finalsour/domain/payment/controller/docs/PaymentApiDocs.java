@@ -1,14 +1,12 @@
 package com.back.nbe1214finalsour.domain.payment.controller.docs;
 
-import com.back.nbe1214finalsour.domain.payment.dto.PaymentFailRequest;
-import com.back.nbe1214finalsour.domain.payment.dto.PaymentFailResponse;
-import com.back.nbe1214finalsour.domain.payment.dto.PaymentOrderRequest;
-import com.back.nbe1214finalsour.domain.payment.dto.PaymentOrderResponse;
+import com.back.nbe1214finalsour.domain.payment.dto.*;
 import com.back.nbe1214finalsour.global.response.ApiResponse;
 import com.back.nbe1214finalsour.global.security.AuthUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 
 /** {@link com.back.nbe1214finalsour.domain.payment.controller.PaymentController}의 API 문서. */
 @Tag(name = "결제", description = "토스페이먼츠 크레딧 충전 (1원 = 1크레딧)")
@@ -55,4 +53,32 @@ public interface PaymentApiDocs {
                     description = PaymentErrorDocs.FAIL_CONFLICT)
     })
     ApiResponse<PaymentFailResponse> recordFail(AuthUser user, PaymentFailRequest request);
+
+    @Operation(
+            summary = "결제 승인 (크레딧 충전)",
+            description = """
+                    토스 결제창에서 인증에 성공해 successUrl로 돌아왔을 때 호출한다. 토스에 승인을 요청하고, 승인되면 크레딧을 충전한다.
+
+                    - paymentKey·orderId·amount: successUrl 쿼리의 값을 그대로 보낸다. amount는 서버에 저장된 주문 금액과 같아야 한다
+                    - 200: 승인·충전 완료. 같은 요청을 다시 보내면(성공 페이지 새로고침 등) 충전하지 않고 같은 결과를 응답한다
+                    - 202: 토스 응답이 늦거나 결과를 알 수 없어 확인 중이다. 충전 여부는 잠시 후 충전 내역에서 확인하도록 안내한다
+                    - 400 PAY_CONFIRM_FAILED: 토스가 거절했다(한도초과 등). data.tossMessage를 사용자에게 보여 준다
+                    """)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+                    description = "승인·충전 완료 (같은 요청을 다시 보낸 경우 포함)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202",
+                    description = "확인 중. data는 {orderId, status: IN_PROGRESS}"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
+                    description = PaymentErrorDocs.CONFIRM_BAD_REQUEST),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401",
+                    description = PaymentErrorDocs.UNAUTHORIZED),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404",
+                    description = PaymentErrorDocs.CONFIRM_NOT_FOUND),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409",
+                    description = PaymentErrorDocs.CONFIRM_CONFLICT),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500",
+                    description = PaymentErrorDocs.CONFIRM_SERVER_ERROR)
+    })
+    ApiResponse<?> confirm(AuthUser user, PaymentConfirmRequest request, HttpServletResponse response);
 }

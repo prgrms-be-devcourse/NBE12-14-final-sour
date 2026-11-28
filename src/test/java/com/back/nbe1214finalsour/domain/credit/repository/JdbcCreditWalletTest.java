@@ -89,4 +89,18 @@ public class JdbcCreditWalletTest {
         assertThat(remaining).isEmpty();
         assertThat(balanceInDb()).isEqualTo(3000L);
     }
+
+    @Test
+    @DisplayName("충전하면 잔액이 늘고 늘어난 잔액을 반환")
+    void charge_addsAmountAndReturnsBalance() {
+        // given
+        setBalance(7_000);
+
+        // when
+        long balance = this.creditWallet.charge(userId, 5_000);
+
+        // then
+        assertThat(balance).isEqualTo(12_000L);
+        assertThat(balanceInDb()).isEqualTo(12_000L);
+    }
 }

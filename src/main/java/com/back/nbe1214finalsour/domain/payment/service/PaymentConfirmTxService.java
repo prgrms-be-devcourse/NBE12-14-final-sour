@@ -1,0 +1,97 @@
+package com.back.nbe1214finalsour.domain.payment.service;
+
+import com.back.nbe1214finalsour.domain.credit.entity.CreditHistory;
+import com.back.nbe1214finalsour.domain.credit.repository.CreditHistoryRepository;
+import com.back.nbe1214finalsour.domain.credit.repository.CreditWallet;
+import com.back.nbe1214finalsour.domain.payment.entity.Payment;
+import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.repository.PaymentRepository;
+import com.back.nbe1214finalsour.global.exception.BusinessException;
+import com.back.nbe1214finalsour.global.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+public class PaymentConfirmTxService {
+
+    private final PaymentRepository paymentRepository;
+    private final CreditWallet creditWallet;
+    private final CreditHistoryRepository creditHistoryRepository;
+
+    // 주문 상태 -> IN_PROGRESS로 변경 + payment_key 저장
+    @Transactional
+    public Optional<PaymentConfirmResult> startConfirm(Long userId, String orderId, String paymentKey, long amount){
+        int updated = this.paymentRepository.startIfReady(orderId, userId, amount, paymentKey);
+        if (updated == 1){
+            return Optional.empty();
+        }
+        return checkWhyNotStarted(userId, orderId, paymentKey, amount);
+    }
+
+     // IN_PROGRESS로 상태 변경 실패 시 유형 분석 후 예외 처리
+    private Optional<PaymentConfirmResult> checkWhyNotStarted(Long userId, String orderId, String paymentKey, long amount){
+        // 주문이 없으면 404
+        Payment payment = this.paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAY_ORDER_NOT_FOUND));
+
+        // 주문이 있어도 남의 주문이면 404
+        if (!payment.getUserId().equals(userId)){
+            throw new BusinessException(ErrorCode.PAY_ORDER_NOT_FOUND);
+        }
+
+        // 생성한 주문과 결제 금액이 다를 시 400
+        if (payment.getAmount() != amount){
+            throw new BusinessException(ErrorCode.PAY_AMOUNT_MISMATCH);
+        }
+
+        // 이미 승인됐고 같은 결제 키면 같은 요청이 다시 온 것. 충전하지 않고 저장된 값을 응답
+        if (payment.getStatus() == PaymentStatus.DONE && paymentKey.equals(payment.getPaymentKey())){
+            long balance = this.creditWallet.findBalance(userId);
+            return Optional.of(new PaymentConfirmResult(orderId, PaymentStatus.DONE, payment.getMethod(), payment.getApprovedAt(), payment.getAmount(), balance));
+        }
+
+        // 승인 진행 중이고 같은 결제 키면 같은 요청이 다시 온 것 (확인 중 응답 뒤 재요청, 더블클릭). 토스를 다시 부르지 않고 확인 중으로 응답
+        if (payment.getStatus() == PaymentStatus.IN_PROGRESS && paymentKey.equals(payment.getPaymentKey())){
+            return Optional.of(new PaymentConfirmResult(orderId));
+        }
+
+        // 0행인데 본인 READY이고 금액도 같으면 UPDATE 쿼리 자체가 잘못된 것이다. 숨기지 않고 500으로 드러낸다
+        if (payment.getStatus() == PaymentStatus.READY) {
+            throw new IllegalStateException("READY 주문인데 승인 시작 UPDATE가 0행: orderId=" + orderId);
+        }
+        // 그 외(ABORTED·EXPIRED·CANCELED, 다른 결제 키의 IN_PROGRESS·DONE)는 이미 처리된 주문이다
+        throw new BusinessException(ErrorCode.PAY_ALREADY_PROCESSED);
+    }
+
+
+    // 승인 완료. 토스가 승인한 뒤 DONE 저장, 잔액 증가, 충전 원장 기록을 한 트랜잭션에서 한다
+    @Transactional
+    public PaymentConfirmResult completeConfirm(String orderId, String method, OffsetDateTime approvedAt) {
+        int updated = this.paymentRepository.completeIfInProgress(orderId, method, approvedAt);
+        if (updated == 0) {
+            // 스케줄러가 먼저 처리했다. 여기서 충전하면 두 번이 되므로 하지 않고 확인 중으로 응답한다
+            return new PaymentConfirmResult(orderId);
+        }
+        // 원장에 넣을 결제 id와 충전할 회원·금액을 읽는다. UPDATE가 1행이었으니 반드시 있다
+        Payment payment = this.paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalStateException("승인 완료 UPDATE 뒤 주문이 없음: orderId=" + orderId));
+
+        long balance = this.creditWallet.charge(payment.getUserId(), payment.getAmount());
+
+        this.creditHistoryRepository.save(CreditHistory.charge(payment.getUserId(), payment.getId(), payment.getAmount(), balance));
+
+        return new PaymentConfirmResult(orderId, PaymentStatus.DONE, method, approvedAt, payment.getAmount(), balance);
+    }
+
+    // [거절 기록] 토스 거절이나 키 오류 뒤에 주문을 ABORTED로 닫고 토스의 코드·메시지를 남긴다
+    // 0행이면 스케줄러가 먼저 처리한 것이라 아무것도 하지 않는다
+    @Transactional
+    public void abortConfirm(String orderId, String failCode, String failMessage) {
+        this.paymentRepository.abortIfInProgress(orderId, failCode, failMessage);
+    }
+}

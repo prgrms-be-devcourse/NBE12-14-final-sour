@@ -12,6 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
+import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
+import com.back.nbe1214finalsour.domain.payment.exception.PaymentConfirmRejectedException;
+import com.back.nbe1214finalsour.domain.payment.service.PaymentConfirmResult;
 import com.back.nbe1214finalsour.domain.payment.service.PaymentService;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
@@ -26,10 +29,12 @@ import com.back.nbe1214finalsour.global.security.Role;
 import com.back.nbe1214finalsour.global.security.SecurityConfig;
 import com.back.nbe1214finalsour.global.security.jwt.JwtProvider;
 import org.junit.jupiter.api.DisplayName;
+import java.time.OffsetDateTime;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -54,6 +59,7 @@ class PaymentControllerTest {
     // 토큰의 회원: userId 1, universityId 7, departmentId 34
     private static final AuthUser USER = new AuthUser(1L, 7L, 34L, Role.USER);
     private static final String ORDER_ID = "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b";
+    private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
     private static final String CODE = "PAY_PROCESS_CANCELED";
     private static final String MESSAGE = "사용자에 의해 결제가 취소되었습니다.";
 
@@ -254,5 +260,154 @@ class PaymentControllerTest {
             return "null";
         }
         return "\"" + value + "\"";
+    }
+
+    @Test
+    @DisplayName("승인이 완료되면 200과 주문 상태·결제수단·KST 승인 시각·충전 크레딧·잔액을 응답한다")
+    void confirmReturns200WithChargeResult() throws Exception {
+        // given: 승인 시각을 일부러 UTC로 준다. 응답은 KST(+09:00)로 바뀌어야 한다
+        PaymentConfirmResult done = new PaymentConfirmResult(
+                ORDER_ID, PaymentStatus.DONE, "카드", OffsetDateTime.parse("2026-11-27T07:00:00Z"), 5_000L, 12_000L);
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY)).willReturn(done);
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"paymentKey": "tgen_20261127160000AbCd1",
+                         "orderId": "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b",
+                         "amount": 5000}
+                        """));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.orderId").value(ORDER_ID))
+                .andExpect(jsonPath("$.data.status").value("DONE"))
+                .andExpect(jsonPath("$.data.method").value("카드"))
+                .andExpect(jsonPath("$.data.approvedAt").value("2026-11-27T16:00:00+09:00"))
+                .andExpect(jsonPath("$.data.chargedCredit").value(5000))
+                .andExpect(jsonPath("$.data.creditBalance").value(12000));
+        then(paymentService).should().confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY);
+    }
+
+    @Test
+    @DisplayName("토스 결과를 몰라 확인 중이면 202와 orderId·IN_PROGRESS만 응답한다")
+    void confirmReturns202WhenInProgress() throws Exception {
+        // given: 토스 결과를 몰라 서비스가 확인 중 결과를 돌려준다
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY))
+                .willReturn(new PaymentConfirmResult(ORDER_ID));
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"paymentKey": "tgen_20261127160000AbCd1",
+                         "orderId": "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b",
+                         "amount": 5000}
+                        """));
+
+        // then
+        result.andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.orderId").value(ORDER_ID))
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.data.method").doesNotExist())
+                .andExpect(jsonPath("$.data.creditBalance").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("토스가 거절하면 400 PAY_CONFIRM_FAILED와 토스 거절 코드·메시지를 응답한다")
+    void confirmReturns400WithTossReasonWhenRejected() throws Exception {
+        // given: 서비스가 토스 거절 예외를 던진다
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY))
+                .willThrow(new PaymentConfirmRejectedException(
+                        "REJECT_CARD_PAYMENT", "한도초과 혹은 잔액부족으로 결제에 실패했습니다."));
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"paymentKey": "tgen_20261127160000AbCd1",
+                         "orderId": "b6f1e2d3-8a7c-4b5e-9f0a-1c2d3e4f5a6b",
+                         "amount": 5000}
+                        """));
+
+        // then
+        // data에 토스 코드·메시지가 있어야 BusinessException 처리기(data null)가 아니라 전용 처리기가 실행된 것이다
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PAY_CONFIRM_FAILED"))
+                .andExpect(jsonPath("$.message").value("결제 승인이 거절되었습니다."))
+                .andExpect(jsonPath("$.data.tossCode").value("REJECT_CARD_PAYMENT"))
+                .andExpect(jsonPath("$.data.tossMessage").value("한도초과 혹은 잔액부족으로 결제에 실패했습니다."));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidConfirmRequests")
+    @DisplayName("필수 값이 없거나 길이를 넘으면 400 COMMON_INVALID_INPUT과 그 필드 오류를 응답하고 승인을 시도하지 않는다")
+    void confirmRejectsInvalidInput(String caseName, String body, String expectedField) throws Exception {
+        // given: 스텁이 없다
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+
+        // then
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_INVALID_INPUT"))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].field").value(expectedField));
+        then(paymentService).shouldHaveNoInteractions();
+    }
+
+    // 잘못된 승인 요청 본문과 오류가 나야 하는 필드. 길이 초과는 각 한도 + 1자 (paymentKey 200, orderId 64)
+    // Stream.of는 케이스들을 JUnit에 넘길 묶음으로 만들기만 한다 (변환·필터 없음). 팀의 @MethodSource 관례(Stream<Arguments>)를 따른다
+    static Stream<Arguments> invalidConfirmRequests() {
+        return Stream.of(
+                arguments("paymentKey 없음", confirmBody(null, ORDER_ID, 5_000L), "paymentKey"),
+                arguments("paymentKey 공백", confirmBody("   ", ORDER_ID, 5_000L), "paymentKey"),
+                arguments("paymentKey 201자", confirmBody("k".repeat(201), ORDER_ID, 5_000L), "paymentKey"),
+                arguments("orderId 없음", confirmBody(PAYMENT_KEY, null, 5_000L), "orderId"),
+                arguments("orderId 공백", confirmBody(PAYMENT_KEY, "   ", 5_000L), "orderId"),
+                arguments("orderId 65자", confirmBody(PAYMENT_KEY, "a".repeat(65), 5_000L), "orderId"),
+                arguments("amount 없음", confirmBody(PAYMENT_KEY, ORDER_ID, null), "amount"));
+    }
+
+    // 승인 요청 본문. 값이 null이면 JSON null로 넣는다 (필드를 빼는 것과 검증 결과가 같다)
+    private static String confirmBody(String paymentKey, String orderId, Long amount) {
+        String amountJson = "null";
+        if (amount != null) {
+            amountJson = String.valueOf(amount);
+        }
+        return "{\"paymentKey\":" + jsonString(paymentKey)
+                + ",\"orderId\":" + jsonString(orderId)
+                + ",\"amount\":" + amountJson + "}";
+    }
+
+    // @EnumSource(names = ...)는 나열한 enum 상수 하나하나를 인자로 넣어 테스트를 상수 수만큼 반복 실행한다
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ErrorCode.class,
+            names = {"PAY_ORDER_NOT_FOUND", "PAY_AMOUNT_MISMATCH", "PAY_ALREADY_PROCESSED", "COMMON_INTERNAL_ERROR"})
+    @DisplayName("서비스가 비즈니스 예외를 던지면 그 에러 코드의 상태와 코드로 응답하고 data는 비운다")
+    void confirmReturnsServiceErrorCode(ErrorCode errorCode) throws Exception {
+        // given: 서비스가 그 에러 코드의 예외를 던진다
+        given(paymentService.confirmPayment(1L, ORDER_ID, 5_000L, PAYMENT_KEY))
+                .willThrow(new BusinessException(errorCode));
+
+        // when
+        ResultActions result = mockMvc.perform(post("/api/v1/payments/confirm")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(confirmBody(PAYMENT_KEY, ORDER_ID, 5_000L)));
+
+        // then
+        result.andExpect(status().is(errorCode.getStatus().value()))
+                .andExpect(jsonPath("$.code").value(errorCode.getCode()))
+                .andExpect(jsonPath("$.data").value(nullValue()));
     }
 }

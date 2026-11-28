@@ -28,3 +28,7 @@ click:
   # 최대, 최소 데미지 비율, 테스트는 100%
   min-damage-rate: 100
   max-damage-rate: 100
+
+toss:
+  # 테스트용 가짜 키. 실제 토스는 부르지 않는다
+  secret-key: test-only-toss-secret-keys
