@@ -7,6 +7,7 @@ import com.back.nbe1214finalsour.domain.payment.entity.ChargeAmount;
 import com.back.nbe1214finalsour.domain.payment.entity.Payment;
 import com.back.nbe1214finalsour.domain.payment.entity.PaymentStatus;
 import jakarta.persistence.EntityManager;
+import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -220,6 +221,27 @@ class PaymentRepositoryTest {
         assertThat(found.getStatus()).isEqualTo(status);
         // DONE·CANCELED는 forceStatus가 넣은 다른 키가 남아 있으므로 null이 아니라 "이 키가 아님"을 확인한다
         assertThat(found.getPaymentKey()).isNotEqualTo(PAYMENT_KEY);
+    }
+
+    @Test
+    @DisplayName("IN_PROGRESS 주문이면 DONE으로 바꾸고 결제수단과 승인 시각을 저장한다")
+    void completeIfInProgressCompletesOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY); // DONE은 결제 키가 있어야 한다(ck_payment_done)
+        OffsetDateTime approvedAt = OffsetDateTime.parse("2026-11-27T16:00:00+09:00");
+
+        // when
+        int updated = paymentRepository.completeIfInProgress(payment.getOrderId(), "카드", approvedAt);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.DONE);
+        assertThat(found.getMethod()).isEqualTo("카드");
+        assertThat(found.getApprovedAt().toInstant()).isEqualTo(approvedAt.toInstant()); // 오프셋이 달라도 같은 순간이면 통과
+        assertThat(found.getPaymentKey()).isEqualTo(PAYMENT_KEY);
     }
 
     // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
