@@ -236,6 +236,8 @@ class UrlAuthorizationRulesTest {
                 new Row(HttpMethod.POST, "/api/v1/payments", Auth.REQUIRED),
                 // 결제 실패 기록 (추가 명세 §3-10). 로그인 필요
                 new Row(HttpMethod.POST, "/api/v1/payments/fail", Auth.REQUIRED),
+                // 결제 승인 (추가 명세 §3-10). 로그인 필요
+                new Row(HttpMethod.POST, "/api/v1/payments/confirm", Auth.REQUIRED),
                 // 같은 경로라도 공개된 메서드만 공개
                 new Row(HttpMethod.POST, "/api/v1/clickers", Auth.REQUIRED),
                 new Row(HttpMethod.GET, "/api/v1/auth/login", Auth.REQUIRED),
