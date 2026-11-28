@@ -164,6 +164,24 @@ class PaymentRepositoryTest {
         assertThat(found.getPaymentKey()).isEqualTo(PAYMENT_KEY);
     }
 
+    @Test
+    @DisplayName("남의 READY 주문이면 바꾸지 않고 0을 돌려준다")
+    void startIfReadyIgnoresOthersOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        Long otherUserId = insertOtherUser();
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), otherUserId, 5_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.READY);
+        assertThat(found.getPaymentKey()).isNull();
+    }
+
     // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
     private Long insertOtherUser() {
         return jdbcTemplate.queryForObject("""
