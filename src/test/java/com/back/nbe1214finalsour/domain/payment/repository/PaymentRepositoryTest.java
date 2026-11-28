@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class PaymentRepositoryTest {
 
+    private static final String PAYMENT_KEY = "tgen_20261127160000AbCd1";
+
     @Autowired
     private PaymentRepository paymentRepository;
 
@@ -91,13 +93,7 @@ class PaymentRepositoryTest {
     void abortIfReadyIgnoresOthersOrder() {
         // given
         Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
-        // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
-        Long otherUserId = jdbcTemplate.queryForObject("""
-                INSERT INTO users (university_id, department_id, nickname, email, email_hash, password, approved_at)
-                SELECT university_id, department_id, '결제타인', 'payment-other@test.com', ?, 'password', now()
-                  FROM users WHERE id = ?
-                RETURNING id
-                """, Long.class, "1".repeat(64), userId);
+        Long otherUserId = insertOtherUser();
 
         // when
         int updated = paymentRepository.abortIfReady(
@@ -149,6 +145,16 @@ class PaymentRepositoryTest {
         assertThat(updated).isEqualTo(1);
         assertThat(found.getFailMessage()).isNull();
         assertThat(found.getFailCode()).isEqualTo("PAY_PROCESS_CANCELED");
+    }
+
+    // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
+    private Long insertOtherUser() {
+        return jdbcTemplate.queryForObject("""
+                INSERT INTO users (university_id, department_id, nickname, email, email_hash, password, approved_at)
+                SELECT university_id, department_id, '결제타인', 'payment-other@test.com', ?, 'password', now()
+                  FROM users WHERE id = ?
+                RETURNING id
+                """, Long.class, "1".repeat(64), userId);
     }
 
     // READY가 아닌 상태로 바꾼다. DB 제약이 요구하는 컬럼을 같이 채운다
