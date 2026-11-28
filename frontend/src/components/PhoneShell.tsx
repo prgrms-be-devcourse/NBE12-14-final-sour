@@ -50,6 +50,8 @@ interface PhoneShellProps {
    * Loading and not-found frames leave it out.
    */
   chrome?: boolean;
+  /** Hide only the simulated top status bar while retaining the framed home bar. */
+  statusBar?: boolean;
   /** Let the game workspace size the shell instead of drawing a phone frame. */
   embedded?: boolean;
   /** Screen background behind the content (Tailwind class): parchment by default, wood for the shop, sea for the map. */
@@ -60,7 +62,7 @@ interface PhoneShellProps {
   label?: string;
 }
 
-export function PhoneShell({ children, chrome = true, embedded = false, background = 'bg-[#fdf5df]', className = 'justify-between', label }: PhoneShellProps) {
+export function PhoneShell({ children, chrome = true, statusBar = true, embedded = false, background = 'bg-[#fdf5df]', className = 'justify-between', label }: PhoneShellProps) {
   const phoneVariant = useContext(PhoneShellVariantContext);
   const variant = embedded ? 'embedded' : phoneVariant;
   const sizeClass = embedded ? 'w-full h-full min-h-0 min-w-0 relative flex flex-col' : variant === 'full' ? FULL_CLASS : FRAME_CLASS;
@@ -69,7 +71,7 @@ export function PhoneShell({ children, chrome = true, embedded = false, backgrou
   return (
     <div data-phone-shell={variant} aria-label={label} role={label ? 'region' : undefined}
       className={`${sizeClass} ${background} ${className}`}>
-      {showChrome && <PhoneStatusBar />}
+      {showChrome && statusBar && <PhoneStatusBar />}
       {children}
       {showChrome && <PhoneHomeBar />}
     </div>

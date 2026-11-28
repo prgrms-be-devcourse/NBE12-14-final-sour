@@ -7,6 +7,7 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 import { CampusScene } from './CampusScene';
+import type { CampusSignInfo } from './CampusSignText';
 import { CampusAmbience } from './CampusAmbience';
 import { CAMPUS_STAGES } from '../data/gameRules';
 import { soundManager } from '../utils/sound';
@@ -18,6 +19,8 @@ export const CAMPUS_FIXED_HEIGHT = 'h-[375px]';
 
 interface CampusStageProps {
   level: number;
+  /** The school's first-ranked department for the signboard; null or missing leaves the board blank. */
+  sign?: CampusSignInfo | null;
   /** Ticker above the frame. */
   bubble: React.ReactNode;
   /** Blinking dot in the ticker: green for my campus, blue while spectating. */
@@ -39,6 +42,7 @@ interface CampusStageProps {
 
 export function CampusStage({
   level,
+  sign,
   bubble,
   bubbleDot = '#22c55e',
   fill = false,
@@ -72,7 +76,7 @@ export function CampusStage({
       >
         {/* With fill the scene is taken out of the flow: the svg's viewBox would otherwise give the frame a minimum
             height (its width × aspect) and stop it shrinking. */}
-        <CampusScene level={level} labelPrefix={sceneLabelPrefix} className={`${fill ? 'absolute inset-0' : ''} w-full h-full pointer-events-none`} />
+        <CampusScene level={level} sign={sign} labelPrefix={sceneLabelPrefix} className={`${fill ? 'absolute inset-0' : ''} w-full h-full pointer-events-none`} />
         <CampusAmbience level={level} />
 
         {/* Chunky RPG Building Labels */}

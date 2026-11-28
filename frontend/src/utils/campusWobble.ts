@@ -18,6 +18,29 @@ export const WOBBLE_DURATION_MS = 320;
 export const WOBBLE_STAGGER_MS = 20;
 export const WOBBLE_SELECTOR = '[data-wobble], [data-wobble-lights]';
 
+/**
+ * Attack only: a left-right shake instead of the tap's squash. The buildings (and their window lights) swing one way
+ * while the surroundings (trees, props, people, fountain; CampusScene `data-wobble-back`) swing the other, so the hit
+ * reads as a shock wave. Sky and ground stay still: moving them would show the frame's edge. Offsets are scene units, at most 2.
+ */
+export const WOBBLE_BACK_SELECTOR = '[data-wobble-back]';
+export const ATTACK_SHAKE_KEYFRAMES: Keyframe[] = [
+  { transform: 'translateX(0px)' },
+  { transform: 'translateX(-2px)' },
+  { transform: 'translateX(2px)' },
+  { transform: 'translateX(-1px)' },
+  { transform: 'translateX(1px)' },
+  { transform: 'translateX(0px)' },
+];
+export const REVERSE_ATTACK_SHAKE_KEYFRAMES: Keyframe[] = [
+  { transform: 'translateX(0px)' },
+  { transform: 'translateX(2px)' },
+  { transform: 'translateX(-2px)' },
+  { transform: 'translateX(1px)' },
+  { transform: 'translateX(-1px)' },
+  { transform: 'translateX(0px)' },
+];
+
 /** Static style of a wobble wrapper: scales around the bottom center of its own box. */
 export const WOBBLE_STYLE = { transformBox: 'fill-box', transformOrigin: '50% 100%' } as const;
 
@@ -40,5 +63,22 @@ export function wobbleBuildings(root: ParentNode | null, reducedMotion: boolean)
     running.set(el, el.animate(WOBBLE_KEYFRAMES, { duration: WOBBLE_DURATION_MS, delay, easing: 'ease-out' }));
     started++;
   }
+  return started;
+}
+
+/** Buildings shake left and right and the surroundings shake the opposite way, together (no stagger). */
+export function wobbleCampusAttack(root: ParentNode | null, reducedMotion: boolean): number {
+  if (!root || reducedMotion) return 0;
+  let started = 0;
+  const shake = (selector: string, frames: Keyframe[]) => {
+    for (const el of Array.from(root.querySelectorAll<SVGElement>(selector))) {
+      if (typeof el.animate !== 'function') continue;
+      running.get(el)?.cancel();
+      running.set(el, el.animate(frames, { duration: WOBBLE_DURATION_MS, easing: 'ease-out' }));
+      started++;
+    }
+  };
+  shake(WOBBLE_SELECTOR, ATTACK_SHAKE_KEYFRAMES);
+  shake(WOBBLE_BACK_SELECTOR, REVERSE_ATTACK_SHAKE_KEYFRAMES);
   return started;
 }

@@ -9,8 +9,9 @@ import { rankingKeys } from '../api/rankings';
 import { userKeys, useMyInfo, type MyInfo } from '../api/users';
 import { createClickBatcher, type ClickBatchSnapshot } from '../utils/clickBatcher';
 import { createClickLocation, type ClickLocationSnapshot } from '../utils/clickLocation';
-import { createOtherClicksEstimator, createOtherClicksFeed, type OtherClicksFeed } from '../utils/otherClicksFeed';
+import { activityHubFor } from '../utils/universityActivity';
 import { useMockGame } from './useMockGame';
+import type { TapOutcome } from '../types';
 
 export interface ClickUpgradeGate {
   upgradeBlocked: boolean;
@@ -25,7 +26,8 @@ export interface LibraryClickControl {
 }
 interface CampusClicks extends ClickUpgradeGate {
   library: LibraryClickControl | null;
-  tap: (isCrit: boolean) => number | null;
+  /** `isCrit` is the screen's own roll; only mock mode uses it. API mode uses the slots the server sent. */
+  tap: (isCrit: boolean) => TapOutcome | null;
   notice: string | null;
   getPendingScore: () => number;
   /** True while a batch is on its way: the server may or may not count it yet (SCRUM-188). */
@@ -33,15 +35,18 @@ interface CampusClicks extends ClickUpgradeGate {
   retryLimited: (() => void) | null;
   botCheck: { open: boolean; onOpen: () => void; onClose: () => void; onVerified: () => void } | null;
   /** API mode: other students' click estimates from click responses (SCRUM-159). Null keeps the mock polling. */
-  otherClicksFeed: OtherClicksFeed | null;
 }
 const noPendingScore = () => 0;
 const notSending = () => false;
 const EMPTY_BATCH: ClickBatchSnapshot = { pendingClicks: 0, pendingScore: 0, sending: false, error: null, recoverable: false, restoring: false, locked: false };
 
 function useMockCampusClicks(): CampusClicks {
-  const { tap } = useMockGame();
-  return { tap, notice: null, getPendingScore: noPendingScore, isSending: notSending, retryLimited: null, botCheck: null, upgradeBlocked: false, beginUpgrade: () => null, otherClicksFeed: null, library: null };
+  const { tap: mockTap } = useMockGame();
+  const tap = useCallback((isCrit: boolean): TapOutcome | null => {
+    const points = mockTap(isCrit);
+    return points === null ? null : { points, isCrit };
+  }, [mockTap]);
+  return { tap, notice: null, getPendingScore: noPendingScore, isSending: notSending, retryLimited: null, botCheck: null, upgradeBlocked: false, beginUpgrade: () => null, library: null };
 }
 
 /** Mounted at the app root, not on the campus screen: changing tabs must not cancel a collected batch. */
@@ -57,7 +62,6 @@ export function useApiCampusClicks(): CampusClicks {
   const [queueGeneration, setQueueGeneration] = useState(0);
   const [botCheckOpen, setBotCheckOpen] = useState(false);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
-  const [otherClicksFeed] = useState(createOtherClicksFeed);
   const userId = signedIn ? me?.id : undefined;
   const location = useMemo(() => createClickLocation(), [client, userId]);
   const locationSnapshot = useSyncExternalStore(location.subscribe, location.getSnapshot, location.getSnapshot);
@@ -67,10 +71,13 @@ export function useApiCampusClicks(): CampusClicks {
   useEffect(() => {
     setLibraryResult(null);
     if (userId === undefined) return;
-    // One per queue: own batches of a previous member or session must not be subtracted from this one's counts.
-    const otherClicks = createOtherClicksEstimator();
+    // Own batches of a previous member or session must not be subtracted from this one's counts.
+    const activity = activityHubFor(client);
+    activity.clearOwn();
     const controller = createClickBatcher({
       send: (body) => submitClicks(client, body),
+      // A server without the fields (older deploy) leaves every tap at base power instead of failing.
+      getSlots: (response) => (Array.isArray(response.criticalIndex) && Array.isArray(response.damageRateIndex) ? response : null),
       getCoordinates: location.getCoordinates,
       onChange: setSnapshot,
       onAccepted(response, pendingScore, { request, sentAt }) {
@@ -78,7 +85,13 @@ export function useApiCampusClicks(): CampusClicks {
         // A school ranking requested before this answer reads an older total; drop it so it cannot land after (SCRUM-188).
         void queryClient.cancelQueries({ queryKey: rankingKeys.mySchool(userId) });
         setLibraryResult({ libraryBonus: response.libraryBonus, multiplier: response.multiplier });
-        otherClicksFeed.publish(otherClicks.accept(response.schoolClicksLastSecond, request.clickCount, sentAt));
+        // My school's previous second comes with the answer, so the campus poll skips its own request for now.
+        // This batch is in the current second on the server: record it only after reporting the previous one.
+        activity.report(response.university.id, {
+          second: response.second, clicks: response.schoolClicksLastSecond,
+          attacks: response.schoolAttacksLastSecond, assists: response.schoolAssistsLastSecond,
+        });
+        activity.recordOwn(response.university.id, 'click', request.clickCount, sentAt);
         applyApiScores({
           contribution: response.myContribScore + pendingScore,
           schoolScore: response.university.totalScore + pendingScore,
@@ -111,7 +124,7 @@ export function useApiCampusClicks(): CampusClicks {
       controller.dispose();
       if (batcher.current === controller) batcher.current = null;
     };
-  }, [client, queryClient, userId, applyApiScores, queueGeneration, otherClicksFeed, location]);
+  }, [client, queryClient, userId, applyApiScores, queueGeneration, location]);
 
   useEffect(() => {
     if (signedIn && requiresClickVerification(snapshot.error)) setBotCheckOpen(true);
@@ -128,20 +141,20 @@ export function useApiCampusClicks(): CampusClicks {
   const getPendingScore = useCallback(() => batcher.current?.getSnapshot().pendingScore ?? 0, []);
   const isSending = useCallback(() => batcher.current?.getSnapshot().sending ?? false, []);
   const ready = signedIn && me !== undefined && player.userId === String(me.id);
-  const tap = useCallback((_isCrit: boolean): number | null => {
+  const tap = useCallback((_isCrit: boolean): TapOutcome | null => {
     if (!ready || !me || !batcher.current) return null;
     if (requiresClickVerification(batcher.current.getSnapshot().error)) {
       setBotCheckOpen(true);
       return null;
     }
-    // The click endpoint has no critical-hit field; its score uses the signed-in member's actual click power.
+    // The server decided this batch's crits and damage rates in its last answer; the batcher maps the tap onto them.
     const current = queryClient.getQueryData<MyInfo>(userKeys.me);
     if (!current || current.id !== me.id) return null;
-    const points = current.clicker.clickPower;
-    if (!batcher.current.enqueue(points)) return null;
+    const estimate = batcher.current.enqueueTap(current.clicker.clickPower);
+    if (!estimate) return null;
     setCancelledClicks(0);
-    applyApiTap(points);
-    return points;
+    applyApiTap(estimate.points);
+    return { points: estimate.points, isCrit: estimate.isCrit };
   }, [ready, me, applyApiTap, queryClient]);
 
   const beginUpgrade = useCallback(() => batcher.current?.acquireIdleLock() ?? null, []);
@@ -183,7 +196,6 @@ export function useApiCampusClicks(): CampusClicks {
     beginUpgrade,
     retryLimited: canRetryLimited ? retryLimited : null,
     botCheck: needsVerification ? { open: botCheckOpen, onOpen: openBotCheck, onClose: closeBotCheck, onVerified: completeBotCheck } : null,
-    otherClicksFeed,
   };
 }
 

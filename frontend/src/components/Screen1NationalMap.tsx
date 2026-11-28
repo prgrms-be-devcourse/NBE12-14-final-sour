@@ -33,7 +33,8 @@ export const Screen1NationalMap: React.FC<Screen1NationalMapProps> = ({
   onQueryChange,
   onSelectSchool,
   onNavigateTab,
-  preview,
+  embedded = false,
+  selectionNotice,
   renderPanelList,
 }) => {
   const isNational = region === '전체';
@@ -43,17 +44,19 @@ export const Screen1NationalMap: React.FC<Screen1NationalMapProps> = ({
   const counts = countByRegion(schools);
   const mySchool = schools.find((school) => school.isMySchool);
   const viewport = isNational ? undefined : regionViewport(region as SchoolFilterRegion);
-  const topSchools = isNational ? getTopSchools(schools.filter((school) => school.isTop3), 3) : [];
-  const workspace = preview !== undefined;
+  // Choose only drawable candidates, in the same rank/tie order as the list. Search never changes highlights.
+  const topSchools = isNational ? getTopSchools(schools.filter((school) => school.isTop3 && nationalRibbonPoint(school.id)), 3) : [];
+  const highlighted = new Set((isNational ? topSchools : regionSchools.filter((school) => school.isTop3 && NATIONAL_PLACEMENTS[school.id]).slice(0, 3)).map((school) => school.id));
+  const workspace = embedded;
   const searchStatus = formatWorkspaceSearchStatus(workspace, query, listed.length);
   const pins = workspace ? (viewport ? regionSchools : topSchools).flatMap(school => {
     const ribbonPoint = viewport ? undefined : nationalRibbonPoint(school.id);
     const point = viewport ? regionMarkerPx(school.id, viewport) : ribbonPoint && mapFramePercent(ribbonPoint);
-    return point ? [{ school, point }] : [];
+    return point ? [{ school, point, highlighted: highlighted.has(school.id) }] : [];
   }) : [];
 
   return (
-    <MapFrame preview={preview} searching={query.trim().length > 0} list={renderPanelList?.(listed) ?? <SchoolListSheet
+    <MapFrame embedded={embedded} searching={query.trim().length > 0} list={renderPanelList?.(listed) ?? <SchoolListSheet
       title={`${isNational ? '전체' : region} 대학 ${regionSchools.length}개`}
       schools={listed} query={query} selectedSchoolId={selectedSchoolId}
       onQueryChange={onQueryChange} onSelectSchool={onSelectSchool} onNavigateTab={onNavigateTab}
@@ -65,6 +68,7 @@ export const Screen1NationalMap: React.FC<Screen1NationalMapProps> = ({
         onRegionChange={onRegionChange}
         onQueryChange={onQueryChange}
         searchStatus={searchStatus}
+        selectionNotice={selectionNotice}
         badge={
           <div className="bg-[#facc15] border-2 border-[#261608] px-2 py-1 flex items-center gap-1 shadow-[1px_1px_0px_#261608] shrink-0">
             {isNational ? <span className="w-2 h-2 bg-[#e11d48] border border-[#261608]" /> : <ZoomIn className="w-3 h-3 text-[#261608]" />}
@@ -137,7 +141,7 @@ export const Screen1NationalMap: React.FC<Screen1NationalMapProps> = ({
                   type="button"
                   key={school.id}
                   aria-label={`${school.name} 전국 ${school.rank}위`}
-                  aria-pressed={preview === undefined ? undefined : selectedSchoolId === school.id}
+                  aria-pressed={embedded ? selectedSchoolId === school.id : undefined}
                   data-school-id={school.id}
                   data-top-rank={school.rank}
                   data-no-touch44
@@ -172,6 +176,7 @@ export const Screen1NationalMap: React.FC<Screen1NationalMapProps> = ({
                 <SchoolMarker
                   key={school.id}
                   school={school}
+                  highlighted={highlighted.has(school.id)}
                   selected={school.id === selectedSchoolId}
                   onSelect={onSelectSchool}
                   style={{

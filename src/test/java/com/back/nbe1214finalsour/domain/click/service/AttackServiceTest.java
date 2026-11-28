@@ -54,8 +54,8 @@ class AttackServiceTest {
 
     private static final Clicker CLICKER_LV3 = new Clicker(3L, 30, 2400L);
 
-    /** apply-attack.lua 반환: damage(실제 깎인 양), univTotal, univRank, myAttackScore */
-    private static final List<String> SCRIPT_RESULT = List.of("7", "93", "2", "150");
+    /** apply-attack.lua 반환: damage(실제 깎인 양), univTotal, univRank, myAttackScore, 직전 1초 학교 공격·클릭·지원 수 */
+    private static final List<String> SCRIPT_RESULT = List.of("7", "93", "2", "150", "5", "8", "3");
 
     @Mock
     private StringRedisTemplate stringRedisTemplate;
@@ -114,7 +114,7 @@ class AttackServiceTest {
         given(userClickerLevelCache.loadIfAbsent(USER_ID)).willReturn(clicker.getId());
         given(clickerService.getClickerById(clicker.getId())).willReturn(clicker);
         given(rivalChecker.isRival(UNIVERSITY_ID, TARGET_UNIVERSITY_ID)).willReturn(isRival);
-        given(stringRedisTemplate.<List>execute(any(), anyList(), any(), any(), any()))
+        given(stringRedisTemplate.<List>execute(any(), anyList(), any(), any(), any(), any()))
                 .willReturn(SCRIPT_RESULT);
     }
 
@@ -122,7 +122,7 @@ class AttackServiceTest {
     private List<Object> capturedScriptArgs() {
         ArgumentCaptor<Object> argsCaptor = ArgumentCaptor.captor();
         verify(stringRedisTemplate).execute(any(), anyList(),
-                argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture());
+                argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture());
         return argsCaptor.getAllValues();
     }
 
@@ -139,7 +139,7 @@ class AttackServiceTest {
         verify(universityCache, never()).getName(anyLong());
         verifyNoInteractions(allianceAllyChecker);
         verify(userStatusCache, never()).find(anyLong());
-        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any());
+        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any(), any());
     }
 
     @Test
@@ -158,7 +158,7 @@ class AttackServiceTest {
         verify(userStatusCache, never()).find(anyLong());
         verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any(Duration.class));
         verify(actionRateLimiter, never()).check(anyLong());
-        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any());
+        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any(), any());
     }
 
     @Test
@@ -192,7 +192,7 @@ class AttackServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CLICK_DUPLICATE_SUBMISSION);
 
-        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any());
+        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any(), any());
     }
 
     @Test
@@ -210,7 +210,7 @@ class AttackServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CLICK_TOO_FREQUENT);
 
-        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any());
+        verify(stringRedisTemplate, never()).execute(any(), anyList(), any(), any(), any(), any());
     }
 
     // --- 2단계: 피해량 계산 ---
@@ -260,16 +260,43 @@ class AttackServiceTest {
         ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.captor();
         ArgumentCaptor<Object> argsCaptor = ArgumentCaptor.captor();
         verify(stringRedisTemplate).execute(any(), keysCaptor.capture(),
-                argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture());
+                argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture(), argsCaptor.capture());
 
-        assertThat(keysCaptor.getValue()).containsExactly(
+        List<String> keys = keysCaptor.getValue();
+        assertThat(keys.subList(0, 4)).containsExactly(
                 "rank:univ",            // KEYS[1]
                 "dirty:univ",           // KEYS[2]
                 "score:user:attack",     // KEYS[3]
                 "dirty:user"            // KEYS[4]
         );
-        // ARGV: targetUniversityId, requestedDamage, userId
-        assertThat(argsCaptor.getAllValues()).containsExactly("9", "36", "1");
+        assertThat(keys.get(4)).containsPattern("attacks:univ:9:\\d+");
+        assertThat(keys.get(5)).containsPattern("attacks:univ:9:\\d+");
+        assertThat(keys.get(6)).containsPattern("clicks:univ:9:\\d+");
+        // ARGV: targetUniversityId, requestedDamage, userId, clickCount
+        assertThat(argsCaptor.getAllValues()).containsExactly("9", "36", "1", "4");
+    }
+
+    @Test
+    @DisplayName("공격 수 키는 이번 초에 올리고, 공격·클릭·지원 수는 같은 직전 1초에서 읽는다 (모두 대상 학교 기준)")
+    void attack_secondKeysUseCurrentAndPreviousSecondOfTargetUniversity() {
+        givenHappyPathBeforeScript(CLICKER_LV3, false);
+
+        attackService.attack(USER_ID, UNIVERSITY_ID, request(TARGET_UNIVERSITY_ID, 4));
+
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.captor();
+        verify(stringRedisTemplate).execute(any(), keysCaptor.capture(), any(), any(), any(), any());
+        List<String> keys = keysCaptor.getValue();
+
+        assertThat(keys).hasSize(8);
+        // KEYS[5] 이번 초 공격, KEYS[6] 직전 초 공격, KEYS[7] 직전 초 클릭 (현재 시각이라 값은 고정할 수 없다)
+        assertThat(keys.get(4)).matches("attacks:univ:9:\\d+");
+        assertThat(keys.get(5)).matches("attacks:univ:9:\\d+");
+        assertThat(keys.get(6)).matches("clicks:univ:9:\\d+");
+        assertThat(keys.get(7)).matches("assists:univ:9:\\d+");
+        assertThat(epochSecond(keys.get(4)) - epochSecond(keys.get(5))).isEqualTo(1L);
+        assertThat(epochSecond(keys.get(6))).isEqualTo(epochSecond(keys.get(5)));
+        // KEYS[8] 직전 초 지원도 같은 직전 1초
+        assertThat(epochSecond(keys.get(7))).isEqualTo(epochSecond(keys.get(5)));
     }
 
     @Test
@@ -288,6 +315,11 @@ class AttackServiceTest {
                 .extracting("targetUniversity.id", "targetUniversity.name",
                         "targetUniversity.totalScore", "targetUniversity.rank")
                 .containsExactly(TARGET_UNIVERSITY_ID, TARGET_NAME, 93L, 2L);
+
+        // 파티클 연출용: 스크립트의 5번째(공격)·6번째(클릭)·7번째(지원) 값을 그대로 담는다
+        assertThat(response)
+                .extracting("schoolAttacksLastSecond", "schoolClicksLastSecond", "schoolAssistsLastSecond")
+                .containsExactly(5L, 8L, 3L);
     }
 
     @Test
@@ -300,5 +332,9 @@ class AttackServiceTest {
         assertThat(response)
                 .extracting("isRival", "multiplier")
                 .containsExactly(true, 1.1);
+    }
+
+    private static long epochSecond(String secondKey) {
+        return Long.parseLong(secondKey.substring(secondKey.lastIndexOf(':') + 1));
     }
 }

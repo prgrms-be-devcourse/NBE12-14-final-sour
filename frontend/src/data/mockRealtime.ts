@@ -2,12 +2,15 @@
 export interface MockRealtimeConfig {
   pollIntervalMs: number;
   maxParticlesPerTick: number;
+  /** Attack and assist particles each get this many per tick at most; clicks use maxParticlesPerTick. */
+  maxActionParticlesPerTick: number;
   maxActiveParticles: number;
   particleLifetimeMs: number;
 }
 export const MOCK_REALTIME_CONFIG: MockRealtimeConfig = {
   pollIntervalMs: 1000,
   maxParticlesPerTick: 20,
+  maxActionParticlesPerTick: 10,
   maxActiveParticles: 40,
   particleLifetimeMs: 1200,
 };
@@ -29,9 +32,13 @@ export function planOtherClickParticles(count: number, config: MockRealtimeConfi
     weight: Math.floor(total / length) + (i < total % length ? 1 : 0),
   }));
 }
-export interface OtherClicksSource { exchange(myClicks: number): { otherClicks: number } | Promise<{ otherClicks: number }> }
+/** Attacks and assists the school received are optional: a source without them shows clicks only. */
+export interface OtherActivityReport { otherClicks: number; otherAttacks?: number; otherAssists?: number }
+export interface OtherClicksSource { exchange(myClicks: number): OtherActivityReport | Promise<OtherActivityReport> }
 // 실제 서비스에서는 source를 API로 교체한다. 서버가 요청자 본인의 클릭을 제외해야 한다.
 export function createMockOtherClicksSource(seed = 7123): OtherClicksSource {
   const random = createSeededRandom(seed);
-  return { exchange: (_myClicks) => ({ otherClicks: Math.floor(random() * 61) }) };
+  // Attacks and assists are rarer than clicks; about half the ticks have none.
+  const rare = (max: number) => Math.max(0, Math.floor(random() * (max * 2 + 1)) - max);
+  return { exchange: (_myClicks) => ({ otherClicks: Math.floor(random() * 61), otherAttacks: rare(8), otherAssists: rare(5) }) };
 }

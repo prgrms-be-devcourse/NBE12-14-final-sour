@@ -2,7 +2,7 @@ import React from 'react';
 import { PhoneShell } from './PhoneShell';
 import { TopHUD, schoolHudProps } from './TopHUD';
 import { useMySchool } from '../hooks/useSchoolViews';
-import { CampusView } from './CampusView';
+import { CampusView, type CampusViewProps } from './CampusView';
 import { ChatPreviewBar } from './ChatPreviewBar';
 import { BottomNav, NavTab } from './BottomNav';
 
@@ -14,7 +14,7 @@ interface OurSchoolGuestbookScreen1PhoneProps {
   clickPower?: number;
   basePower?: number;
   activeStudents?: number;
-  onCampusTap?: (x: number, y: number, isCrit: boolean, gainedPoints: number) => number | null | void;
+  onCampusTap?: CampusViewProps['onTap'];
   onOpenGuestbook?: () => void;
   onOpenChat?: () => void;
   onNavigateTab?: (tab: NavTab) => void;

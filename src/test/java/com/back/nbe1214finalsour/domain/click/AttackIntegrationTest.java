@@ -33,6 +33,7 @@ import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -124,10 +125,14 @@ class AttackIntegrationTest {
                 RedisKey.CLICKS_CRITICAL.of(user.getId()),
                 RedisKey.ATTACKS_DAMAGE_RATE.of(user.getId())));
 
-        // 요청 한도 테스트에서 클릭 API도 부르므로 초별 클릭 키도 지운다
+        // 요청 한도 테스트에서 클릭 API도 부르므로 초별 클릭 키도 지운다. 공격은 대상 학교의 초별 공격 키를 쌓는다
         long nowSec = Instant.now().getEpochSecond();
         redis.delete(LongStream.rangeClosed(nowSec - 8, nowSec + 2)
-                .mapToObj(sec -> RedisKey.CLICKS_UNIV_SECOND.of(universityId, sec))
+                .boxed()
+                .flatMap(sec -> Stream.of(universityId, targetUniversityId).flatMap(univ -> Stream.of(
+                        RedisKey.CLICKS_UNIV_SECOND.of(univ, sec),
+                        RedisKey.ATTACKS_UNIV_SECOND.of(univ, sec),
+                        RedisKey.ASSISTS_UNIV_SECOND.of(univ, sec))))
                 .toList());
 
         if (allianceId != null) {
@@ -164,6 +169,61 @@ class AttackIntegrationTest {
         assertThat(targetScore()).isEqualTo(70.0);
         assertThat(myAttackScore()).isEqualTo("30");
         assertThat(redis.opsForSet().isMember(RedisKey.DIRTY_UNIV.of(), String.valueOf(targetUniversityId))).isTrue();
+    }
+
+    @Test
+    @DisplayName("공격 응답에 대상 학교의 직전 1초 클릭 수와 받은 공격·지원 수를 담는다 (공격 파티클 연출용)")
+    void attackResponseCarriesPreviousSecondTargetActivity() throws Exception {
+        givenTargetScore(100);
+        // 서버가 읽는 '직전 1초'가 초 경계에서 한 칸 밀려도 같은 값이 나오도록 직전 초와 이번 초에 같은 값을 둔다
+        long nowSec = Instant.now().getEpochSecond();
+        for (long sec : List.of(nowSec - 1, nowSec)) {
+            redis.opsForValue().set(RedisKey.ATTACKS_UNIV_SECOND.of(targetUniversityId, sec), "7");
+            redis.opsForValue().set(RedisKey.CLICKS_UNIV_SECOND.of(targetUniversityId, sec), "4");
+            redis.opsForValue().set(RedisKey.ASSISTS_UNIV_SECOND.of(targetUniversityId, sec), "9");
+            // 내 학교 값은 응답에 섞이지 않는다
+            redis.opsForValue().set(RedisKey.ATTACKS_UNIV_SECOND.of(universityId, sec), "100");
+            redis.opsForValue().set(RedisKey.CLICKS_UNIV_SECOND.of(universityId, sec), "100");
+            redis.opsForValue().set(RedisKey.ASSISTS_UNIV_SECOND.of(universityId, sec), "100");
+        }
+
+        attack("sub-1", targetUniversityId, 10)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.schoolAttacksLastSecond").value(7))
+                .andExpect(jsonPath("$.data.schoolClicksLastSecond").value(4))
+                .andExpect(jsonPath("$.data.schoolAssistsLastSecond").value(9));
+    }
+
+    @Test
+    @DisplayName("공격하면 대상 학교의 이번 초 받은 공격 수가 clickCount만큼 오르고, 내 학교에는 쌓이지 않는다")
+    void attackCountsSchoolAttacksPerSecond() throws Exception {
+        givenTargetScore(100);
+
+        attack("sub-1", targetUniversityId, 10)
+                .andExpect(status().isOk())
+                // 다른 공격이 없으면 직전 1초 값은 0이다
+                .andExpect(jsonPath("$.data.schoolAttacksLastSecond").value(0))
+                .andExpect(jsonPath("$.data.schoolClicksLastSecond").value(0));
+
+        // 요청 처리 중 초가 바뀔 수 있으므로 앞뒤 초를 합쳐 본다
+        assertThat(secondCountSum(RedisKey.ATTACKS_UNIV_SECOND, targetUniversityId)).isEqualTo(10L);
+        assertThat(secondCountSum(RedisKey.ATTACKS_UNIV_SECOND, universityId)).isZero();
+        assertThat(secondCountSum(RedisKey.CLICKS_UNIV_SECOND, targetUniversityId)).isZero();
+    }
+
+    @Test
+    @DisplayName("클릭 응답에는 내 학교가 직전 1초에 받은 공격 수와 지원 수를 담는다")
+    void clickResponseCarriesPreviousSecondSchoolAttacks() throws Exception {
+        long nowSec = Instant.now().getEpochSecond();
+        for (long sec : List.of(nowSec - 1, nowSec)) {
+            redis.opsForValue().set(RedisKey.ATTACKS_UNIV_SECOND.of(universityId, sec), "7");
+            redis.opsForValue().set(RedisKey.ASSISTS_UNIV_SECOND.of(universityId, sec), "9");
+        }
+
+        click("sub-1", 3)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.schoolAttacksLastSecond").value(7))
+                .andExpect(jsonPath("$.data.schoolAssistsLastSecond").value(9));
     }
 
     @Test
@@ -483,6 +543,15 @@ class AttackIntegrationTest {
 
     private void givenTargetScore(double score) {
         redis.opsForZSet().add(RedisKey.RANK_UNIV.of(), String.valueOf(targetUniversityId), score);
+    }
+
+    private long secondCountSum(RedisKey key, long univId) {
+        long nowSec = Instant.now().getEpochSecond();
+        return LongStream.rangeClosed(nowSec - 3, nowSec + 1)
+                .mapToObj(sec -> redis.opsForValue().get(key.of(univId, sec)))
+                .filter(value -> value != null)
+                .mapToLong(Long::parseLong)
+                .sum();
     }
 
     private Double targetScore() {

@@ -204,7 +204,7 @@ test('SCRUM-208: 지도 선택은 미리보기만 갱신하고 방문 버튼만 
   panel().getByRole('tabpanel', { name: '순위' });
   fireEvent.click(panel().getByRole('tab', { name: '지도' }));
   fireEvent.click(panel().getByRole('button', { name: /^KAIST 전국/ }));
-  assert.match(panel().getByRole('region', { name: '학교 미리보기' }).textContent ?? '', /KAIST/);
+  assert.equal(within(panel().getByRole('region', { name: '학교 목록' })).getByRole('button', { name: /^KAIST$/ }).getAttribute('aria-expanded'), 'true');
   assertSameNode(screen.getByRole('button', { name: '캠퍼스 클릭 영역' }), campus);
   const list = within(panel().getByRole('region', { name: '학교 목록' }));
   fireEvent.click(list.getByRole('button', { name: '서울대학교' }));
@@ -232,13 +232,13 @@ test('SCRUM-225: PC 지도 검색 시 목록은 지도 아래에 고정되고 �
   const panel = () => within(screen.getByRole('complementary', { name: '전국 경쟁 패널' }));
   const mapArea = () => panel().getByTestId('map-area');
   const listSection = () => panel().getByRole('region', { name: '학교 목록' });
-  const preview = () => within(panel().getByRole('region', { name: '학교 미리보기' }));
+  const list = () => within(listSection());
   const search = () => panel().getByRole('textbox', { name: '학교 검색' });
 
   // 서울대학교 선택
   fireEvent.click(within(listSection()).getByRole('button', { name: '서울대학교' }));
-  assert.ok(preview().getByRole('button', { name: '서울대학교 방문' }));
-  assert.equal(preview().getByTestId('map-preview-search-notice').textContent, '');
+  assert.ok(list().getByRole('button', { name: '서울대학교 방문' }));
+  assert.equal(list().getByRole('button', { name: '서울대학교' }).getAttribute('aria-expanded'), 'true');
 
   // KAIST 검색: 목록은 지도 아래에 유지, 제목·옆 건수 갱신, 방문 대상은 서울대학교 유지 + 제외 안내 표시
   fireEvent.change(search(), { target: { value: 'KAIST' } });
@@ -248,29 +248,32 @@ test('SCRUM-225: PC 지도 검색 시 목록은 지도 아래에 고정되고 �
   );
   assert.equal(within(listSection()).getByRole('heading', { level: 3 }).textContent, '검색 학교 목록 - 1개교');
   assert.equal(panel().getByTestId('map-search-status').textContent, '1개교');
-  assert.ok(preview().getByRole('button', { name: '서울대학교 방문' }), '검색 결과에 없어도 기존 방문 대상을 유지한다');
-  assert.equal(preview().getByTestId('map-preview-search-notice').textContent, '현재 검색 결과에 없음');
+  assertAbsent(panel().queryByRole('button', { name: '서울대학교 방문' }));
+  assert.match(panel().getByText(/선택 학교가 검색 결과에 없습니다/).textContent ?? '', /검색 결과/);
 
   // 검색어만 지우면 서울대학교 선택은 유지하고 안내만 제거
   fireEvent.change(search(), { target: { value: '' } });
-  assert.ok(preview().getByRole('button', { name: '서울대학교 방문' }));
-  assert.equal(preview().getByTestId('map-preview-search-notice').textContent, '');
+  assert.ok(list().getByRole('button', { name: '서울대학교 방문' }));
+  assertAbsent(panel().queryByText(/검색 결과에 없습니다/));
   assertAbsent(panel().queryByTestId('map-search-status'));
   assert.match(within(listSection()).getByRole('heading', { level: 3 }).textContent ?? '', /^학교 목록 · \d+개교$/);
 
   // 다시 KAIST 검색 후 KAIST 행 선택 시 방문 대상이 KAIST로 바뀌고 안내가 사라짐
   fireEvent.change(search(), { target: { value: 'KAIST' } });
-  assert.equal(preview().getByTestId('map-preview-search-notice').textContent, '현재 검색 결과에 없음');
-  fireEvent.click(within(listSection()).getByRole('button', { name: 'KAIST' }));
-  assert.ok(preview().getByRole('button', { name: 'KAIST 방문' }));
-  assert.equal(preview().getByTestId('map-preview-search-notice').textContent, '');
+  assert.ok(panel().getByText(/검색 결과에 없습니다/));
+  fireEvent.click(list().getByRole('button', { name: /^KAIST$/ }));
+  assert.ok(list().getByRole('button', { name: 'KAIST 방문' }));
+  assertAbsent(panel().queryByText(/검색 결과에 없습니다/));
+  fireEvent.click(list().getByRole('button', { name: /^KAIST$/ }));
+  assertAbsent(list().queryByRole('button', { name: 'KAIST 방문' }));
+  fireEvent.click(list().getByRole('button', { name: /^KAIST$/ }));
 
   // 0건 검색(충청 권역 포함): 검색 결과 없음 + 0개교 제목 + 목록 지도 아래 유지
   fireEvent.click(panel().getByRole('button', { name: '충청' }));
   fireEvent.change(search(), { target: { value: '없는학교-SCRUM225' } });
   assert.equal(panel().getByTestId('map-search-status').textContent, '검색 결과 없음');
   assert.equal(within(listSection()).getByRole('heading', { level: 3 }).textContent, '검색 학교 목록 - 0개교');
-  assert.equal(preview().getByTestId('map-preview-search-notice').textContent, '현재 검색 결과에 없음');
+  assert.ok(panel().getByText(/검색 결과에 없습니다/));
   assert.ok(
     Boolean(mapArea().compareDocumentPosition(listSection()) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING),
     '충청 0건 검색에서도 목록이 지도 아래에 유지된다',

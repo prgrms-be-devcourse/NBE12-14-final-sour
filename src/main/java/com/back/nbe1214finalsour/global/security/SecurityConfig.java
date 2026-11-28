@@ -39,6 +39,7 @@ public class SecurityConfig {
             "/api/v1/universities/*",
             "/api/v1/universities/*/departments",
             "/api/v1/universities/*/guestbooks",
+            "/api/v1/universities/*/activity",
             "/api/v1/map/universities",
             "/api/v1/rankings/universities",
             "/api/v1/rankings/universities/*/departments",

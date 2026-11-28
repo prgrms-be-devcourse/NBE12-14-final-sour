@@ -17,6 +17,7 @@ public final class AllianceLists {
     public enum Scope { DIRECTORY, MEMBERSHIP_HISTORY }
     public enum Direction { INCOMING, OUTGOING }
     public enum Result { WIN, LOSE, DRAW }
+    public enum InvitationApprovalBlock { ALREADY_PROCESSED, ALLIANCE_NOT_ACTIVE, ALLIANCE_FULL, UNIVERSITY_ALREADY_JOINED }
 
     public interface Row { long id(); }
 
@@ -33,6 +34,8 @@ public final class AllianceLists {
     public record School(long id, String name, @Nullable String logoUrl) {}
     public record Application(long id, Name alliance, School university, AllianceUniversityStatus status,
                               OffsetDateTime createdAt) implements Row {}
+    public record Invitation(long id, Name alliance, School university, AllianceUniversityStatus status,
+                             OffsetDateTime createdAt, @Nullable InvitationApprovalBlock approvalBlockReason) implements Row {}
     public record Match(long id, Name opponent, Direction direction, AllianceMatchStatus status,
                         int durationHours, OffsetDateTime requestExpiredAt, @Nullable OffsetDateTime scheduledStartAt,
                         @Nullable OffsetDateTime startedAt, @Nullable OffsetDateTime endedAt,

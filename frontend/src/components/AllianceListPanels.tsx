@@ -1,6 +1,6 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ALLIANCE_MAX_SCHOOLS, ALLIANCE_STATUS_LABEL, MATCH_STATUS_LABEL, type AllianceApplicationStatus } from '../api/alliances';
-import { useAllianceApplications, useAllianceDirectory, useAllianceMatches, useAllianceSchools, type AllianceSummary } from '../api/allianceLists';
+import { useAllianceApplications, useAllianceDirectory, useAllianceInvitations, useAllianceMatches, useAllianceSchools, type AllianceSummary, type InvitationApprovalBlock, type InvitationRow } from '../api/allianceLists';
 import { errorMessage, isApiError } from '../api/errors';
 import { LoadNotice } from './LoadNotice';
 
@@ -68,10 +68,10 @@ export function AllianceSchoolList({ userId, allianceId }: { userId: number; all
   </ul> : <p>현재 소속 학교가 없어요.</p>;
 }
 
-export function AllianceApplicationList({ userId, allianceId, busy, onDecide }: {
-  userId: number; allianceId?: number; busy?: boolean; onDecide?: (id: number, decision: 'approve' | 'reject') => void;
+export function AllianceApplicationList({ userId, visible, allianceId, busy, onDecide }: {
+  userId: number; visible: boolean; allianceId?: number; busy?: boolean; onDecide?: (id: number, decision: 'approve' | 'reject', universityName: string) => void;
 }) {
-  const query = useAllianceApplications(userId, allianceId);
+  const query = useAllianceApplications(userId, visible, allianceId);
   const sent = allianceId === undefined;
   const name = sent ? '우리 학교가 보낸 가입 신청' : '받은 가입 신청';
   return <section aria-label={name} className={PANEL}>
@@ -81,18 +81,52 @@ export function AllianceApplicationList({ userId, allianceId, busy, onDecide }: 
       <p>{date.format(new Date(item.createdAt))} 신청</p>
       {item.status === 'PENDING' && onDecide && <div className="flex flex-wrap gap-2">
         <button type="button" className={`${BUTTON} plaque-yellow`} disabled={busy} aria-label={`${item.university.name} 가입 신청 승인`}
-          onClick={() => onDecide(item.id, 'approve')}>승인</button>
+          onClick={() => onDecide(item.id, 'approve', item.university.name)}>승인</button>
         <button type="button" className={BUTTON} disabled={busy} aria-label={`${item.university.name} 가입 신청 거절`}
-          onClick={() => onDecide(item.id, 'reject')}>거절</button>
+          onClick={() => onDecide(item.id, 'reject', item.university.name)}>거절</button>
       </div>}
     </>} />
   </section>;
 }
 
-export function AllianceMatchList({ userId, allianceId, history = false, selected, onSelect }: {
-  userId: number; allianceId: number; history?: boolean; selected: number | null; onSelect: (id: number) => void;
+const invitationBlockLabel: Record<InvitationApprovalBlock, string> = {
+  ALREADY_PROCESSED: '이미 처리된 초대예요.',
+  ALLIANCE_NOT_ACTIVE: '대결 중이거나 만료된 연합의 초대는 처리할 수 없어요.',
+  ALLIANCE_FULL: '연합 정원이 찼어요.',
+  UNIVERSITY_ALREADY_JOINED: '초대받은 학교가 이미 다른 연합에 속해 있어요.',
+};
+
+export function AllianceInvitationList({ userId, visible, allianceId, busy, onDecide }: {
+  userId: number; visible: boolean; allianceId?: number; busy?: boolean;
+  onDecide?: (item: InvitationRow, decision: 'approve' | 'reject') => void;
 }) {
-  const query = useAllianceMatches(userId, allianceId, history);
+  const query = useAllianceInvitations(userId, visible, allianceId);
+  const received = allianceId === undefined;
+  const name = received ? '받은 연합 초대' : '보낸 연합 초대';
+  return <section aria-label={name} className={PANEL}>
+    <h3 className="text-sm font-black">{name}</h3>
+    <PageRows name={name} query={query} empty="연합 초대가 없어요." row={(item) => {
+      const target = received ? item.alliance.name : item.university.name;
+      const block = item.approvalBlockReason;
+      return <>
+        <p className="font-bold">{target} · {applicationLabel[item.status]}</p>
+        <p>{date.format(new Date(item.createdAt))} 초대</p>
+        {item.status === 'PENDING' && block && <p>{invitationBlockLabel[block]}</p>}
+        {item.status === 'PENDING' && onDecide && <div className="flex flex-wrap gap-2">
+          <button type="button" className={`${BUTTON} plaque-yellow`} disabled={busy || block !== null}
+            aria-label={`${target} 초대 승인`} onClick={() => onDecide(item, 'approve')}>승인</button>
+          <button type="button" className={BUTTON} disabled={busy || block === 'ALLIANCE_NOT_ACTIVE'}
+            aria-label={`${target} 초대 거절`} onClick={() => onDecide(item, 'reject')}>거절</button>
+        </div>}
+      </>;
+    }} />
+  </section>;
+}
+
+export function AllianceMatchList({ userId, allianceId, visible, history = false, selected, onSelect }: {
+  userId: number; allianceId: number; visible: boolean; history?: boolean; selected: number | null; onSelect: (id: number) => void;
+}) {
+  const query = useAllianceMatches(userId, allianceId, history, visible);
   const name = history ? '종료 대결 이력' : '대결 목록';
   return <div className={PANEL}>
     <h3 className="text-sm font-black">{name}</h3>
@@ -107,24 +141,17 @@ export function AllianceMatchList({ userId, allianceId, history = false, selecte
   </div>;
 }
 
-export function AllianceHistory({ userId, detail }: {
-  userId: number; detail: (alliance: AllianceSummary, id: number, close: () => void) => ReactNode;
+export function AllianceHistory({ userId, visible, detail }: {
+  userId: number; visible: boolean; detail: (alliance: AllianceSummary, id: number, close: () => void) => ReactNode;
 }) {
-  const id = useId();
-  const [open, setOpen] = useState(false);
   const [alliance, setAlliance] = useState<AllianceSummary | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  return <section className={PANEL}>
-    <button type="button" className={`${BUTTON} self-start`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>이전 연합 대결 이력</button>
-    <div id={id} hidden={!open}>
-      {open && <>
-        <AllianceDirectory userId={userId} mode="history" onSelect={(item) => { setAlliance(item); setSelected(null); }} />
-        {alliance && <>
-          <p className="font-bold mt-2 break-words">{alliance.name} 대결 이력</p>
-          <AllianceMatchList userId={userId} allianceId={alliance.id} history selected={selected} onSelect={setSelected} />
-          {selected !== null && detail(alliance, selected, () => setSelected(null))}
-        </>}
-      </>}
-    </div>
-  </section>;
+  return <div className="flex flex-col gap-3 text-xs">
+    <AllianceDirectory userId={userId} mode="history" onSelect={(item) => { setAlliance(item); setSelected(null); }} />
+    {alliance && <>
+      <p className="font-bold break-words">{alliance.name} 대결 이력</p>
+      <AllianceMatchList userId={userId} allianceId={alliance.id} visible={visible} history selected={selected} onSelect={setSelected} />
+      {selected !== null && detail(alliance, selected, () => setSelected(null))}
+    </>}
+  </div>;
 }

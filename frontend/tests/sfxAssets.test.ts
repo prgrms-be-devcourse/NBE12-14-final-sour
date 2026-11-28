@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BUBBLE_POP_CLIPS } from '../src/data/sfxClips';
+import { ATTACK_CRIT_PUNCH_CLIPS, ATTACK_PUNCH_CLIPS, BUBBLE_POP_CLIPS } from '../src/data/sfxClips';
 
 const SFX_DIR = join(import.meta.dirname, '..', 'src', 'assets', 'sfx');
 /** A processed clip is mono 96 kbps and at most 0.6 s, about 8 KB. Raw downloads in use were 23–34 KB. */
@@ -54,4 +54,12 @@ test('BUBBLE_POP_CLIPS lists exactly the files in src/assets/sfx/bubblepop', () 
   const listed = BUBBLE_POP_CLIPS.map((url) => fileURLToPath(url).split(/[\\/]src[\\/]assets[\\/]sfx[\\/]/)[1].replace(/\\/g, '/'));
   assert.deepEqual([...listed].sort(), clipPaths().filter((path) => path.startsWith('bubblepop/')),
     'Add or remove the clip in src/data/sfxClips.ts to match the folder.');
+});
+
+test('the attack punch lists hold exactly the files in src/assets/sfx/punch', () => {
+  const listed = [...ATTACK_PUNCH_CLIPS, ...ATTACK_CRIT_PUNCH_CLIPS]
+    .map((url) => fileURLToPath(url).split(/[\\/]src[\\/]assets[\\/]sfx[\\/]/)[1].replace(/\\/g, '/'));
+  assert.deepEqual(listed.sort(), clipPaths().filter((path) => path.startsWith('punch/')),
+    'Add or remove the clip in src/data/sfxClips.ts to match the folder.');
+  assert.ok(ATTACK_PUNCH_CLIPS.length > 0 && ATTACK_CRIT_PUNCH_CLIPS.length > 0);
 });

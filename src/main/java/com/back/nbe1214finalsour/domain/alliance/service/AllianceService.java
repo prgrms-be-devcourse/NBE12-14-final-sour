@@ -2,6 +2,7 @@ package com.back.nbe1214finalsour.domain.alliance.service;
 
 import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceStatus;
+import com.back.nbe1214finalsour.domain.alliance.entity.AllianceMembershipOrigin;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
@@ -24,7 +25,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AllianceService {
 
-    private static final int MAX_ALLIANCE_SIZE = 2;
 
     private final AllianceRepository allianceRepository;
     private final AllianceChatRoomRepository allianceChatRoomRepository;
@@ -130,7 +130,7 @@ public class AllianceService {
                         AllianceUniversityStatus.ACCEPTED
                 );
 
-        if (memberCount >= MAX_ALLIANCE_SIZE) {
+        if (memberCount >= Alliance.MAX_SCHOOLS) {
             throw new BusinessException(ErrorCode.ALLY_FULL);
         }
 
@@ -190,7 +190,7 @@ public class AllianceService {
         validateMembership(approver, members);
 
         // 6. 연합 정원 검증
-        if (members.size() >= MAX_ALLIANCE_SIZE) {
+        if (members.size() >= Alliance.MAX_SCHOOLS) {
             throw new BusinessException(ErrorCode.ALLY_FULL);
         }
 
@@ -211,7 +211,7 @@ public class AllianceService {
         application.approve(approverUserId);
 
         // 9. 정원이 가득 차면 나머지 대기 신청 자동 거절
-        if (members.size() + 1 >= MAX_ALLIANCE_SIZE) {
+        if (members.size() + 1 >= Alliance.MAX_SCHOOLS) {
             List<AllianceUniversity> pendingApplications =
                     allianceUniversityRepository
                             .findByAllianceIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
@@ -292,8 +292,13 @@ public class AllianceService {
 
     // 승인 대기 상태 검증
     private void validatePendingApplication(AllianceUniversity application) {
-        if (application.getDeletedAt() != null
-                || application.getStatus() != AllianceUniversityStatus.PENDING) {
+        if (application.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.ALLY_APPLICATION_NOT_PENDING);
+        }
+        if (application.getOrigin() != AllianceMembershipOrigin.APPLICATION) {
+            throw new BusinessException(ErrorCode.ALLY_APPLICATION_NOT_FOUND);
+        }
+        if (application.getStatus() != AllianceUniversityStatus.PENDING) {
             throw new BusinessException(ErrorCode.ALLY_APPLICATION_NOT_PENDING);
         }
     }

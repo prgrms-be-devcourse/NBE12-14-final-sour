@@ -44,7 +44,7 @@ export function MyInfoScreenPhone({ onBack, onGoToLogin, onOpenPurchaseHistory, 
   }
 
   return (
-    <PhoneShell>
+    <PhoneShell statusBar={false}>
       <div className="w-full bg-[#faecc7] border-b-2 border-[#261608] px-3 py-2 flex items-center gap-2 shrink-0 z-30">
         <button
           type="button"

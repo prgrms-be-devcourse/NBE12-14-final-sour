@@ -20,11 +20,19 @@ public record AttackResponse(
         @Schema(description = "크리티컬이 몇 번 인덱스에서 터지는지", example = "[1, 6, 10]")
         List<Integer> criticalIndex,
         @Schema(description = "데미지 비율 인덱스", example = "[89, 90, 110, 130, 50, ... 20개]")
-        List<Integer> damageRateIndex
+        List<Integer> damageRateIndex,
+        @Schema(description = "직전 1초 동안 공격 중인 학교의 전체 공격 수 (연출용)", example = "42")
+        Long schoolAttacksLastSecond,
+        @Schema(description = "직전 1초 동안 공격 중인 학교의 전체 클릭 수 (연출용)", example = "42")
+        Long schoolClicksLastSecond,
+        @Schema(description = "직전 1초 동안 공격 중인 학교의 전체 지원 수 (연출용)", example = "42")
+        Long schoolAssistsLastSecond,
+        @Schema(description = "직전 1초의 시간", example = "1795852440")
+        Long second
 ) {
     public static AttackResponse from(AttackApplyResponse attackApplyResponse, int clickCount,
                                       boolean isRival, Long targetUniversityId, String targetName,
-                                      List<Integer> criticalIndex, List<Integer> damageRateIndex) {
+                                      List<Integer> criticalIndex, List<Integer> damageRateIndex, Long second) {
         return new AttackResponse(
                 (long) clickCount,
                 attackApplyResponse.damage(),
@@ -33,7 +41,11 @@ public record AttackResponse(
                 new AttackUniversityResponse(targetUniversityId, targetName, attackApplyResponse.univTotal(), attackApplyResponse.univRank()),
                 attackApplyResponse.myAttackScore(),
                 criticalIndex,
-                damageRateIndex
+                damageRateIndex,
+                attackApplyResponse.attackLastSecond(),
+                attackApplyResponse.clickLastSecond(),
+                attackApplyResponse.assistLastSecond(),
+                second
         );
     }
     record AttackUniversityResponse(Long id, String name, Long totalScore, Long rank) {}

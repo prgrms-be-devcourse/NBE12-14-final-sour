@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { ALLIANCE_INVITATIONS_ENABLED } from '../api/alliances';
+import { RankingSchoolMenu, RankingSchoolTrigger, type RankingSchool, type RankingSchoolNavigation } from './RankingSchoolMenu';
 import { PhoneShell } from './PhoneShell';
 import { Crown, Sparkles, ArrowUp, ArrowDown, Minus, RefreshCw, ChevronUp, MoveVertical } from 'lucide-react';
 import { soundManager } from '../utils/sound';
@@ -8,7 +10,7 @@ import { useDragScroll } from '../hooks/useDragScroll';
 import { useRankingBoard, type RankingBoardRow, type RankingTab } from '../hooks/useRankingBoard';
 import { RANK_TREND_TONE, RankingRowImage, RankingStatusNotice, rankTrend, rankingCaption } from './RankingParts';
 
-interface RankingScreenPhoneProps {
+interface RankingScreenPhoneProps extends RankingSchoolNavigation {
   currentSchoolScore: number;
   onNavigateTab: (tab: NavTab) => void;
 }
@@ -16,7 +18,9 @@ interface RankingScreenPhoneProps {
 export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
   currentSchoolScore,
   onNavigateTab,
+  onVisitSchool, onGoToLogin, visitBlocked, allianceActionsEnabled = ALLIANCE_INVITATIONS_ENABLED,
 }) => {
+  const [selectedSchool, setSelectedSchool] = useState<RankingSchool | null>(null);
   const [activeRankingTab, setActiveRankingTab] = useState<RankingTab>('school');
   const [refreshCountdown, setRefreshCountdown] = useState<number>(5);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -49,6 +53,8 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
       bottomThreshold: 120,
     });
 
+  const openSchoolMenu = onVisitSchool && !isDragging ? setSelectedSchool : undefined;
+
   // Top 3 Podium (a short list can leave places empty)
   const top1: RankingBoardRow | undefined = board.rows[0];
   const top2: RankingBoardRow | undefined = board.rows[1];
@@ -72,12 +78,12 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
         : 'w-6 h-6 text-[10px] font-bold';
 
     return (
-      <div
+      <span aria-hidden="true"
         className={`${sizeClasses} border-2 border-[#261608] shadow-[1px_1px_0px_#261608] flex items-center justify-center text-white shrink-0 font-pixel`}
         style={{ backgroundColor: item.badgeColor }}
       >
         <RankingRowImage row={item} className="w-full h-full drop-shadow-[1px_1px_0px_#261608]" />
-      </div>
+      </span>
     );
   };
 
@@ -107,12 +113,12 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
           </div>
         )}
         <div className="flex flex-col items-center mb-1">
-          {renderBadge(item, first ? 'lg' : 'md')}
-          <span className={`font-pixel drop-shadow-[1px_1px_0px_#261608] text-center truncate mt-0.5 ${
-            first ? 'text-xs font-black text-[#fef08a] max-w-[100px]' : 'text-[11px] font-bold text-white max-w-[85px]'
-          }`}>
-            {item.name}
-          </span>
+          <RankingSchoolTrigger row={item} open={openSchoolMenu} className="flex min-w-0 flex-col items-center">
+            {renderBadge(item, first ? 'lg' : 'md')}
+            <span className={`font-pixel drop-shadow-[1px_1px_0px_#261608] text-center truncate mt-0.5 ${
+              first ? 'text-xs font-black text-[#fef08a] max-w-[100px]' : 'text-[11px] font-bold text-white max-w-[85px]'
+            }`}>{item.name}</span>
+          </RankingSchoolTrigger>
           <span className={`text-[8px] font-pixel drop-shadow-[1px_1px_0px_#261608] ${regionTone}`}>
             {item.subtitle}
           </span>
@@ -227,12 +233,12 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
               <span className="font-press-start text-[9px] text-[#b45309] font-black">
                 1
               </span>
-              <div className="w-4.5 h-4.5 bg-[#1d4ed8] border border-[#261608] flex items-center justify-center font-pixel text-[8px] text-white font-bold shrink-0">
-                <RankingRowImage row={top1} className="w-full h-full" />
-              </div>
-              <span className="font-pixel text-[11px] font-black text-[#261608] truncate">
-                {top1.name}
-              </span>
+              <RankingSchoolTrigger row={top1} open={openSchoolMenu} className="flex items-center gap-1.5 min-w-0">
+                <span aria-hidden="true" className="w-4.5 h-4.5 bg-[#1d4ed8] border border-[#261608] flex items-center justify-center font-pixel text-[8px] text-white font-bold shrink-0">
+                  <RankingRowImage row={top1} className="w-full h-full" />
+                </span>
+                <span className="font-pixel text-[11px] font-black text-[#261608] truncate">{top1.name}</span>
+              </RankingSchoolTrigger>
               <span className="text-[8px] font-pixel text-[#8b5327] hidden sm:inline">
                 ({top1.subtitle})
               </span>
@@ -330,23 +336,14 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
                     {row.rank}
                   </span>
 
-                  {renderBadge(row, 'sm')}
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-pixel text-xs font-bold text-[#261608] truncate">
-                        {row.name}
-                      </span>
-                      {isMy && (
-                        <span className="font-pixel text-[8px] text-[#261608] bg-[#facc15] border border-[#261608] px-1 font-black shrink-0">
-                          내 소속
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[9px] text-[#8b5327] font-pixel truncate leading-none mt-0.5">
-                      {row.subtitle}
-                    </p>
-                  </div>
+                  <RankingSchoolTrigger row={row} open={openSchoolMenu} className="flex items-center gap-2 min-w-0 text-left">
+                    {renderBadge(row, 'sm')}
+                    <span className="min-w-0">
+                      <span className="block font-pixel text-xs font-bold text-[#261608] truncate">{row.name}</span>
+                      <span className="block text-[9px] text-[#8b5327] font-pixel truncate leading-none mt-0.5">{row.subtitle}</span>
+                    </span>
+                  </RankingSchoolTrigger>
+                  {isMy && <span className="font-pixel text-[8px] text-[#261608] bg-[#facc15] border border-[#261608] px-1 font-black shrink-0">내 소속</span>}
                 </div>
 
                 {/* Right: Score & Change Indicator */}
@@ -443,21 +440,14 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
                 {myItem.rank}
               </span>
 
-              {renderBadge(myItem, 'sm')}
-
-              <div className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className="font-pixel text-xs font-black text-[#261608] truncate">
-                    {myItem.name}
-                  </span>
-                  <span className="font-pixel text-[8px] text-[#261608] bg-[#facc15] border border-[#261608] px-1 font-black shrink-0">
-                    내 소속
-                  </span>
-                </div>
-                <span className="text-[8px] text-[#8b5327] font-pixel truncate">
-                  {myItem.subtitle}
+              <RankingSchoolTrigger row={myItem} open={openSchoolMenu} className="flex items-center gap-2 min-w-0 text-left">
+                {renderBadge(myItem, 'sm')}
+                <span className="min-w-0">
+                  <span className="block font-pixel text-xs font-black text-[#261608] truncate">{myItem.name}</span>
+                  <span className="block text-[8px] text-[#8b5327] font-pixel truncate">{myItem.subtitle}</span>
                 </span>
-              </div>
+              </RankingSchoolTrigger>
+              <span className="font-pixel text-[8px] text-[#261608] bg-[#facc15] border border-[#261608] px-1 font-black shrink-0">내 소속</span>
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
@@ -474,6 +464,10 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
           </div>
         </div>
       )}
+
+      {selectedSchool && <RankingSchoolMenu school={selectedSchool} source={board.source}
+        onVisitSchool={onVisitSchool} onGoToLogin={onGoToLogin} visitBlocked={visitBlocked}
+        allianceActionsEnabled={allianceActionsEnabled} close={() => setSelectedSchool(null)} />}
 
       {/* 9. Bottom Navigation Bar with '순위' active */}
       <div className="w-full px-2 pb-2 bg-[#fdf5df] border-t-2 border-[#261608] shrink-0">

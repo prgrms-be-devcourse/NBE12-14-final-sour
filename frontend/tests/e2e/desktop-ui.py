@@ -249,7 +249,7 @@ def map_region_flow(page, panel):
     page.keyboard.press('Enter')
     expect(jeju).to_have_attribute('aria-pressed', 'true')
     expect(area).to_have_attribute('data-region', '제주')
-    expect(schools.get_by_role('button')).to_have_count(2)
+    expect(schools.locator('.game-map-row-select')).to_have_count(2)
     # Fractional browser zoom can round an authored 2px outline to the nearest device pixel.
     return {'focusRing': ring, 'focusFits': focused_chips['gridFits'],
             'focusVisible': ring['style'] == 'solid' and ring['width'] >= 1.5, 'jeju': map_background(panel)}
@@ -276,19 +276,32 @@ def map_search_selection(panel):
     area = panel.get_by_test_id('map-area')
     panel.get_by_role('button', name='전체', exact=True).click()
     schools = panel.get_by_role('region', name='학교 목록')
+    panel.get_by_role('button', name='수도권', exact=True).click()
+    marker = area.get_by_role('button', name='국민대학교 전국', exact=False)
+    marker.focus()
+    schools.evaluate('e => e.scrollTop = 0')
+    outer = panel.get_by_test_id('map-scroll-body')
+    before_scroll = outer.evaluate('e => e.scrollTop')
+    panel.page.keyboard.press('Enter')
+    expect(marker).to_be_focused()
+    row = schools.get_by_role('button', name='국민대학교', exact=True)
+    expect(row).to_have_attribute('aria-expanded', 'true')
+    assert schools.evaluate('e => e.scrollTop') > 0
+    assert outer.evaluate('e => e.scrollTop') == before_scroll
+    expect(schools.get_by_role('button', name='국민대학교 방문')).to_be_enabled()
+    panel.get_by_role('button', name='전체', exact=True).click()
     schools.get_by_role('button', name='서울대학교', exact=True).click()
     search = panel.get_by_role('textbox', name='학교 검색')
     search.click()
-    preview = panel.get_by_role('region', name='학교 미리보기')
-    visit = preview.get_by_role('button', name='서울대학교 방문')
-    notice = preview.get_by_text('현재 검색 결과에 없음', exact=True)
+    visit = schools.get_by_role('button', name='서울대학교 방문')
+    notice = panel.get_by_text('선택 학교가 검색 결과에 없습니다.', exact=True)
     top = area.bounding_box()['y']
     deltas = []
     for term, count, status in (('KAIST', 1, '1개교'), ('없는학교-SCRUM230', 0, '검색 결과 없음')):
         search.fill(term)
         expect(panel.get_by_test_id('map-search-status')).to_have_text(status)
-        expect(schools.get_by_role('button')).to_have_count(count)
-        expect(visit).to_be_enabled()
+        expect(schools.locator('.game-map-row-select')).to_have_count(count)
+        expect(visit).to_have_count(0)
         expect(notice).to_be_visible()
         deltas.append(area.bounding_box()['y'] - top)
     panel.get_by_role('button', name='검색어 지우기').click()
@@ -299,7 +312,7 @@ def map_search_selection(panel):
     assert max(map(abs, deltas)) <= TOLERANCE, deltas
     search.fill('KAIST')
     schools.get_by_role('button', name='KAIST', exact=True).click()
-    expect(preview.get_by_role('button', name='KAIST 방문')).to_be_enabled()
+    expect(schools.get_by_role('button', name='KAIST 방문')).to_be_enabled()
     expect(notice).to_have_count(0)
     panel.get_by_role('button', name='검색어 지우기').click()
     return deltas
@@ -359,9 +372,9 @@ def map_caption_flow(page, panel, out):
     regions = panel.get_by_role('group', name='권역 선택')
     area = panel.get_by_test_id('map-area')
     caption = area.locator('.game-map-pin-caption')
-    preview = panel.get_by_role('region', name='학교 미리보기')
-    panel.get_by_role('region', name='학교 목록').get_by_role('button', name='서울대학교', exact=True).click()
-    visit = preview.get_by_role('button', name='서울대학교 방문')
+    schools = panel.get_by_role('region', name='학교 목록')
+    schools.get_by_role('button', name='서울대학교', exact=True).click()
+    visit = schools.get_by_role('button', name='서울대학교 방문')
     search = panel.get_by_role('textbox', name='학교 검색')
     widths = {}
     for region, name in (('전체', 'KAIST'), ('수도권', '서울대학교'), ('충청', '한국기술교육대학교'), ('제주', '제주대학교')):
@@ -378,7 +391,6 @@ def map_caption_flow(page, panel, out):
         expect(caption).to_have_text(name)
         expect(caption).to_have_attribute('aria-hidden', 'true')
         expect(area.get_by_text(hint, exact=True)).to_have_count(0)
-        expect(visit).to_be_visible()
         expect(pin).to_have_attribute('aria-pressed', pressed)
         assert pin.bounding_box() == before
         assert caption.evaluate('''el => {

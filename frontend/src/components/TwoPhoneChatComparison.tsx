@@ -1,3 +1,4 @@
+import type { CampusViewProps } from './CampusView';
 import React from 'react';
 import { ChatScreen1Phone } from './ChatScreen1Phone';
 import { ChatScreen2Phone } from './ChatScreen2Phone';
@@ -12,7 +13,7 @@ interface TwoPhoneChatComparisonProps {
   clickPower?: number;
   basePower?: number;
   activeStudents?: number;
-  onCampusTap?: (x: number, y: number, isCrit: boolean, gainedPoints: number) => number | null | void;
+  onCampusTap?: CampusViewProps['onTap'];
   onNavigateTab?: (tab: NavTab) => void;
 }
 

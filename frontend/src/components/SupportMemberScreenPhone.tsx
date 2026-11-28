@@ -24,7 +24,7 @@ export function SupportMemberScreenPhone({ onBack, onGoToLogin }: { onBack: () =
   const me = useMyInfo();
   if (signedIn && !me.data) return <LoadNotice status={me.isError ? 'failed' : 'loading'} name="내 정보" failureDetail={errorMessage(me.error)}
     onRetry={() => void me.refetch()} onBack={onBack} backLabel="내 정보로" />;
-  return <PhoneShell>
+  return <PhoneShell statusBar={false}>
     {signedIn && me.data ? <SupportWorkspace key={me.data.id} me={me.data} onBack={onBack} /> : <div className="p-4 font-pixel text-[#261608]">
       <h1 className="text-sm font-black mb-3">내 문의</h1>
       <p role="status" className="text-xs mb-3">회원 문의를 이용하려면 로그인해 주세요.</p>

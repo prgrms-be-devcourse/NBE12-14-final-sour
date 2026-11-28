@@ -3,18 +3,21 @@ import { CampusStage, CampusSignButton, GuestbookBoardButton } from './CampusSta
 import { useReducedMotion } from './CampusAmbience';
 import { useCampusTimePhase } from '../hooks/useCampusTimePhase';
 import { useOtherClicks, type OtherClickScheduler } from '../hooks/useMockOtherClicks';
-import { useOtherClicksFeed } from '../hooks/otherClicksFeedContext';
+import { useUniversityActivityFeed, useUniversityActivitySource } from '../hooks/useUniversityActivity';
+import { OtherActivityParticles, activitySummary } from './OtherActivityParticles';
 import { MOCK_REALTIME_CONFIG, type MockRealtimeConfig, type OtherClicksSource } from '../data/mockRealtime';
 import { useMockGame } from '../hooks/useMockGame';
 import { useMySchool } from '../hooks/useSchoolViews';
-import { FloatingNumber, Sparkle } from '../types';
+import { FloatingNumber, Sparkle, type TapOutcome } from '../types';
+import type { CampusSignInfo } from './CampusSignText';
 import { soundManager } from '../utils/sound';
 import { INITIAL_KEY_GATE, keyPressDown, keyPressUp, CLICK_KEYS } from '../utils/clickGuard';
 import { formatContribution } from '../utils/formatContribution';
 import { wobbleBuildings } from '../utils/campusWobble';
 
-interface CampusViewProps {
-  onTap: (x: number, y: number, isCrit: boolean, gainedPoints: number) => number | null | void;
+export interface CampusViewProps {
+  /** `isCrit` is only a proposal: a returned outcome (API mode: decided by the server) overrides it. */
+  onTap: (x: number, y: number, isCrit: boolean, gainedPoints: number) => TapOutcome | number | null | void;
   clickPower: number;
   basePower: number;
   activeStudents: number;
@@ -36,6 +39,8 @@ interface CampusViewProps {
   otherClicksSource?: OtherClicksSource;
   realtimeConfig?: MockRealtimeConfig;
   realtimeScheduler?: OtherClickScheduler;
+  /** The school's first-ranked department for the signboard (App); without it the board stays blank. */
+  sign?: CampusSignInfo | null;
 }
 
 export const CampusView: React.FC<CampusViewProps> = ({
@@ -53,6 +58,7 @@ export const CampusView: React.FC<CampusViewProps> = ({
   otherClicksSource,
   realtimeConfig,
   realtimeScheduler,
+  sign,
 }) => {
   const { campus, clickNotice, state: { contribution: myContribution } } = useMockGame();
   // Keyboard clicks count on a full press and release only; held-key repeats never count (2026-11-08 지시).
@@ -65,16 +71,22 @@ export const CampusView: React.FC<CampusViewProps> = ({
   const ownClicks = useRef(0);
   const getMyClicksSinceLastTick = useCallback(() => { const count = ownClicks.current; ownClicks.current = 0; return count; }, []);
   // API mode pushes estimates from click responses; without a feed (mock mode) the mock source is polled.
-  const otherClicksFeed = useOtherClicksFeed();
-  const { particles: otherParticles, otherClicks } = useOtherClicks({ getMyClicksSinceLastTick, config: realtimeConfig, source: otherClicksSource, scheduler: realtimeScheduler, feed: otherClicksFeed });
+  // API mode polls my school's activity (my own click answers stand in for the poll while I tap); mock mode polls the
+  // mock source.
+  const activitySource = useUniversityActivitySource();
+  const otherClicksFeed = useUniversityActivityFeed(activitySource, activitySource?.myUniversityId ?? null);
+  const { particles: otherParticles, activity: otherActivity } = useOtherClicks({ getMyClicksSinceLastTick, config: realtimeConfig, source: otherClicksSource, scheduler: realtimeScheduler, feed: otherClicksFeed, mockPolling: !activitySource });
   const ambience = useCampusTimePhase();
   const reducedMotion = useReducedMotion();
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumber[]>([]);
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
-  const mockBubble = otherClicks === null ? '동시 접속 표시는 목업용 샘플입니다.' : `[시연] ${activeStudents}명 접속 · ${ambience.phase === 'night' ? '밤샘 ' : ''}다른 사용자 ${otherClicks}회 클릭 · 점수 미반영`;
-  // The API count is a lower bound: own clicks that may be in the server's previous-second bucket are subtracted.
-  const apiBubble = otherClicks === null ? '클릭하면 같은 학교 학생들의 직전 1초 클릭이 함께 보입니다.' : `직전 1초 다른 학생 약 ${otherClicks}회 클릭`;
-  const bubbleMessage = otherClicksFeed ? apiBubble : mockBubble;
+  const mockBubble = otherActivity === null ? '동시 접속 표시는 목업용 샘플입니다.'
+    : `[시연] ${activeStudents}명 접속 · ${ambience.phase === 'night' ? '밤샘 ' : ''}${activitySummary(otherActivity, (n) => `다른 사용자 ${n}회 클릭`)} · 점수 미반영`;
+  // The API click count is a lower bound: own clicks that may be in the server's previous-second bucket are subtracted.
+  // Attacks and assists my school received come from other schools, so they are shown as they are.
+  const apiBubble = otherActivity === null ? '같은 학교의 직전 1초 클릭·공격·지원이 함께 보입니다.'
+    : `직전 1초 ${activitySummary(otherActivity, (n) => `다른 학생 약 ${n}회 클릭`)}`;
+  const bubbleMessage = activitySource ? apiBubble : mockBubble;
   const [showDemoHand, setShowDemoHand] = useState<boolean>(true);
   const [studentWhisper, setStudentWhisper] = useState<{ text: string; x: number; y: number } | null>({
     text: cheer,
@@ -118,16 +130,18 @@ export const CampusView: React.FC<CampusViewProps> = ({
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
-      const isCrit = Math.random() < 0.25;
-      const points = isCrit ? clickPower : basePower;
-      const result = onTap(x, y, isCrit, Math.round(points));
+      const proposedCrit = Math.random() < 0.25;
+      const points = proposedCrit ? clickPower : basePower;
+      const result = onTap(x, y, proposedCrit, Math.round(points));
       if (result === null) {
         // Refused by the mock click check (M5-A): no score, sound or sparkle, only a marker where it landed.
         const numId = `${Date.now()}-${++effectSequence.current}`;
         setFloatingNumbers((prev) => [...prev.slice(-15), { id: numId, x, y: y - 10, text: '거절', isCrit: false, drift: 0 }]);
         return;
       }
-      const finalPoints = result ?? Math.round(points);
+      const outcome = typeof result === 'object' && result !== null ? result : null;
+      const isCrit = outcome ? outcome.isCrit : proposedCrit;
+      const finalPoints = outcome ? outcome.points : (result ?? Math.round(points));
       ownClicks.current += 1;
 
       soundManager.playPopSound(isCrit);
@@ -215,6 +229,7 @@ export const CampusView: React.FC<CampusViewProps> = ({
   // Frame, ticker, scene and corner labels come from CampusStage, shared with the visit screen (V1).
   return (
     <CampusStage
+      sign={sign}
       level={campus.level}
       bubble={bubbleMessage}
       fill={fill}
@@ -245,13 +260,8 @@ export const CampusView: React.FC<CampusViewProps> = ({
         },
       }}
     >
-        {otherParticles.map((particle) => (
-          <div key={particle.id} data-testid="other-click-particle" aria-hidden="true"
-            className={`absolute z-10 pointer-events-none other-click-particle ${reducedMotion ? '' : 'other-click-animate'}`}
-            style={{ left: `${particle.xPct}%`, top: `${particle.yPct}%`, color: ambience.particlePalette === 'sky' ? '#7dd3fc' : '#ffe49a', animationDuration: `${(realtimeConfig ?? MOCK_REALTIME_CONFIG).particleLifetimeMs}ms` }}>
-            <span className="other-click-orb" />{particle.weight > 1 && <span className="other-click-weight">+{particle.weight}</span>}
-          </div>
-        ))}
+        <OtherActivityParticles particles={otherParticles} lifetimeMs={(realtimeConfig ?? MOCK_REALTIME_CONFIG).particleLifetimeMs}
+          palette={ambience.particlePalette} reducedMotion={reducedMotion} />
 
         {clickNotice && (
           <p

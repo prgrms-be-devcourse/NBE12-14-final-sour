@@ -25,10 +25,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -122,6 +125,15 @@ class AssistIntegrationTest {
                 RedisKey.UNIV_MATCH.of(universityId), RedisKey.UNIV_MATCH.of(allyId),
                 RedisKey.ALLIANCE_SCORE.of(allianceId)));
         redis.delete(matchIds.stream().map(RedisKey.MATCH_SCORE::of).toList());
+        // 지원은 대상 학교의 초별 지원 키를 쌓는다. 응답 테스트가 넣은 초별 클릭·공격 키도 함께 지운다
+        long nowSec = Instant.now().getEpochSecond();
+        redis.delete(LongStream.rangeClosed(nowSec - 8, nowSec + 2)
+                .boxed()
+                .flatMap(sec -> Stream.of(universityId, allyId, strangerId).flatMap(univ -> Stream.of(
+                        RedisKey.ASSISTS_UNIV_SECOND.of(univ, sec),
+                        RedisKey.CLICKS_UNIV_SECOND.of(univ, sec),
+                        RedisKey.ATTACKS_UNIV_SECOND.of(univ, sec))))
+                .toList());
         // dirty:alliance는 공유 키라 이 테스트가 넣은 연합만 뺀다. 남기면 배치 테스트에서 이 연합을 반영하려 한다
         redis.opsForSet().remove(RedisKey.DIRTY_ALLIANCE.of(), String.valueOf(allianceId));
         redis.opsForSet().remove(RedisKey.DIRTY_ALLIANCE.of() + ":flushing", String.valueOf(allianceId));
@@ -361,6 +373,66 @@ class AssistIntegrationTest {
         assertThat(redis.getExpire(RedisKey.UNIV_MATCH.of(allyId))).isPositive();
         assertThat(redis.opsForHash().get(RedisKey.ALLIANCE_SCORE.of(allianceId), String.valueOf(allyId)))
                 .isEqualTo("60");
+    }
+
+    @Test
+    @DisplayName("지원 응답에 대상 학교의 직전 1초 클릭 수와 받은 지원·공격 수를 담는다 (지원 파티클 연출용)")
+    void assistResponseCarriesPreviousSecondTargetActivity() throws Exception {
+        givenScore(allyId, 100);
+        // 서버가 읽는 '직전 1초'가 초 경계에서 한 칸 밀려도 같은 값이 나오도록 직전 초와 이번 초에 같은 값을 둔다
+        long nowSec = Instant.now().getEpochSecond();
+        for (long sec : List.of(nowSec - 1, nowSec)) {
+            redis.opsForValue().set(RedisKey.ASSISTS_UNIV_SECOND.of(allyId, sec), "9");
+            redis.opsForValue().set(RedisKey.CLICKS_UNIV_SECOND.of(allyId, sec), "4");
+            redis.opsForValue().set(RedisKey.ATTACKS_UNIV_SECOND.of(allyId, sec), "7");
+            // 내 학교 값은 응답에 섞이지 않는다
+            redis.opsForValue().set(RedisKey.ASSISTS_UNIV_SECOND.of(universityId, sec), "100");
+            redis.opsForValue().set(RedisKey.CLICKS_UNIV_SECOND.of(universityId, sec), "100");
+            redis.opsForValue().set(RedisKey.ATTACKS_UNIV_SECOND.of(universityId, sec), "100");
+        }
+
+        assist("sub-1", allyId, 10)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.schoolAssistsLastSecond").value(9))
+                .andExpect(jsonPath("$.data.schoolClicksLastSecond").value(4))
+                .andExpect(jsonPath("$.data.schoolAttacksLastSecond").value(7));
+    }
+
+    @Test
+    @DisplayName("지원하면 대상 학교의 이번 초 받은 지원 수가 clickCount만큼 오르고, 내 학교에는 쌓이지 않는다")
+    void assistCountsSchoolAssistsPerSecond() throws Exception {
+        givenScore(allyId, 100);
+
+        assist("sub-1", allyId, 10)
+                .andExpect(status().isOk())
+                // 다른 지원·클릭·공격이 없으면 직전 1초 값은 0이다
+                .andExpect(jsonPath("$.data.schoolAssistsLastSecond").value(0))
+                .andExpect(jsonPath("$.data.schoolClicksLastSecond").value(0))
+                .andExpect(jsonPath("$.data.schoolAttacksLastSecond").value(0));
+
+        // 요청 처리 중 초가 바뀔 수 있으므로 앞뒤 초를 합쳐 본다
+        assertThat(secondCountSum(RedisKey.ASSISTS_UNIV_SECOND, allyId)).isEqualTo(10L);
+        assertThat(secondCountSum(RedisKey.ASSISTS_UNIV_SECOND, universityId)).isZero();
+        assertThat(secondCountSum(RedisKey.CLICKS_UNIV_SECOND, allyId)).isZero();
+        assertThat(secondCountSum(RedisKey.ATTACKS_UNIV_SECOND, allyId)).isZero();
+    }
+
+    @Test
+    @DisplayName("거절된 지원(연합이 아닌 학교)은 지원 수를 올리지 않는다")
+    void rejectedAssistDoesNotCount() throws Exception {
+        assist("sub-1", strangerId, 10).andExpect(status().isBadRequest());
+
+        assertThat(secondCountSum(RedisKey.ASSISTS_UNIV_SECOND, strangerId)).isZero();
+        assertThat(secondCountSum(RedisKey.ASSISTS_UNIV_SECOND, universityId)).isZero();
+    }
+
+    private long secondCountSum(RedisKey key, long univId) {
+        long nowSec = Instant.now().getEpochSecond();
+        return LongStream.rangeClosed(nowSec - 3, nowSec + 1)
+                .mapToObj(sec -> redis.opsForValue().get(key.of(univId, sec)))
+                .filter(value -> value != null)
+                .mapToLong(Long::parseLong)
+                .sum();
     }
 
     private void member(long university, String memberStatus) {

@@ -12,3 +12,13 @@ export const BUBBLE_POP_CLIPS: readonly string[] = [
   new URL('../assets/sfx/bubblepop/universfield-bubble-pop-04-323580.mp3', import.meta.url).href,
   new URL('../assets/sfx/bubblepop/universfield-bubble-pop-06-351337.mp3', import.meta.url).href,
 ];
+
+/** Attack tap on another school. */
+export const ATTACK_PUNCH_CLIPS: readonly string[] = [
+  new URL('../assets/sfx/punch/freesound_community-punch-2-37333.mp3', import.meta.url).href,
+];
+
+/** Critical attack tap: plays instead of the normal punch. */
+export const ATTACK_CRIT_PUNCH_CLIPS: readonly string[] = [
+  new URL('../assets/sfx/punch/universfield-punch-02-123106.mp3', import.meta.url).href,
+];

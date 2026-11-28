@@ -22,17 +22,19 @@ for (const [key, value] of Object.entries({ window: dom.window, document: dom.wi
   HTMLElement: dom.window.HTMLElement, Node: dom.window.Node, IS_REACT_ACT_ENVIRONMENT: true,
 })) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 
-const { render, screen, act, cleanup, waitFor, fireEvent } = await import('@testing-library/react');
+const { render, screen, act, cleanup, waitFor, fireEvent, within } = await import('@testing-library/react');
 const { ApiProvider } = await import('../src/api/ApiProvider');
 const { createApiClient } = await import('../src/api/client');
 const { createQueryClient } = await import('../src/api/queryClient');
 const { userKeys } = await import('../src/api/users');
-const { RANKING_PAGE_SIZE, formatRankChange } = await import('../src/api/rankings');
+const { RANKING_PAGE_SIZE, formatRankChange, getRankingPage } = await import('../src/api/rankings');
 const { useApiMySchoolRank } = await import('../src/hooks/useMySchoolRank');
 const { MockGameProvider } = await import('../src/hooks/useMockGame');
 const { useApiRankingBoard, toApiRows, toApiMine } = await import('../src/hooks/useRankingBoard');
 const { RANK_TREND_TONE, RankingStatusNotice, SIGNED_OUT_RANKING_NOTICE, rankTrend, rankingCaption } = await import('../src/components/RankingParts');
 const { RankingScreenPhone } = await import('../src/components/RankingScreenPhone');
+const { RankingsView } = await import('../src/components/RankingsView');
+const { RankingSchoolMenu, RankingSchoolTrigger } = await import('../src/components/RankingSchoolMenu');
 const { RankingScreen1Phone } = await import('../src/components/RankingScreen1Phone');
 const { RankingScreen2Phone } = await import('../src/components/RankingScreen2Phone');
 const { INITIAL_GAME_STATE } = await import('../src/utils/gameModel');
@@ -40,7 +42,13 @@ const { DEFAULT_PLAYER } = await import('../src/data/gameRules');
 const { getSchoolRankings } = await import('../src/data/mockRankings');
 const { TopHUD } = await import('../src/components/TopHUD');
 const clients: Array<ReturnType<typeof createQueryClient>> = [];
-afterEach(() => { cleanup(); for (const client of clients.splice(0)) client.clear(); });
+afterEach(() => {
+  cleanup();
+  for (const client of clients.splice(0)) {
+    for (const mutation of client.getMutationCache().getAll()) mutation.destroy();
+    client.clear();
+  }
+});
 after(() => { assets.deregister(); dom.window.close(); });
 
 const ME: MyInfo = {
@@ -97,6 +105,194 @@ function mount(tab: 'school' | 'dept' | 'personal', { signedIn = true, respond }
   return { calls, rankingCalls: () => calls.filter((call) => call.path.includes('/rankings/')) };
 }
 const listed = () => screen.getAllByRole('listitem').map((item) => item.textContent);
+
+function mountSchoolMenu({ own, target, signedIn = true, enabled = true, isMine = false, failFirst = false, writeFailure }: {
+  own?: unknown; target?: unknown; signedIn?: boolean; enabled?: boolean; isMine?: boolean; failFirst?: boolean; writeFailure?: Response;
+} = {}) {
+  const writes: Array<{ path: string; body?: unknown }> = [];
+  const reads: string[] = [];
+  const visits: number[] = [];
+  const client = createApiClient({ fetch: (async (input, init) => {
+    const path = new URL(String(input), 'http://localhost').pathname;
+    if (path.endsWith('/users/me')) return ok(ME);
+    if (path.endsWith('/auth/reissue')) return fail(401, 'AUTH_INVALID_REFRESH_TOKEN', '다시 로그인해 주세요.');
+    if (init?.method === 'POST') {
+      writes.push({ path, body: init.body ? JSON.parse(String(init.body)) : undefined });
+      return writeFailure ?? ok({ id: 12, allianceId: 20, universityId: 4, status: 'PENDING' });
+    }
+    reads.push(path);
+    if (path === '/api/v1/universities/4/alliance' && failFirst) {
+      failFirst = false;
+      return fail(404, 'UNIV_NOT_FOUND', '학교를 확인할 수 없어요.');
+    }
+    return ok(path === '/api/v1/universities/1/alliance' ? own ?? null : target ?? null);
+  }) as typeof fetch });
+  const queryClient = createQueryClient(); clients.push(queryClient);
+  if (signedIn) { client.session.signIn('member-a'); queryClient.setQueryData(userKeys.me, ME); }
+  render(React.createElement(ApiProvider, { client, queryClient, children: React.createElement(RankingSchoolMenu, {
+    source: 'api', school: { id: isMine ? 1 : 4, name: '대상 학교', score: 1234, isMine }, allianceActionsEnabled: enabled,
+    onVisitSchool: (id) => visits.push(id), close: () => {},
+  }) }));
+  return { reads, writes, visits };
+}
+
+test('학교 순위 점수가 누락되거나 숫자가 아니면 0점으로 바꾸지 않고 응답 오류로 처리한다', async () => {
+  let response: unknown = SCHOOL_PAGES[0];
+  const client = createApiClient({ fetch: (async () => ok(response)) as typeof fetch });
+  for (const value of [undefined, null, '0', {}]) {
+    response = { ...SCHOOL_PAGES[0], items: [{ ...SCHOOL_PAGES[0].items[0], totalScore: value }] };
+    await assert.rejects(getRankingPage(client, 'school', { page: 0 }), { code: 'CLIENT_INVALID_RESPONSE' });
+    response = { ...SCHOOL_PAGES[0], myUniversity: { ...SCHOOL_PAGES[0].myUniversity, totalScore: value } };
+    await assert.rejects(getRankingPage(client, 'school', { page: 0 }), { code: 'CLIENT_INVALID_RESPONSE' });
+  }
+  response = { ...SCHOOL_PAGES[0], items: [{ ...SCHOOL_PAGES[0].items[0], totalScore: 0 }], myUniversity: null };
+  assert.equal((await getRankingPage(client, 'school', { page: 0 })).items[0].totalScore, 0);
+});
+
+test('점수 계약이 깨진 학교 순위는 오류와 재시도를 제공하고 정상 응답을 복구한다', async () => {
+  let invalid = true;
+  mount('school', { respond: url => url.pathname.endsWith('/rankings/universities')
+    ? ok(invalid ? { ...SCHOOL_PAGES[0], items: [{ ...SCHOOL_PAGES[0].items[0], totalScore: null }] } : SCHOOL_PAGES[0]) : undefined });
+  await screen.findByText(/서버 응답을 읽지 못했습니다/, {}, { timeout: 8000 });
+  assert.equal(board.status, 'failed');
+  invalid = false;
+  fireEvent.click(screen.getByRole('button', { name: /다시/ }));
+  await screen.findByText(/서버1등대/);
+  assert.equal(board.status, 'ready');
+});
+
+const JOINABLE = { id: 20, name: '테스트 연합', status: 'ACTIVE', joinable: true };
+
+for (const direction of ['invite', 'apply'] as const) {
+  test(`학교 메뉴 ${direction}: 학교 조회 후 확인을 거쳐 한 번만 전송한다`, async () => {
+    const invite = direction === 'invite';
+    const f = mountSchoolMenu({ own: invite ? JOINABLE : null, target: invite ? null : JOINABLE });
+    const menu = screen.getByRole('dialog', { name: '대상 학교' });
+    const label = invite ? '연합 초대' : '연합 가입 신청';
+    await waitFor(() => assert.equal(within(menu).getByRole<HTMLButtonElement>('button', { name: label }).disabled, false));
+    const action = within(menu).getByRole<HTMLButtonElement>('button', { name: label });
+    assert.equal(within(menu).getByText('1,234점').textContent, '1,234점');
+    assert.equal(within(menu).getByRole<HTMLButtonElement>('button', { name: invite ? '연합 가입 신청' : '연합 초대' }).disabled, true);
+    assert.deepEqual(f.reads.sort(), ['/api/v1/universities/1/alliance', '/api/v1/universities/4/alliance']);
+    fireEvent.click(action);
+    within(menu).getByText(invite ? '테스트 연합에서 대상 학교에 초대를 보내요.' : '우리 학교가 대상 학교 소속 연합 ‘테스트 연합’에 가입을 신청해요.');
+    fireEvent.click(within(menu).getByRole('button', { name: '취소' }));
+    assert.deepEqual(f.writes, []);
+    fireEvent.click(within(menu).getByRole('button', { name: label }));
+    const send = within(menu).getByRole('button', { name: invite ? '초대 보내기' : '가입 신청 보내기' });
+    fireEvent.click(send);
+    fireEvent.click(send);
+    await within(menu).findByText(invite ? '연합 초대를 보냈어요.' : '연합 가입 신청을 보냈어요.');
+    assert.deepEqual(f.writes, [{ path: `/api/v1/alliances/20/${invite ? 'invitations' : 'applications'}`, body: invite ? { universityId: 4 } : undefined }]);
+  });
+}
+
+test('학교 조회 오류는 재시도할 수 있고 정원 마감이면 발송하지 않는다', async () => {
+  const f = mountSchoolMenu({ target: { ...JOINABLE, joinable: false }, failFirst: true });
+  await screen.findByRole('alert');
+  assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 가입 신청' }).disabled, true);
+  fireEvent.click(screen.getByRole('button', { name: '연합 정보 다시 시도' }));
+  await screen.findByText('연합 정원이 찼어요.');
+  const apply = screen.getByRole<HTMLButtonElement>('button', { name: '연합 가입 신청' });
+  assert.equal(apply.disabled, true);
+  fireEvent.click(apply);
+  assert.deepEqual(f.writes, []);
+});
+
+for (const [own, target, reason] of [
+  [null, null, null],
+  [JOINABLE, JOINABLE, null],
+  [JOINABLE, { ...JOINABLE, id: 21 }, null],
+  [null, { ...JOINABLE, status: 'IN_MATCH', joinable: false }, '대결 중인 연합에는 지금 요청할 수 없어요.'],
+  [null, { ...JOINABLE, status: 'EXPIRED', joinable: false }, '만료된 연합에는 요청할 수 없어요.'],
+] as const) {
+  test(`연합 자격: ${own?.id ?? '-'} → ${target?.id ?? '-'} (${target?.status ?? '-'})`, async () => {
+    const f = mountSchoolMenu({ own, target });
+    await waitFor(() => assertAbsent(screen.queryByText('연합 정보를 확인하는 중이에요.')));
+    if (reason) {
+      screen.getByText(reason);
+      assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 가입 신청' }).disabled, true);
+    } else {
+      assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 초대' }).disabled, true);
+      assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 가입 신청' }).disabled, true);
+    }
+    assert.deepEqual(f.writes, []);
+  });
+}
+
+test('서버가 중복을 거절하거나 전송 결과를 확정할 수 없으면 성공으로 표시하지 않는다', async () => {
+  for (const [status, code, message] of [
+    [409, 'ALLY_APPLICATION_PENDING', /이미 대기 중인 초대나 가입 신청/],
+    [502, 'BAD_GATEWAY', /다시 보내기 전에 연합 화면의 보낸 내역/],
+  ] as const) {
+    const f = mountSchoolMenu({ own: JOINABLE, writeFailure: fail(status, code, '') });
+    await waitFor(() => assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 초대' }).disabled, false));
+    fireEvent.click(screen.getByRole('button', { name: '연합 초대' }));
+    fireEvent.click(screen.getByRole('button', { name: '초대 보내기' }));
+    assert.match((await screen.findByRole('alert')).textContent ?? '', message);
+    assertAbsent(screen.queryByText('연합 초대를 보냈어요.'));
+    assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 초대' }).disabled, status >= 500);
+    assert.equal(f.writes.length, 1);
+    cleanup();
+  }
+});
+
+for (const variant of ['signed-out', 'own-school', 'not-deployed'] as const) {
+  test(`${variant}: 방문은 가능하지만 연합 자격을 조회하지 않는다`, () => {
+    const isMine = variant === 'own-school';
+    const f = mountSchoolMenu({ signedIn: variant !== 'signed-out', isMine, enabled: variant !== 'not-deployed' });
+    if (variant === 'signed-out') screen.getByText('연합 기능을 이용하려면 로그인해 주세요.');
+    assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 초대' }).disabled, true);
+    assert.equal(screen.getByRole<HTMLButtonElement>('button', { name: '연합 가입 신청' }).disabled, true);
+    fireEvent.click(screen.getByRole('button', { name: '캠퍼스로 이동' }));
+    assert.deepEqual(f.visits, [isMine ? 1 : 4]);
+    assert.deepEqual(f.reads, []);
+    assert.deepEqual(f.writes, []);
+  });
+}
+
+test('목업 PC·모바일 순위에서 시상대·일반 목록·내 학교만 학교 메뉴를 열 수 있다', () => {
+  for (const variant of ['desktop', 'phone'] as const) {
+    const visits: number[] = [];
+    const props = { currentSchoolScore: 0, onVisitSchool: (id: number) => visits.push(id) };
+    render(React.createElement(MockGameProvider, null,
+      variant === 'desktop' ? React.createElement(RankingsView, { ...props, desktopPanel: true })
+        : React.createElement(RankingScreenPhone, { ...props, onNavigateTab: () => {} })));
+    const buttons = screen.getAllByRole('button', { name: /학교 메뉴$/ });
+    assert.ok(buttons.length > 4);
+    for (const index of [0, 1, 2, 3, buttons.length - 1]) {
+      const title = buttons[index].getAttribute('aria-label')?.replace(/ 학교 메뉴$/, '');
+      fireEvent.click(buttons[index]);
+      const menu = screen.getByRole('dialog', { name: title });
+      assert.equal(within(menu).getByRole<HTMLButtonElement>('button', { name: '연합 초대' }).disabled, true);
+      fireEvent.click(within(menu).getByRole('button', { name: '캠퍼스로 이동' }));
+    }
+    assert.equal(visits.length, 5);
+    fireEvent.click(screen.getByRole('button', { name: '교내 학과' }));
+    assertAbsent(screen.queryByRole('button', { name: /학교 메뉴$/ }));
+    fireEvent.click(screen.getByRole('button', { name: '교내 개인' }));
+    assertAbsent(screen.queryByRole('button', { name: /학교 메뉴$/ }));
+    cleanup();
+  }
+});
+
+test('학교 메뉴의 점수는 연 시점에 고정되고 다시 열면 새 점수를 표시한다', () => {
+  const row = toApiRows('school', SCHOOL_PAGES, ME)[0];
+  function SnapshotProbe({ score }: { score: number }) {
+    const [selected, setSelected] = React.useState<import('../src/components/RankingSchoolMenu').RankingSchool | null>(null);
+    return React.createElement(React.Fragment, null,
+      React.createElement(RankingSchoolTrigger, { row: { ...row, score }, open: setSelected, className: '', children: row.name }),
+      selected && React.createElement(RankingSchoolMenu, { school: selected, source: 'mock', close: () => setSelected(null) }));
+  }
+  const view = render(React.createElement(SnapshotProbe, { score: 0 }));
+  fireEvent.click(screen.getByRole('button', { name: '서버1등대 학교 메뉴' }));
+  screen.getByText('0점');
+  view.rerender(React.createElement(SnapshotProbe, { score: 1234567 }));
+  screen.getByText('0점');
+  fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+  fireEvent.click(screen.getByRole('button', { name: '서버1등대 학교 메뉴' }));
+  screen.getByText('1,234,567점');
+});
 
 test('학교 순위는 20개 페이지를 스크롤로 이어 붙이고, 내 학교는 그 페이지 전에도 고정 행으로 보인다', async () => {
   const f = mount('school');

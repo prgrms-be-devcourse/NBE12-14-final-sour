@@ -239,6 +239,8 @@ test('SCRUM-210: 첫 화면에서 로그인 후 내 캠퍼스로, 세션 종료 
   assert.ok(screen.getByRole('button', { name: '회원가입' }));
   assert.ok(screen.getByRole('button', { name: '비회원 문의' }));
   fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+  const logo = screen.getByRole('img', { name: '대대대' });
+  assert.match(logo.getAttribute('src') ?? '', /\/assets\/brand\/daedaedae-logo-final\.png$/);
   assertSameNode(document.activeElement, screen.getByRole('main', { name: '비로그인 서비스' }));
   fireEvent.click(screen.getByRole('button', { name: '첫 화면으로' }));
   assertSameNode(document.activeElement, screen.getByRole('heading', { name: '대대대' }));

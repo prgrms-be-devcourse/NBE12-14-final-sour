@@ -6,6 +6,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useApiClient } from './ApiProvider';
 import type { ApiClient } from './client';
+import { ApiError, CLIENT_ERROR_CODES } from './errors';
 import { getUniversityDetail, type UniversityDetail } from './universities';
 
 /** Rows per request. The backend accepts 1–100 and defaults to 20. */
@@ -69,6 +70,14 @@ export function rankingPath(kind: RankingKind, universityId: number | null): str
   return `/rankings/universities/${universityId}/${kind === 'dept' ? 'departments' : 'users'}`;
 }
 
+function hasSchoolScores(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || !('items' in value) || !Array.isArray(value.items)) return false;
+  const hasScore = (item: unknown) => typeof item === 'object' && item !== null && 'totalScore' in item
+    && typeof item.totalScore === 'number' && Number.isFinite(item.totalScore);
+  const mine = 'myUniversity' in value ? value.myUniversity : undefined;
+  return value.items.every(hasScore) && (mine == null || hasScore(mine));
+}
+
 export function getRankingPage<K extends RankingKind>(
   client: ApiClient,
   kind: K,
@@ -77,7 +86,13 @@ export function getRankingPage<K extends RankingKind>(
   },
 ): Promise<RankingPageByKind[K]> {
   // The default attaches a session token so full ranking screens can include the caller's own row.
-  return client.get<RankingPageByKind[K]>(rankingPath(kind, universityId), { query: { page, size }, signal, anonymous });
+  return client.get<RankingPageByKind[K]>(rankingPath(kind, universityId), { query: { page, size }, signal, anonymous }).then((result) => {
+    // A missing score must not be rendered as zero or reach any ranking view's toLocaleString.
+    if (kind === 'school' && !hasSchoolScores(result)) {
+      throw new ApiError({ kind: 'invalid-response', status: null, code: CLIENT_ERROR_CODES.invalidResponse });
+    }
+    return result;
+  });
 }
 
 export const rankingKeys = {

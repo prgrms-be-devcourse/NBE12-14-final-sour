@@ -68,8 +68,9 @@ export interface MapControlsProps {
   onQueryChange: (query: string) => void;
   onSelectSchool: (schoolId: SchoolId) => void;
   onNavigateTab?: (tab: NavTab) => void;
-  /** In the workspace, the preview and visit action sit above the scrollable map and list. */
-  preview?: React.ReactNode;
+  /** Workspace uses a map and list in the shared scroll area; standalone retains the phone sheet. */
+  embedded?: boolean;
+  selectionNotice?: string;
   renderPanelList?: (schools: readonly SchoolView[]) => React.ReactNode;
 }
 
@@ -79,12 +80,10 @@ export function formatWorkspaceSearchStatus(workspace: boolean, query: string, c
   return count > 0 ? `${count}개교` : '검색 결과 없음';
 }
 
-export function MapFrame({ preview, search, list, children }: {
-  preview?: React.ReactNode; search: React.ReactNode; list: React.ReactNode; searching?: boolean; children: React.ReactNode;
+export function MapFrame({ embedded = false, search, list, children }: {
+  embedded?: boolean; search: React.ReactNode; list: React.ReactNode; searching?: boolean; children: React.ReactNode;
 }) {
-  const embedded = preview !== undefined;
   return <PhoneShell embedded={embedded} background="bg-[#38bdf8]" className="game-map-frame justify-between">
-    {preview}
     <MapScrollBody>
       {search}
       {children}
@@ -100,6 +99,7 @@ export function MapSearchHeader({
   placeholder,
   badge,
   searchStatus,
+  selectionNotice,
   onRegionChange,
   onQueryChange,
 }: {
@@ -109,6 +109,7 @@ export function MapSearchHeader({
   badge: React.ReactNode;
   /** Compact inline status shown beside the search input while searching on PC workspace. */
   searchStatus?: string;
+  selectionNotice?: string;
   onRegionChange: (region: MapRegion) => void;
   onQueryChange: (query: string) => void;
 }) {
@@ -148,6 +149,7 @@ export function MapSearchHeader({
         ) : badge}
       </div>
 
+      {selectionNotice !== undefined && <p role="status" className="game-map-search-notice">{selectionNotice}</p>}
       <fieldset className="game-map-regions flex min-w-0 items-center gap-2 overflow-x-auto px-1 py-2.5 -mt-2.5 scrollbar-none" aria-label="권역 선택">
         {MAP_REGIONS.map((item) => {
           const isActive = item === region;
@@ -204,6 +206,7 @@ export function SchoolMarker({
   school,
   style,
   selected,
+  highlighted,
   large = false,
   labelOffset,
   onSelect,
@@ -211,28 +214,36 @@ export function SchoolMarker({
   school: SchoolView;
   style: React.CSSProperties;
   selected: boolean;
+  highlighted: boolean;
   large?: boolean;
   labelOffset?: { dx: number; dy: number };
   onSelect: (schoolId: SchoolId) => void;
 }) {
+  const zIndex = highlighted ? 35 : 20;
+  const markerZIndex = selected && !highlighted ? 30 : zIndex;
+  let labelBackground = 'bg-[#fdf5df]/95';
+  if (selected) labelBackground = 'bg-[#ffffff]';
+  if (highlighted) labelBackground = 'bg-[#fef08a]';
+  if (school.isMySchool) labelBackground = 'bg-[#fecdd3]';
   return (
     <button
       type="button"
       aria-label={`${school.name} 전국 ${school.rank}위`}
       aria-pressed={selected}
       data-school-id={school.id}
+      data-top-rank={highlighted ? school.rank : undefined}
       data-no-touch44
       onClick={() => {
         soundManager.playTabSound();
         onSelect(school.id);
       }}
       className="absolute cursor-pointer group"
-      style={{ ...style, zIndex: school.isTop3 ? 35 : selected ? 30 : 20 }}
+      style={{ ...style, zIndex: markerZIndex }}
     >
-      {school.isTop3 && <RankRibbon school={school} />}
+      {highlighted && <RankRibbon school={school} />}
 
       {labelOffset && (
-        <svg
+        <svg aria-hidden="true"
           className="absolute pointer-events-none"
           style={{ width: '24px', height: '24px', left: `${labelOffset.dx < 0 ? labelOffset.dx : 0}px`, top: '18px' }}
         >
@@ -257,7 +268,7 @@ export function SchoolMarker({
       >
         <div
           className={`mt-0.5 px-1 py-0.2 border border-[#261608] text-[8px] font-pixel font-bold text-center whitespace-nowrap shadow-[1px_1px_0px_#261608] text-[#261608] ${
-            school.isMySchool ? 'bg-[#fecdd3]' : school.isTop3 ? 'bg-[#fef08a]' : selected ? 'bg-[#ffffff]' : 'bg-[#fdf5df]/95'
+            labelBackground
           }`}
         >
           {school.shortName}
@@ -340,30 +351,24 @@ export function SchoolListSheet({
         )}
         {schools.map((school) => {
           const selected = school.id === selectedSchoolId;
+          let rowStyle = 'bg-[#ffffff] border-[#261608]/40 hover:bg-[#fffbeb]';
+          if (school.isMySchool) rowStyle = 'bg-[#faecc7]/90 border-[#facc15]';
+          if (selected) rowStyle = 'bg-[#fef08a] border-[#261608] shadow-[1px_1px_0px_#261608]';
+          const rankColors: Record<number, string> = { 1: 'text-[#eab308]', 2: 'text-[#94a3b8]', 3: 'text-[#b45309]' };
           return (
             <li
               key={school.id}
               data-school-id={school.id}
               onClick={() => select(school.id)}
-              className={`p-1.5 border-2 flex items-center justify-between gap-1.5 transition-colors cursor-pointer ${
-                selected
-                  ? 'bg-[#fef08a] border-[#261608] shadow-[1px_1px_0px_#261608]'
-                  : school.isMySchool
-                  ? 'bg-[#faecc7]/90 border-[#facc15]'
-                  : 'bg-[#ffffff] border-[#261608]/40 hover:bg-[#fffbeb]'
-              }`}
+              onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); select(school.id); } }}
+              tabIndex={0}
+              className={`p-1.5 border-2 flex items-center justify-between gap-1.5 transition-colors cursor-pointer ${rowStyle}`}
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className="w-5 text-center shrink-0">
                   <span
                     className={`font-press-start text-[8px] font-black ${
-                      school.rank === 1
-                        ? 'text-[#eab308]'
-                        : school.rank === 2
-                        ? 'text-[#94a3b8]'
-                        : school.rank === 3
-                        ? 'text-[#b45309]'
-                        : 'text-[#8b5327]'
+                      rankColors[school.rank] ?? 'text-[#8b5327]'
                     }`}
                   >
                     {school.rank}

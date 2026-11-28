@@ -98,6 +98,8 @@ test('회원 등록·목록·상세 DTO와 인증 헤더·페이지·signal, 익
 
 test('StrictMode 빈 목록·비회원 안내·내 정보 진입은 실제 내 문의 화면으로 연결된다', async () => {
   const f = mount({ strict: true }); await screen.findByText('아직 등록한 문의가 없습니다.');
+  assertAbsent(document.querySelector('[data-phone-status-bar]'));
+  assert.ok(document.querySelector('[data-phone-home-bar]'));
   assert.equal(screen.getByRole('button', { name: '이전 페이지' }).hasAttribute('disabled'), true);
   assert.equal(screen.getByRole('button', { name: '다음 페이지' }).hasAttribute('disabled'), true);
   fireEvent.click(screen.getByRole('button', { name: '내 정보로' })); assert.deepEqual(f.navigation, ['back']);
@@ -110,7 +112,10 @@ test('로그아웃 상태에서는 POST/목록/상세 없이 로그인 안내를
 });
 
 test('내 정보에 회원 문의 진입 버튼이 있고 진입 전에 목록을 미리 가져오지 않는다', async () => {
-  const f = mount({ profileScreen: true }); fireEvent.click(await screen.findByRole('button', { name: '회원 문의 · 내 문의' }));
+  const f = mount({ profileScreen: true });
+  assertAbsent(document.querySelector('[data-phone-status-bar]'));
+  assert.ok(document.querySelector('[data-phone-home-bar]'));
+  fireEvent.click(await screen.findByRole('button', { name: '회원 문의 · 내 문의' }));
   assert.deepEqual(f.navigation, ['support']); assert.equal(f.lists().length, 0);
 });
 

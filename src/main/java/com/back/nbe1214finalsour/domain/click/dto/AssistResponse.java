@@ -20,7 +20,15 @@ public record AssistResponse(
         @Schema(description = "크리티컬이 몇 번 인덱스에서 터지는지", example = "[1, 6, 10]")
         List<Integer> criticalIndex,
         @Schema(description = "데미지 비율 인덱스", example = "[89, 90, 110, 130, 50, ... 20개]")
-        List<Integer> damageRateIndex
+        List<Integer> damageRateIndex,
+        @Schema(description = "직전 1초 동안 지원 중인 학교의 전체 지원 수 (연출용)", example = "42")
+        Long schoolAssistsLastSecond,
+        @Schema(description = "직전 1초 동안 지원 중인 학교의 전체 클릭 수 (연출용)", example = "42")
+        Long schoolClicksLastSecond,
+        @Schema(description = "직전 1초 동안 지원 중인 학교의 전체 공격 수 (연출용)", example = "42")
+        Long schoolAttacksLastSecond,
+        @Schema(description = "직전 1초의 시간", example = "1795852440")
+        Long second
 ) {
     public record AssistUniversityResponse(
             @Schema(description = "학교 ID", example = "2")

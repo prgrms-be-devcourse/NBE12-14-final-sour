@@ -5,6 +5,7 @@ import { CAMPUS_SKY_COLORS, CAMPUS_SUN_POSITION, getCampusLayout, lampGlows, lig
 import { useCampusTimePhase } from '../hooks/useCampusTimePhase';
 import { CAMPUS_STAGES } from '../data/gameRules';
 import { CampusSprite } from './CampusSprite';
+import { CampusSignText, type CampusSignInfo } from './CampusSignText';
 import { WOBBLE_STYLE } from '../utils/campusWobble';
 import { MOCK_TOOLS } from '../utils/mockTools';
 
@@ -149,12 +150,17 @@ function DebugOverlay({ layout, view }: { layout: CampusLayout; view: CampusView
 
 // Composes a campus level from individual assets (plan 5-6) through the level's camera. Lv.1-10
 // all have layouts; a level outside that range falls back to the level screenshot.
-export function CampusScene({ level, className = '', variant = 'day', labelPrefix }: { level: number; className?: string; variant?: 'day' | 'night'; /** e.g. the visited school's name, prepended to the accessible name. */ labelPrefix?: string }) {
+export function CampusScene({ level, className = '', variant = 'day', labelPrefix, sign }: {
+  level: number; className?: string; variant?: 'day' | 'night';
+  /** e.g. the visited school's name, prepended to the accessible name. */ labelPrefix?: string;
+  /** The school's first-ranked department, written on the signboard. Without it the board stays blank. */
+  sign?: CampusSignInfo | null;
+}) {
   const layout = getCampusLayout(level);
   if (!layout) return <CampusSprite level={level} className={className} variant={variant} />;
   const index = Math.max(0, Math.min(9, level - 1));
   return (
-    <CampusLayoutScene layout={layout} className={className} level={level}
+    <CampusLayoutScene layout={layout} className={className} level={level} sign={sign}
       label={`${labelPrefix ? `${labelPrefix} ` : ''}캠퍼스 Lv.${index + 1} ${CAMPUS_STAGES[index].name}`} />
   );
 }
@@ -164,8 +170,9 @@ export function CampusScene({ level, className = '', variant = 'day', labelPrefi
  * onboarding title (docs/261110-0837-onboarding_title_screen_plan.md). `phase` pins the sky instead of
  * following the time of day.
  */
-export function CampusLayoutScene({ layout, label, className = '', level, phase: pinned, testId = 'campus-scene' }: {
+export function CampusLayoutScene({ layout, label, className = '', level, phase: pinned, testId = 'campus-scene', sign }: {
   layout: CampusLayout; label: string; className?: string; level?: number; phase?: keyof typeof CAMPUS_SKY_COLORS; testId?: string;
+  sign?: CampusSignInfo | null;
 }) {
   const rawId = useId();
   const ambience = useCampusTimePhase();
@@ -226,7 +233,8 @@ export function CampusLayoutScene({ layout, label, className = '', level, phase:
         const asset = CAMPUS_ASSETS[item.asset];
         const shadowRx = Math.max(3, Math.round(asset.width * 0.38));
         return (
-          <g key={i}>
+          // Non-building items (with their shadow) wobble opposite to the buildings on an attack (utils/campusWobble).
+          <g key={i} {...(isBuilding(asset) ? {} : { 'data-wobble-back': item.asset, style: WOBBLE_STYLE })}>
             {(item.shadow ?? (asset.width <= SHADOW_MAX_WIDTH && !asset.footprint)) && (
               <ellipse cx={item.x} cy={item.y - 1} rx={shadowRx} ry={Math.max(1, Math.round(shadowRx * 0.32))} fill="#10240c" opacity={0.22} />
             )}
@@ -234,6 +242,7 @@ export function CampusLayoutScene({ layout, label, className = '', level, phase:
             {isBuilding(asset)
               ? <g data-wobble={item.asset} data-item-index={i} style={WOBBLE_STYLE}><Sprite item={item} ratio={ratios.world} /></g>
               : <Sprite item={item} ratio={ratios.world} />}
+            {sign && item.asset === 'signboard' && <CampusSignText item={item} info={sign} />}
           </g>
         );
       })}

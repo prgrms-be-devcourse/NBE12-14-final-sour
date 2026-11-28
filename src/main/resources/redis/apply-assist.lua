@@ -5,10 +5,15 @@
 -- KEYS[5] alliance:{allianceId}:score    연합 점수
 -- KEYS[6] match:{matchId}:score       대결 점수
 -- KEYS[7] dirty:alliance   KEYS[8] dirty:match
+-- KEYS[9] assists:univ:{targetUniversityId}:{nowSec}        이번 초 학교 지원 수
+-- KEYS[10] assists:univ:{targetUniversityId}:{nowSec - 1}   직전 초 학교 지원 수
+-- KEYS[11] clicks:univ:{targetUniversityId}:{nowSec - 1}    직전 초 학교 클릭 수
+-- KEYS[12] attacks:univ:{targetUniversityId}:{nowSec - 1}   직전 초 학교 공격 수
 -- ARGV[1] targetUniversityId  ARGV[2] assistScore (정수)  ARGV[3] userId  ARGV[4] contribScore (정수)
 -- ARGV[5] allianceId
 -- ARGV[6] team(A|B)
 -- ARGV[7] matchId
+-- ARGV[8] clickCount
 
 local assist = tonumber(ARGV[2])
 local contrib = tonumber(ARGV[4])
@@ -30,6 +35,13 @@ if ARGV[6] ~= '' then
     redis.call('SADD', KEYS[8], ARGV[7])
 end
 
-local univRank = redis.call('ZREVRANK', KEYS[1], ARGV[1])   -- 0부터 시작
+redis.call('INCRBY', KEYS[9], ARGV[8])
+redis.call('EXPIRE', KEYS[9], 5)
 
-return { univTotal, tostring(univRank + 1), myContrib }
+local univRank = redis.call('ZREVRANK', KEYS[1], ARGV[1])   -- 0부터 시작
+local assistLastSecond = redis.call('GET', KEYS[10]) or '0'
+local clickLastSecond = redis.call('GET', KEYS[11]) or '0'
+local attackLastSecond = redis.call('GET', KEYS[12]) or '0'
+
+return { univTotal, tostring(univRank + 1), myContrib,
+ assistLastSecond, clickLastSecond, attackLastSecond }

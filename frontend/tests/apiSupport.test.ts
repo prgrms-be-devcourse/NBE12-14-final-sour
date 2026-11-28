@@ -80,6 +80,8 @@ const botCheck = () => screen.queryByTestId('support-bot-check');
 
 test('익명 POST로 접수하고, 토큰 필드를 보내지 않으며, [시연] 보낸 수 칸은 없다', async () => {
   const f = mount([() => ok({ supportId: 1, status: 'PENDING' })], { signedIn: true });
+  assertAbsent(document.querySelector('[data-phone-status-bar]'));
+  assert.ok(document.querySelector('[data-phone-home-bar]'));
   fillAndSend();
   await waitFor(() => assert.match(result(), /접수되었어요/));
   assert.deepEqual(f.sent, [{ auth: null, body: FORM }], '회원 토큰이 있어도 비회원 폼은 토큰 없이 보낸다');

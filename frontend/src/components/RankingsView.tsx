@@ -1,11 +1,13 @@
 import React, { useState, useEffect, type ReactNode, type UIEventHandler } from 'react';
 import { Crown, RefreshCw } from 'lucide-react';
+import { ALLIANCE_INVITATIONS_ENABLED } from '../api/alliances';
+import { RankingSchoolMenu, RankingSchoolTrigger, type RankingSchool, type RankingSchoolNavigation } from './RankingSchoolMenu';
 import { soundManager } from '../utils/sound';
 import { useMySchool } from '../hooks/useSchoolViews';
 import { useRankingBoard, type RankingBoardRow, type RankingTab } from '../hooks/useRankingBoard';
-import { RANK_TREND_TONE, RankingStatusNotice, rankTrend, rankingCaption } from './RankingParts';
+import { RANK_TREND_TONE, RankingRowImage, RankingStatusNotice, rankTrend, rankingCaption } from './RankingParts';
 
-interface RankingsViewProps {
+interface RankingsViewProps extends RankingSchoolNavigation {
   currentSchoolScore: number;
   onCheer?: () => void;
   cheerCooldown?: number;
@@ -36,7 +38,10 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
   currentSchoolScore,
   onBackToCampus,
   desktopPanel = false,
+  onVisitSchool, onGoToLogin, visitBlocked, allianceActionsEnabled = ALLIANCE_INVITATIONS_ENABLED,
 }) => {
+  const [selectedSchool, setSelectedSchool] = useState<RankingSchool | null>(null);
+  const openSchoolMenu = onVisitSchool ? setSelectedSchool : undefined;
   const [activeRankingTab, setActiveRankingTab] = useState<RankingTab>('school');
   const [refreshCountdown, setRefreshCountdown] = useState<number>(5);
 
@@ -70,12 +75,13 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
     const bgColor = item.badgeColor;
 
     return (
-      <div
+      <span aria-hidden="true"
         className={`${sizeClass} border-2 border-[#261608] flex items-center justify-center shrink-0 shadow-[1px_1px_0px_#261608] font-pixel text-white`}
         style={{ backgroundColor: bgColor }}
       >
-        <span className="drop-shadow-[1px_1px_0px_#261608]">{syllable}</span>
-      </div>
+        {item.schoolId === undefined ? <span className="drop-shadow-[1px_1px_0px_#261608]">{syllable}</span>
+          : <RankingRowImage row={item} className="h-full w-full" />}
+      </span>
     );
   };
 
@@ -164,10 +170,10 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
           {top2 ? (
             <div className="flex flex-col items-center">
               <div className="flex flex-col items-center mb-0.5">
-                {renderPixelCrest(top2, 'md')}
-                <span className="font-pixel text-[10px] font-bold text-[#ffffff] drop-shadow-[1px_1px_0px_#261608] text-center truncate max-w-[75px]">
-                  {top2.name}
-                </span>
+                <RankingSchoolTrigger row={top2} open={openSchoolMenu} className="flex min-w-0 flex-col items-center">
+                  {renderPixelCrest(top2, 'md')}
+                  <span className="font-pixel text-[10px] font-bold text-[#ffffff] drop-shadow-[1px_1px_0px_#261608] text-center truncate max-w-[75px]">{top2.name}</span>
+                </RankingSchoolTrigger>
                 <span className="font-press-start text-[7px] text-[#fef08a]">
                   {top2.score.toLocaleString('ko-KR')}
                 </span>
@@ -183,10 +189,10 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
             <div className="flex flex-col items-center -mt-2">
               <Crown className="w-4 h-4 text-[#facc15] fill-[#facc15] drop-shadow-[1px_1px_0px_#261608] animate-bounce" />
               <div className="flex flex-col items-center mb-0.5">
-                {renderPixelCrest(top1, 'lg')}
-                <span className="font-pixel text-xs font-black text-[#fef08a] drop-shadow-[1px_1px_0px_#261608] text-center truncate max-w-[85px]">
-                  {top1.name}
-                </span>
+                <RankingSchoolTrigger row={top1} open={openSchoolMenu} className="flex min-w-0 flex-col items-center">
+                  {renderPixelCrest(top1, 'lg')}
+                  <span className="font-pixel text-xs font-black text-[#fef08a] drop-shadow-[1px_1px_0px_#261608] text-center truncate max-w-[85px]">{top1.name}</span>
+                </RankingSchoolTrigger>
                 <span className="font-press-start text-[8px] text-[#fef08a] font-black">
                   {top1.score.toLocaleString('ko-KR')}
                 </span>
@@ -201,10 +207,10 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
           {top3 ? (
             <div className="flex flex-col items-center">
               <div className="flex flex-col items-center mb-0.5">
-                {renderPixelCrest(top3, 'md')}
-                <span className="font-pixel text-[10px] font-bold text-[#ffffff] drop-shadow-[1px_1px_0px_#261608] text-center truncate max-w-[75px]">
-                  {top3.name}
-                </span>
+                <RankingSchoolTrigger row={top3} open={openSchoolMenu} className="flex min-w-0 flex-col items-center">
+                  {renderPixelCrest(top3, 'md')}
+                  <span className="font-pixel text-[10px] font-bold text-[#ffffff] drop-shadow-[1px_1px_0px_#261608] text-center truncate max-w-[75px]">{top3.name}</span>
+                </RankingSchoolTrigger>
                 <span className="font-press-start text-[7px] text-[#fef08a]">
                   {top3.score.toLocaleString('ko-KR')}
                 </span>
@@ -231,15 +237,13 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
               <span className="font-press-start text-[10px] font-black text-[#261608] w-5 text-center shrink-0">
                 {row.rank}
               </span>
-              {renderPixelCrest(row, 'sm')}
-              <div className="min-w-0">
-                <span className="font-pixel text-xs font-bold text-[#261608] truncate block">
-                  {row.name}
+              <RankingSchoolTrigger row={row} open={openSchoolMenu} className="flex items-center gap-1.5 min-w-0 text-left">
+                {renderPixelCrest(row, 'sm')}
+                <span className="min-w-0">
+                  <span className="font-pixel text-xs font-bold text-[#261608] truncate block">{row.name}</span>
+                  <span className="text-[8px] text-[#8b5327] font-mono block -mt-0.5">{row.subtitle}</span>
                 </span>
-                <span className="text-[8px] text-[#8b5327] font-mono block -mt-0.5">
-                  {row.subtitle}
-                </span>
-              </div>
+              </RankingSchoolTrigger>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
@@ -283,17 +287,13 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
             <span className="game-ranking-self-rank font-press-start text-xs font-black text-[#261608] w-5 text-center shrink-0">
               {myRow.rank}
             </span>
-            {renderPixelCrest(myRow, 'sm')}
-            <div className="min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="font-pixel text-xs font-black text-[#261608] truncate">
-                  {myRow.name}
-                </span>
-                <span className="game-ranking-self-badge text-[8px] bg-[#e11d48] text-white font-mono px-0.5 border border-[#261608] shrink-0 font-black">
-                  {desktopPanel ? SELF_RANK_LABEL[activeRankingTab] : 'MY'}
-                </span>
-              </div>
-            </div>
+            <RankingSchoolTrigger row={myRow} open={openSchoolMenu} className="flex items-center gap-1.5 min-w-0">
+              {renderPixelCrest(myRow, 'sm')}
+              <span className="font-pixel text-xs font-black text-[#261608] truncate">{myRow.name}</span>
+            </RankingSchoolTrigger>
+            <span className="game-ranking-self-badge text-[8px] bg-[#e11d48] text-white font-mono px-0.5 border border-[#261608] shrink-0 font-black">
+              {desktopPanel ? SELF_RANK_LABEL[activeRankingTab] : 'MY'}
+            </span>
           </div>
 
           <div className="game-ranking-self-score flex items-center gap-1 shrink-0">
@@ -310,6 +310,9 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
         </div>
       )}
       </>) : <RankingStatusNotice board={board} />}
+      {selectedSchool && <RankingSchoolMenu school={selectedSchool} source={board.source}
+        onVisitSchool={onVisitSchool} onGoToLogin={onGoToLogin} visitBlocked={visitBlocked}
+        allianceActionsEnabled={allianceActionsEnabled} close={() => setSelectedSchool(null)} />}
     </div>
   );
 };

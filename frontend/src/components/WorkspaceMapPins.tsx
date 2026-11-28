@@ -10,6 +10,7 @@ import { SchoolBadge } from './MapParts';
 export interface WorkspacePin {
   school: SchoolView;
   point: Point;
+  highlighted: boolean;
 }
 
 const boxCenter = (box: MapPinRect): Point => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
@@ -91,10 +92,10 @@ export function WorkspaceMapPins({ pins, hint, selectedId, onSelect }: {
     return () => document.removeEventListener('keydown', dismiss);
   }, [showingName]);
   return <div ref={ref} className="game-map-pins" data-map-pins>
-    {pins.map(({ school, point }) => {
+    {pins.map(({ school, point, highlighted }) => {
       const layout = placed?.get(school.id);
       const logoPosition = layout ? position(layout.logo) : pinCenter(point);
-      return <button key={school.id} type="button" data-school-id={school.id} data-top-rank={school.isTop3 ? school.rank : undefined}
+      return <button key={school.id} type="button" data-school-id={school.id} data-top-rank={highlighted ? school.rank : undefined}
           data-own-school={school.isMySchool || undefined} data-no-touch44
           aria-label={`${school.name} 전국 ${school.rank}위`} aria-pressed={selectedId === school.id}
           className="game-map-pin" style={logoPosition}
@@ -104,12 +105,12 @@ export function WorkspaceMapPins({ pins, hint, selectedId, onSelect }: {
           onPointerLeave={() => setHovered(undefined)}
           onClick={() => { soundManager.playTabSound(); onSelect(school.id); }}>
           <SchoolBadge school={school} className="game-map-pin-logo" />
-          {school.isTop3 && <span className="game-map-pin-medal" aria-hidden="true">{school.rank}</span>}
-          {school.isTop3 && <span className="game-map-pin-rank" data-pin-id={school.id} style={platePosition(layout?.rank, layout?.logo)}>
+          {highlighted && <span className="game-map-pin-medal" aria-hidden="true">{school.rank}</span>}
+          {highlighted && <span className="game-map-pin-rank" data-pin-id={school.id} style={platePosition(layout?.rank, layout?.logo)}>
             <strong>{school.rank}위</strong>
             <span className="font-mono">{school.score.toLocaleString('ko-KR')}</span>
           </span>}
-          <span className="game-map-pin-name" data-pin-id={school.id} data-priority={school.isTop3 || school.isMySchool || selectedId === school.id}
+          <span className="game-map-pin-name" data-pin-id={school.id} data-priority={highlighted || school.isMySchool || selectedId === school.id}
             style={platePosition(layout?.label, layout?.logo)}>{school.shortName}</span>
         </button>;
     })}

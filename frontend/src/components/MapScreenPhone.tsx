@@ -7,7 +7,7 @@ import { useMapSchools } from '../hooks/useMapSchools.ts';
 import { LoadNotice } from './LoadNotice';
 import type { MapRegion } from '../data/schoolMapLayout.ts';
 import { filterSchools, type SchoolView } from '../data/schoolDirectory';
-import { WorkspaceMapPreview, WorkspaceMapSchoolList } from './WorkspaceMapContents';
+import { WorkspaceMapSchoolList } from './WorkspaceMapContents';
 
 /** What the map shows. Kept outside the map in the app so a visit can return to it (M2 A2). */
 export interface MapContext {
@@ -21,7 +21,7 @@ export const INITIAL_MAP_CONTEXT: MapContext = { region: '전체', query: '' };
 interface MapScreenPhoneProps {
   /** Legacy full map: selecting a marker, row or visit button enters the school immediately. */
   onSelectSchool?: (schoolId: SchoolId) => void;
-  /** Workspace map: selections only update the preview; onVisit runs from its explicit button. */
+  /** Workspace selections reveal a row; onVisit runs from its explicit button. */
   panel?: { onVisit: (schoolId: SchoolId) => void; visitBlocked?: string };
   onNavigateTab?: (tab: NavTab) => void;
   /** Controlled context. Without it the phone keeps its own state (comparison demos). */
@@ -46,6 +46,7 @@ export const MapScreenPhone: React.FC<MapScreenPhoneProps> = ({
   const map = useMapSchools();
   const schools = map.schools;
   const [localContext, setLocalContext] = useState<MapContext>({ ...INITIAL_MAP_CONTEXT, region: initialRegion });
+  const [revealMarker, setRevealMarker] = useState(0);
   const current = context ?? localContext;
   const update = (patch: Partial<MapContext>) => {
     const next = { ...current, ...patch };
@@ -57,24 +58,31 @@ export const MapScreenPhone: React.FC<MapScreenPhoneProps> = ({
     update({ selectedSchoolId: schoolId });
     if (!panel) onSelectSchool?.(schoolId);
   };
+  const selectMarker = (schoolId: SchoolId) => {
+    select(schoolId);
+    if (panel) setRevealMarker(value => value + 1);
+  };
+  const selectRow = (schoolId: SchoolId) => update({ selectedSchoolId: schoolId === current.selectedSchoolId ? undefined : schoolId });
   const selectedSchool = schools.find((school) => school.id === current.selectedSchoolId);
   const isSearching = current.query.trim().length > 0;
   const listed = isSearching ? filterSchools(schools, current.region, current.query) : schools;
   const selectedExcludedFromSearch = Boolean(
     selectedSchool && isSearching && !listed.some((school) => school.id === selectedSchool.id),
   );
+  const selectionNotice = selectedExcludedFromSearch ? '선택 학교가 검색 결과에 없습니다.' : '';
   const controls = {
     schools,
     query: current.query,
     selectedSchoolId: current.selectedSchoolId,
     onRegionChange: (region: MapRegion) => update({ region }),
     onQueryChange: (query: string) => update({ query }),
-    onSelectSchool: select,
+    onSelectSchool: selectMarker,
     onNavigateTab,
-    preview: panel && <WorkspaceMapPreview school={selectedSchool}
-      onVisit={panel.onVisit} blocked={panel.visitBlocked} excludedFromSearch={selectedExcludedFromSearch} />,
+    embedded: !!panel,
+    selectionNotice: panel ? selectionNotice : undefined,
     renderPanelList: panel && ((panelSchools: readonly SchoolView[]) => <WorkspaceMapSchoolList schools={panelSchools}
-      selectedSchoolId={current.selectedSchoolId} query={current.query} onSelect={select} />),
+      selectedSchoolId={current.selectedSchoolId} query={current.query} onSelect={selectRow}
+      onVisit={panel.onVisit} blocked={panel.visitBlocked} revealMarker={revealMarker} />),
   };
 
   if (map.status !== 'ready') {

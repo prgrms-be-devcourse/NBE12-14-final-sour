@@ -1,7 +1,7 @@
 # 이미지 태그는 TestcontainersConfiguration의 *_IMAGE 상수와 같아야 한다 (ContainerImageVersionTest가 검사, 이슈 #26)
 services:
   postgres:
-    image: 'postgres:16'
+    image: 'postgres:17'
     environment:
       - 'POSTGRES_DB=mydatabase'
       - 'POSTGRES_PASSWORD=secret'
@@ -9,7 +9,7 @@ services:
     ports:
       - '5432'
   redis:
-    image: 'redis:8.10'
+    image: 'redis:7.4'
     ports:
       - '6379'
   # S3 대신 쓰는 AWS 에뮬레이터 (로고 이미지 업로드). 앱을 실행하면 spring-boot-docker-compose가 같이 띄우고,

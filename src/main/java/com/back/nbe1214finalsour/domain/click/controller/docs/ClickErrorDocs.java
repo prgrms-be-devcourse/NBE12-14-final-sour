@@ -27,6 +27,11 @@ final class ClickErrorDocs {
             `CLICK_TOO_FREQUENT` 10초에 12회 넘게 제출 / `CLICK_COUNT_EXCEEDED` 1분에 900클릭 넘게 제출. \
             둘 다 어뷰징 의심 표시가 남아 다음 제출부터 403 `ABUSE_VERIFICATION_REQUIRED`가 된다""";
 
+    static final String INVALID_UNIVERSITY_ID =
+            "`COMMON_INVALID_INPUT` universityId가 Long 형식이 아님";
+
+    static final String UNIVERSITY_NOT_FOUND = "`UNIV_NOT_FOUND` 없는 학교";
+
     private ClickErrorDocs() {
     }
 }

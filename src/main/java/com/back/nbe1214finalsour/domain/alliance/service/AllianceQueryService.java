@@ -1,14 +1,18 @@
 package com.back.nbe1214finalsour.domain.alliance.service;
 
+import com.back.nbe1214finalsour.domain.alliance.dto.UniversityAllianceResponse;
 import com.back.nbe1214finalsour.domain.alliance.entity.Alliance;
+import com.back.nbe1214finalsour.domain.alliance.entity.AllianceStatus;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversity;
 import com.back.nbe1214finalsour.domain.alliance.entity.AllianceUniversityStatus;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceRepository;
 import com.back.nbe1214finalsour.domain.alliance.repository.AllianceUniversityRepository;
+import com.back.nbe1214finalsour.domain.university.repository.UniversityRepository;
 import com.back.nbe1214finalsour.global.exception.BusinessException;
 import com.back.nbe1214finalsour.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -24,6 +28,7 @@ public class AllianceQueryService {
     private final AllianceRepository allianceRepository;
     private final AllianceUniversityRepository allianceUniversityRepository;
     private final Clock clock;
+    private final UniversityRepository universities;
 
     @Transactional(readOnly = true)
     public Alliance getAlliance(Long allianceId) {
@@ -45,6 +50,16 @@ public class AllianceQueryService {
                         allianceId,
                         AllianceUniversityStatus.ACCEPTED
                 );
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Optional<UniversityAllianceResponse> getUniversityAlliance(long universityId) {
+        if (!universities.existsById(universityId)) throw new BusinessException(ErrorCode.UNIV_NOT_FOUND);
+        return findCurrentAlliance(universityId).map(alliance -> new UniversityAllianceResponse(
+                alliance.getId(), alliance.getName(), alliance.getStatus(),
+                alliance.getStatus() == AllianceStatus.ACTIVE && allianceUniversityRepository
+                        .countByAllianceIdAndStatusAndDeletedAtIsNull(alliance.getId(), AllianceUniversityStatus.ACCEPTED)
+                        < Alliance.MAX_SCHOOLS));
     }
 
     /** 내 학교의 현재 연합 (명세 {@code GET /api/v1/alliances/me}). 학교가 없거나 소속 연합이 없으면 비어 있다 */

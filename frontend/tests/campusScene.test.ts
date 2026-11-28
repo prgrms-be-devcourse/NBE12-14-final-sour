@@ -28,6 +28,7 @@ const { CAMPUS_LAYOUTS, FEATURE_MIN_VISIBLE, LAMP_GAP, lampGlows, lightOccluders
 const { CAMPUS_TALL_ASPECT, CAMPUS_UI_OVERLAYS, campusView, doorPoints, faceMid, footprintCores, footprintPolygon, polygonDistance, polygonGap, footprintOf, iso, isoRect, isoStrip, mid, pointInPolygon, spriteBox, visibleFraction } = await import('../src/data/campusGeometry');
 const { CAMPUS_STAGES } = await import('../src/data/gameRules');
 const { CampusScene, CampusSceneLights } = await import('../src/components/CampusScene');
+const { MIN_NAME_SIZE, fitFontSize, signDisplayName, signTextLayout, splitSignName } = await import('../src/components/CampusSignText');
 type CampusLayout = import('../src/data/campusLayouts').CampusLayout;
 
 after(() => { assetHooks.deregister(); dom.window.close(); });
@@ -188,7 +189,8 @@ test('Lv.10: flags stand off the paving and banner lamps ring the square (F9)', 
     assert.ok(paving.every((t) => polygonDistance([flag.x, flag.y], t.points) > 0), `Lv.10 flag at ${flag.x},${flag.y} stands on the paving`);
   }
   assert.ok(layout.items.filter((i) => i.asset === 'lamp-banner').length >= 6, 'Lv.10 banner lamps');
-  assert.ok(layout.items.filter((i) => /^(flowerbed-|flower-border)/.test(i.asset)).length >= 6, 'Lv.10 flowerbeds frame the square');  // User request (2026-11-10): from Lv.10 the campus is one L-shaped grand hall, not separate buildings.
+  // Four flower borders trim the open sides; the two corner flowerbeds were taken out (user, 2026-11-27).
+  assert.ok(layout.items.filter((i) => /^(flowerbed-|flower-border)/.test(i.asset)).length >= 4, 'Lv.10 flower borders frame the square');  // User request (2026-11-10): from Lv.10 the campus is one L-shaped grand hall, not separate buildings.
   const buildings = layout.items.filter((i) => footprintOf(i) && i.asset !== 'fountain').map((i) => i.asset);
   assert.deepEqual(buildings, ['grand-hall']);
   // User request (2026-11-10): a fountain, trees, and walks out to the lower left and lower right.
@@ -298,11 +300,14 @@ test('placements draw back to front by anchor y, then x, then input order', () =
 
 test('the Lv.4 hedge by the main hall draws in front of the hall (user request 2026-11-09)', () => {
   const order = sortPlacements(CAMPUS_LAYOUTS[4]!.items).map((i) => i.asset);
-  assert.equal(order.filter((a) => a === 'hedge').length, 3); // left wing, right of the entrance, lower-right wall
+  // Right of the entrance and lower-right wall; the left-wing hedge gave way to the school signboard (2026-11-27).
+  assert.equal(order.filter((a) => a === 'hedge').length, 2);
   assert.ok(order.indexOf('hedge') > order.indexOf('main-clocktower'), JSON.stringify(order));
-  // At night the window lights sit above the scene, so the hedge must mask them (lights bled over it).
+  assert.ok(order.indexOf('signboard') > order.indexOf('main-clocktower'), JSON.stringify(order));
+  // At night the window lights sit above the scene, so the hedges and the sign must mask them (lights bled over it).
   const hall = lightOccluders(CAMPUS_LAYOUTS[4]!.items).find((l) => l.item.asset === 'main-clocktower')!;
-  assert.equal(hall.occluders.filter((o) => o.asset === 'hedge').length, 3);
+  assert.equal(hall.occluders.filter((o) => o.asset === 'hedge').length, 2);
+  assert.equal(hall.occluders.filter((o) => o.asset === 'signboard').length, 1, 'window lights do not shine through the sign');
   render(React.createElement(CampusSceneLights, { level: 4, opacity: 1, twinkle: false }));
   const lights = document.querySelector('[data-lights="main-clocktower"]')!;
   const maskId = lights.closest('[mask]')!.getAttribute('mask')!.match(/url\(#(.+)\)/)![1];
@@ -455,12 +460,41 @@ test('Lv.3: lanterns, log benches and a notice board line the dirt paths', () =>
   const layout = CAMPUS_LAYOUTS[3]!;
   assert.ok(layout.items.filter((i) => i.asset === 'lantern-post').length >= 3, 'Lv.3 lantern posts');
   assert.ok(layout.items.filter((i) => i.asset === 'log-bench').length >= 2, 'Lv.3 log benches');
-  for (const asset of ['notice-board', 'birdhouse', 'bicycle', 'picnic-mat'] as const) assert.ok(layout.items.some((i) => i.asset === asset), `Lv.3 has ${asset}`);
+  for (const asset of ['signboard', 'birdhouse', 'bicycle', 'picnic-mat'] as const) assert.ok(layout.items.some((i) => i.asset === asset), `Lv.3 has ${asset}`);
+  // One school sign per level: Lv.3 keeps the Lv.2 signboard, standing in front of the hall and drawn over it.
+  const signs = layout.items.filter((i) => i.asset === 'signboard' || i.asset === 'notice-board');
+  assert.deepEqual(signs.map((i) => i.asset), ['signboard'], 'Lv.3 has exactly one sign, the Lv.2 signboard');
+  assert.ok((signs[0].depth ?? signs[0].y) > layout.items[0].y, 'the signboard is drawn in front of the hall');
+  assert.equal(signs[0].flip, true, 'signs face the way the school does: the board runs parallel to the door face');
   assert.ok(layout.items.filter((i) => i.asset.startsWith('student-')).length >= 6, 'Lv.3 has more students than Lv.2');
   // Every lantern stands within reach of a path, so it reads as path lighting.
   const paths = layout.terrain.filter((t) => t.texture === 'tex-dirt');
   for (const post of layout.items.filter((i) => i.asset === 'lantern-post')) {
     assert.ok(paths.some((t) => polygonDistance([post.x, post.y], t.points) <= 8), `lantern at ${post.x},${post.y} is far from the paths`);
+  }
+});
+
+test('Lv.4·5·6도 Lv.3처럼 학교 표지판 하나가 정해진 방향으로 서고 본관보다 앞에 그려진다', () => {
+  // Lv.5's sign stands on the lawn toward the library, turned 90 degrees from Lv.4's (user request 2026-11-27).
+  for (const [level, flip] of [[4, true], [5, undefined], [6, undefined]] as const) {
+    const layout = CAMPUS_LAYOUTS[level]!;
+    const hall = layout.items.find((i) => i.asset === 'main-clocktower')!;
+    const signs = layout.items.filter((i) => i.asset === 'signboard' || i.asset === 'notice-board');
+    assert.deepEqual(signs.map((i) => i.asset), ['signboard'], `Lv.${level} has exactly one sign, the signboard`);
+    assert.equal(signs[0].flip, flip, `Lv.${level}: the board's direction`);
+    assert.ok((signs[0].depth ?? signs[0].y) > hall.y, `Lv.${level}: the signboard is drawn in front of the main hall`);
+  }
+});
+
+test('Lv.7·8 학교 표지판은 입구가 오른쪽 면인 학교 건물 앞에서 같은 방향을 보고 그 건물보다 앞에 그려진다', () => {
+  for (const [level, building] of [[7, 'lecture-2-r'], [8, 'main-clocktower']] as const) {
+    const layout = CAMPUS_LAYOUTS[level]!;
+    const hall = layout.items.find((i) => i.asset === building)!;
+    const signs = layout.items.filter((i) => i.asset === 'signboard' || i.asset === 'notice-board');
+    assert.deepEqual(signs.map((i) => i.asset), ['signboard'], `Lv.${level} has exactly one sign, the signboard`);
+    // The door is on the right face, so the board runs along V, unflipped.
+    assert.equal(signs[0].flip, undefined, `Lv.${level}: the board runs parallel to the door face`);
+    assert.ok((signs[0].depth ?? signs[0].y) > hall.y, `Lv.${level}: the signboard is drawn in front of ${building}`);
   }
 });
 
@@ -614,4 +648,63 @@ test('an HD file that fails to load falls back to the 1x file with one warning',
   assert.equal(mask().getAttribute('href'), asset.lightsUrl);
   assert.equal(warn.mock.callCount(), 2);
   assert.match(String(warn.mock.calls[0].arguments[0]), /campus-hd\/6\/.+ showing the 1x file/);
+});
+
+// The school signboard shows the school's first-ranked department and its score (user request 2026-11-27).
+test('표지판에 학교 1위 학과명과 점수를 쓰고, 정보가 없으면 판을 비워 둔다', () => {
+  const { container } = render(React.createElement(CampusScene, { level: 3, sign: { name: '국악과', score: 1234567 } }));
+  const texts = container.querySelectorAll('[data-sign-text]');
+  assert.equal(texts.length, 1, 'one sign, one text');
+  assert.equal(container.querySelector('[data-sign-name]')?.textContent, '국악과');
+  assert.equal(container.querySelector('[data-sign-score]')?.textContent, '1.2M점');
+  assert.ok(texts[0].parentElement?.querySelector('[data-asset="signboard"]'), 'drawn with the sign so it keeps its draw order');
+  cleanup();
+  const blank = render(React.createElement(CampusScene, { level: 3 }));
+  assert.equal(blank.container.querySelectorAll('[data-sign-text]').length, 0);
+});
+
+test('표지판 글자는 판 기울기를 따르고, 뒤집힌 표지판에서도 거울글자가 되지 않으며, 긴 학과명일수록 작아진다', () => {
+  const info = { name: '국악과', score: 10 };
+  const plain = signTextLayout({ asset: 'signboard', x: 100, y: 200 }, info);
+  const flipped = signTextLayout({ asset: 'signboard', x: 100, y: 200, flip: true }, info);
+  assert.ok(plain.skew < 0 && flipped.skew === -plain.skew, 'the face rises to the right unflipped and falls flipped');
+  assert.equal(plain.x - 100, 100 - flipped.x, 'the text sits on the mirrored board face');
+  assert.equal(plain.y, flipped.y);
+  assert.ok(fitFontSize('컴퓨터소프트웨어학부', 3.4) < fitFontSize('국악과', 3.4), 'a longer name gets a smaller font');
+  assert.equal(fitFontSize('국악과', 3.4), 3.4, 'a short name keeps the largest size');
+});
+
+test('표지판 학과명이 한 줄로 너무 작아지면 두 줄로 나누고, 짧은 이름은 한 줄로 둔다', () => {
+  assert.deepEqual(splitSignName('국악과'), ['국악과']);
+  const long = '전기전자컴퓨터공학부소프트웨어전공';
+  assert.ok(fitFontSize(long, 3.4) < MIN_NAME_SIZE, 'one line would be too small');
+  const lines = splitSignName(long);
+  assert.equal(lines.length, 2);
+  assert.equal(lines.join(''), long);
+  assert.ok(Math.abs([...lines[0]].length - [...lines[1]].length) <= 1, 'halves of about equal width');
+  assert.ok(splitSignName('Global Business Administration Department Office').every((line) => !line.startsWith(' ') && !line.endsWith(' ')), 'breaks at a space without dangling spaces');
+  const layout = signTextLayout({ asset: 'signboard', x: 0, y: 0 }, { name: long, score: 5 });
+  assert.equal(layout.name.lines.length, 2);
+  assert.ok(layout.name.size > fitFontSize(long, 3.4), 'two lines are larger than one');
+  assert.ok(layout.name.lines[0].dy < layout.name.lines[1].dy && layout.name.lines[1].dy < layout.score!.dy, 'name lines above the score');
+  const { container } = render(React.createElement(CampusScene, { level: 3, sign: { name: long, score: 5 } }));
+  assert.deepEqual([...container.querySelectorAll('[data-sign-name-line]')].map((n) => n.textContent), lines);
+});
+
+test('괄호가 있는 긴 학과명은 괄호 앞만 표지판에 쓰고, 전체 이름은 접근성 제목에 남긴다', () => {
+  const long = '음악학과(성악전공, 피아노전공, 작곡전공, 관현악전공, 이론전공)';
+  assert.equal(signDisplayName(long), '음악학과');
+  assert.equal(signDisplayName('Culture & Technology융합대학[통합모집]'), 'Culture & Technology융합대학');
+  assert.equal(signDisplayName('경영학과(야간)'), '경영학과(야간)', 'a short name keeps its brackets');
+  assert.equal(signDisplayName('(가칭)신설학부'), '(가칭)신설학부', 'nothing in front of the bracket: keep the whole name');
+  const { container } = render(React.createElement(CampusScene, { level: 3, sign: { name: long, score: 12345 } }));
+  assert.deepEqual([...container.querySelectorAll('[data-sign-name-line]')].map((n) => n.textContent), ['음악학과']);
+  assert.match(container.querySelector('[data-sign-text] title')?.textContent ?? '', /성악전공/);
+});
+
+test('1위 학과가 0점이면 표지판에 학과명·점수 대신 "순위 없음"만 쓴다', () => {
+  const { container } = render(React.createElement(CampusScene, { level: 3, sign: { name: '환경안전공학과', score: 0 } }));
+  assert.deepEqual([...container.querySelectorAll('[data-sign-name-line]')].map((n) => n.textContent), ['순위 없음']);
+  assert.equal(container.querySelectorAll('[data-sign-score]').length, 0, 'no score line');
+  assert.equal(container.querySelector('[data-sign-text] title')?.textContent, '학과 순위 없음');
 });

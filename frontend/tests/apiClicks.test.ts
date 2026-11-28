@@ -55,7 +55,7 @@ const ME: MyInfo = {
 const RESPONSE: ClickResponse = {
   acceptedClicks: 2, earnedScore: 4, multiplier: 1, myContribScore: 14,
   university: { id: 1, totalScore: 104, rank: 1, logoUrl: 'tempUrl' },
-  department: { id: 7, totalScore: 24 }, schoolClicksLastSecond: 2, libraryBonus: false,
+  department: { id: 7, totalScore: 24 }, schoolClicksLastSecond: 2, libraryBonus: false, criticalIndex: [], damageRateIndex: [],
 };
 const ok = (data: unknown) => new Response(JSON.stringify({ code: 'SUCCESS', message: '성공', data }), { status: 200 });
 const fail = (status: number, code: string) => new Response(JSON.stringify({ code, message: '전송 오류', data: null }), { status });

@@ -152,6 +152,8 @@ class RedisKeyTest {
                 "DIRTY_MATCH|dirty:match|SET|PLAIN",
                 // 클릭 (Click)
                 "CLICKS_UNIV_SECOND|clicks:univ:%s:%s|STRING|PLAIN",
+                "ATTACKS_UNIV_SECOND|attacks:univ:%s:%s|STRING|PLAIN",
+                "ASSISTS_UNIV_SECOND|assists:univ:%s:%s|STRING|PLAIN",
                 "SUBMIT_DEDUPE|submit:%s:%s|STRING|PLAIN",
                 "CLICKS_CRITICAL|clicks:user:%s:critical|STRING|PLAIN",
                 "ATTACKS_CRITICAL|attacks:user:%s:critical|STRING|PLAIN",

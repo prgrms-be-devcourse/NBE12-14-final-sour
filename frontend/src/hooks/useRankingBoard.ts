@@ -24,6 +24,7 @@ export type RankingRowImage =
 
 export interface RankingBoardRow {
   key: string;
+  schoolId?: SchoolId;
   rank: number;
   name: string;
   subtitle: string;
@@ -86,7 +87,7 @@ export function useMockRankingBoard(tab: RankingTab, currentSchoolScore: number,
   }, [hasMore, loadingMore, tab, dataset.length, visibleCount, mockLoadDelayMs]);
 
   const toRow = (row: (typeof dataset)[number]): RankingBoardRow => ({
-    key: `${tab}:${row.id}`, rank: row.rank, name: row.name, subtitle: row.region, score: row.score, change: row.change,
+    key: `${tab}:${row.id}`, schoolId: tab === 'school' && typeof row.id === 'number' ? row.id : undefined, rank: row.rank, name: row.name, subtitle: row.region, score: row.score, change: row.change,
     firstSyllable: row.firstSyllable, badgeColor: row.badgeColor, isMine: !!row.isMySchool,
     image: { kind: 'shared', target: typeof row.id === 'number' ? { type: 'school', id: row.id } : { type: tab === 'dept' ? 'department' : 'profile', id: row.id } },
   });
@@ -105,7 +106,7 @@ const PERSON_COLOR = '#0284c7';
 function schoolRow(id: number, rank: number, name: string, score: number, change: string | null, logoUrl: string | null, isMine: boolean): RankingBoardRow {
   const known = SCHOOL_BY_ID.get(id);
   return {
-    key: `school:${id}`, rank, name, score, change, isMine,
+    key: `school:${id}`, schoolId: id, rank, name, score, change, isMine,
     subtitle: known ? `${known.region} · ${known.city}` : '',
     firstSyllable: known?.firstSyllable ?? name.slice(0, 1), badgeColor: known?.badgeColor ?? DEPT_COLOR,
     image: { kind: 'url', url: logoUrl, defaultUrl: SCHOOL_LOGO_ASSETS[id as SchoolId] },

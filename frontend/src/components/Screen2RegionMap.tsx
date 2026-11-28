@@ -27,20 +27,22 @@ export const Screen2RegionMap: React.FC<MapControlsProps> = ({
   onQueryChange,
   onSelectSchool,
   onNavigateTab,
-  preview,
+  embedded = false,
+  selectionNotice,
   renderPanelList,
 }) => {
   const regionSchools = filterSchools(schools, '충청', '');
   const listed = filterSchools(schools, '충청', query);
-  const workspace = preview !== undefined;
+  const highlighted = new Set(regionSchools.filter(school => school.isTop3 && CHUNGCHEONG_PLACEMENTS[school.id]).slice(0, 3).map(school => school.id));
+  const workspace = embedded;
   const searchStatus = formatWorkspaceSearchStatus(workspace, query, listed.length);
   const pins = workspace ? regionSchools.flatMap(school => {
     const placement = CHUNGCHEONG_PLACEMENTS[school.id];
-    return placement ? [{ school, point: mapFramePercent(placement) }] : [];
+    return placement ? [{ school, point: mapFramePercent(placement), highlighted: highlighted.has(school.id) }] : [];
   }) : [];
 
   return (
-    <MapFrame preview={preview} searching={query.trim().length > 0} list={renderPanelList?.(listed) ?? <SchoolListSheet
+    <MapFrame embedded={embedded} searching={query.trim().length > 0} list={renderPanelList?.(listed) ?? <SchoolListSheet
       title={`충청 대학 ${regionSchools.length}개`}
       schools={listed} query={query} selectedSchoolId={selectedSchoolId}
       onQueryChange={onQueryChange} onSelectSchool={onSelectSchool} onNavigateTab={onNavigateTab}
@@ -52,6 +54,7 @@ export const Screen2RegionMap: React.FC<MapControlsProps> = ({
         onRegionChange={onRegionChange}
         onQueryChange={onQueryChange}
         searchStatus={searchStatus}
+        selectionNotice={selectionNotice}
         badge={
           <div className="bg-[#facc15] border-2 border-[#261608] px-2 py-1 flex items-center gap-1 shadow-[1px_1px_0px_#261608] shrink-0">
             <ZoomIn className="w-3 h-3 text-[#261608]" />
@@ -89,7 +92,8 @@ export const Screen2RegionMap: React.FC<MapControlsProps> = ({
               <SchoolMarker
                 key={school.id}
                 school={school}
-                large={school.isTop3}
+                highlighted={highlighted.has(school.id)}
+                large={highlighted.has(school.id)}
                 selected={school.id === selectedSchoolId}
                 labelOffset={placement.leaderLine}
                 onSelect={onSelectSchool}
