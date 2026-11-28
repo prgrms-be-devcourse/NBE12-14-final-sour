@@ -269,6 +269,26 @@ class PaymentRepositoryTest {
         assertThat(found.getMethod()).isNull();
     }
 
+    @Test
+    @DisplayName("IN_PROGRESS 주문이면 ABORTED로 바꾸고 토스 거절 코드·메시지를 저장한다")
+    void abortIfInProgressAbortsOrder() {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY);
+
+        // when
+        int updated = paymentRepository.abortIfInProgress(
+                payment.getOrderId(), "REJECT_CARD_PAYMENT", "한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(found.getStatus()).isEqualTo(PaymentStatus.ABORTED);
+        assertThat(found.getFailCode()).isEqualTo("REJECT_CARD_PAYMENT");
+        assertThat(found.getFailMessage()).isEqualTo("한도초과 혹은 잔액부족으로 결제에 실패했습니다.");
+    }
+
     // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
     private Long insertOtherUser() {
         return jdbcTemplate.queryForObject("""
