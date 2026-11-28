@@ -431,6 +431,11 @@
   padding-block-start: env(safe-area-inset-top);
   padding-inline: max(.5rem, env(safe-area-inset-left)) max(.5rem, env(safe-area-inset-right));
 }
+/* The service header can wrap. Size the main view from the space it actually leaves instead of the fixed offset. */
+.device-full-with-profile--service { block-size: 100dvh; }
+.device-full-with-profile--service > .game-top-bar { flex: none; }
+.device-full-with-profile--service .game-compact-view { flex: 1 0 480px; }
+.device-full-with-profile--service .game-compact-view > .phone-shell-full { flex: 1; block-size: auto; }
 
 /* SCRUM-206: shared service chrome and the campus workspace. Panels scroll independently. */
 .game-backdrop {
@@ -505,6 +510,14 @@
 .game-top-bar :is(.game-brand, .game-profile-trigger, .game-workspace-action) { font-family: var(--pixel-font); font-size: 1.0625rem; font-weight: 700; line-height: 1.25; }
 .game-brand { display: flex; align-items: center; gap: .5rem; cursor: pointer; min-block-size: 44px; }
 .game-wordmark { display: grid; place-items: center; inline-size: 1.75rem; aspect-ratio: 1; background: #facc15; border: 2px solid #49331d; font-weight: 900; }
+.game-top-bar--service .game-brand { min-inline-size: 0; text-align: start; }
+.game-brand-copy { min-inline-size: 0; overflow-wrap: anywhere; }
+.game-top-bar--service .game-top-bar-actions { max-inline-size: 100%; }
+.game-top-bar--service .game-workspace-action { display: flex; align-items: center; gap: .25rem; white-space: nowrap; }
+@media (max-width: 36rem) {
+  .game-top-bar--service { flex-wrap: wrap; row-gap: .25rem; padding-block-end: .25rem; }
+  .game-top-bar--service .game-brand { flex-basis: 100%; }
+}
 /* SCRUM-321: use the wide campus profile typography in every service view. */
 .game-profile {
   position: relative;
@@ -887,6 +900,43 @@
 [data-desktop-game] .game-ranking-self-badge { font-size: .625rem; white-space: nowrap; }
 [data-desktop-game] .game-ranking-self-score { margin-inline-start: auto; }
 
+.game-hall { flex: none; min-inline-size: 0; margin: .25rem .25rem .5rem 0; padding: .625rem; }
+.game-hall-title { margin-block-end: .5rem; font-size: .9375rem; font-weight: 900; }
+.game-hall-ranks { display: grid; gap: .5rem; }
+.game-hall-rank { min-inline-size: 0; border: 2px solid #261608; background: #faecc7; color: #261608; }
+.game-hall-rank[data-hall-rank='1'] { border-color: #facc15; background: #fff3c4; }
+.game-hall-rank-label { display: flex; align-items: center; gap: .25rem; padding: .25rem .375rem 0; font-size: .75rem; }
+.game-hall-rank-label h3 { font-weight: 900; }
+.game-hall-rank-label svg { color: #8a4c00; fill: #facc15; }
+.game-hall-plaque { position: relative; isolation: isolate; }
+.game-hall-entry { display: block; inline-size: 100%; }
+.game-hall-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: .375rem;
+  min-block-size: 2.75rem;
+  padding: .25rem .375rem;
+  color: #261608;
+}
+.game-hall-image { display: grid; place-items: center; inline-size: 2rem; block-size: 2rem; border: 2px solid #261608; color: #fff; }
+.game-hall-name { text-align: start; overflow-wrap: anywhere; font-size: .8125rem; font-weight: 800; }
+.game-hall-score { text-align: end; white-space: nowrap; font: 700 .75rem/1.2 var(--font-mono); }
+.game-hall-score[data-wide-score] { grid-column: 2 / -1; white-space: normal; overflow-wrap: anywhere; }
+.game-hall-controls { display: flex; flex-wrap: wrap; gap: .375rem; padding: 0 .375rem .5rem; }
+.game-hall-control { display: inline-flex; align-items: center; gap: .125rem; min-block-size: 2.75rem; padding-inline: .25rem; font-size: .6875rem; font-weight: 800; }
+.game-hall-control svg { inline-size: .875rem; block-size: .875rem; flex: none; }
+.game-hall button:focus-visible { outline: 2px solid #1d4ed8; outline-offset: -2px; }
+.game-hall-feedback { margin-block-start: .5rem; font-size: .75rem; }
+.game-hall-feedback p { margin-block-end: .25rem; }
+.game-hall-outgoing { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .game-hall-content[data-fading] { animation: game-hall-fade-in .22s ease both; }
+  .game-hall-outgoing { display: grid; position: absolute; inset: 0; pointer-events: none; animation: game-hall-fade-out .22s ease both; }
+}
+@keyframes game-hall-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes game-hall-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
 /* The map itself keeps its sea background; only the workspace shell behind short lists changes. */
 [data-desktop-game] .game-map-frame[data-phone-shell='embedded'] { background: #fdf5df; }
 [data-desktop-game] .game-map-regions {
@@ -911,6 +961,35 @@
   outline: 2px solid #49331d;
   outline-offset: 2px;
 }
+
+/* The service picker stays next to search; visibility must win over both grid layouts. */
+.game-map-region-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  min-block-size: 44px;
+  padding-inline: .375rem;
+  flex: none;
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.game-map-region-toggle:focus-visible,
+.game-map-service-search [data-testid='map-search-box']:focus-within { outline: 2px solid #49331d; outline-offset: 2px; }
+.game-map-regions--disclosure {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .375rem;
+  padding: .125rem .25rem .25rem;
+}
+.game-map-regions--disclosure > button { min-block-size: 44px; }
+[data-desktop-game] .game-map-regions--disclosure { padding-block-start: .125rem; }
+[data-desktop-game] .game-map-regions--disclosure > button { min-block-size: 0; }
+.game-map-regions.game-map-regions--disclosure[hidden] { display: none; }
+.game-map-cluster-label { font-size: .8125rem; line-height: 1; white-space: nowrap; }
+[data-cluster-region='충남·대전'] .game-map-cluster-label { font-size: .75rem; letter-spacing: -.04em; }
+.game-map-cluster-label small { display: block; font-size: .75rem; line-height: inherit; }
 
 /* PC-only overlay: marker controls stay in CSS pixels, separate from the scaled map art. */
 .game-map-pins {

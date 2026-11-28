@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type SubmitEvent, type ReactNode } from 'react';
-import { ChevronDown, Heart } from 'lucide-react';
+import { ChevronDown, Heart, RefreshCw } from 'lucide-react';
 import { useAuthSession } from '../api/ApiProvider';
 import { errorMessage, isApiError } from '../api/errors';
 import { mergeGuestbookPages, useCreateGuestbook, useGuestbookPages, useSetGuestbookLike, validateGuestbookContent, type GuestbookItem, type GuestbookLike } from '../api/guestbooks';
@@ -106,7 +106,11 @@ function GuestbookContents({ universityId, title, member, onClose, onGoToMap, on
   return <Frame title={title} onClose={onClose}>
     <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 flex flex-col gap-3 text-xs" aria-busy={list.isFetching}>
       <div className="flex items-center justify-between gap-2"><span>불러온 글 {items.length}개</span>
-        <button type="button" className={buttonClass} disabled={list.isFetching} onClick={() => void list.refetch()}>방명록 새로고침</button></div>
+        <button type="button" className={`${buttonClass} flex items-center gap-1`} disabled={list.isFetching} onClick={() => void list.refetch()}>
+          <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+          방명록 새로고침
+        </button>
+      </div>
       <p className="text-[#8b5327] text-[10px]">좋아요는 로그인 후 이용할 수 있습니다. 좋아요 수와 내 상태는 서버 조회값입니다.</p>
       {list.isPending && <p role="status">방명록을 불러오고 있습니다.</p>}
       {list.isError && <div role="alert">{errorMessage(list.error)}

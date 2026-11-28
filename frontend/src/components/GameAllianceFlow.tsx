@@ -1,7 +1,7 @@
 import { API_MODE } from '../api/mode';
 import type { NavTab } from './BottomNav';
 import { AllianceApplyScreenPhone } from './AllianceApplyScreenPhone';
-import { ApiAllianceScreenPhone } from './ApiAllianceScreenPhone';
+import { ApiAllianceScreenPhone, type AllianceNavigation } from './ApiAllianceScreenPhone';
 import { BattleApplyScreenPhone } from './BattleApplyScreenPhone';
 import { BattleStatusScreenPhone } from './BattleStatusScreenPhone';
 import { CurrentAllianceScreenPhone } from './CurrentAllianceScreenPhone';
@@ -15,17 +15,18 @@ interface Props {
   onGoToLogin: () => void;
   onNavigateTab?: (tab: NavTab) => void;
   embedded?: boolean;
+  navigation?: AllianceNavigation;
 }
 
 /** Same forms and permission handling in the workspace and the original single-column screens. */
-export function GameAllianceFlow({ screen, onScreenChange, onBack, onGoToLogin, onNavigateTab, embedded }: Props) {
+export function GameAllianceFlow({ screen, onScreenChange, onBack, onGoToLogin, onNavigateTab, embedded, navigation }: Props) {
   const layout = { embedded, onNavigateTab };
   const goCurrent = () => onScreenChange('current_alliance');
   const goApply = () => onScreenChange('alliance_apply');
   const goBattleApply = () => onScreenChange('battle_apply');
   const goBattleStatus = () => onScreenChange('battle_status');
 
-  if (API_MODE === 'api') return <ApiAllianceScreenPhone {...layout} onBack={onBack} onGoToLogin={onGoToLogin} />;
+  if (API_MODE === 'api') return <ApiAllianceScreenPhone {...layout} onBack={onBack} onGoToLogin={onGoToLogin} navigation={navigation} />;
   switch (screen) {
     case 'alliance_apply': return <AllianceApplyScreenPhone {...layout} onBack={onBack} onNavigateToCurrentAlliance={goCurrent} />;
     case 'battle_apply': return <BattleApplyScreenPhone {...layout} onBack={goCurrent} onNavigateToBattleStatus={goBattleStatus} onNavigateToAllianceApply={goApply} />;

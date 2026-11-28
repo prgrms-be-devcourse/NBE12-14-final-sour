@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthSession } from '../api/ApiProvider';
 import { errorMessage } from '../api/errors';
+import { isHallRank, useRankingHall } from '../api/rankingHall';
 import { selectByMode } from '../api/mode';
 import { formatRankChange, useRankingPages, type RankingKind, type RankingPageByKind } from '../api/rankings';
 import { useMyInfo, type MyInfo } from '../api/users';
@@ -43,8 +44,9 @@ export interface RankingBoard {
   status: 'loading' | 'failed' | 'ready' | 'signed-out';
   failureDetail: string;
   retry: () => void;
-  /** Loaded rows in rank order, the podium included. */
+  /** Rows loaded by the normal list, in rank order. */
   rows: RankingBoardRow[];
+  hall?: { scope: string; rows: RankingBoardRow[]; incomplete: boolean; loading: boolean; retry: () => void };
   /** The viewer's own row, also when it is not loaded yet. null when there is none (signed out, private member). */
   mine: RankingBoardRow | null;
   totalCount: number;
@@ -59,6 +61,7 @@ export interface RankingBoard {
 interface BoardOptions {
   /** The mock's pretend network delay when loading more rows; 0 loads at once. */
   mockLoadDelayMs?: number;
+  includeHall?: boolean;
 }
 
 const MOCK_FIRST_SCHOOLS = 15;
@@ -187,14 +190,20 @@ type UniversityRankingFirst = RankingPageByKind['school'];
 type DepartmentRankingFirst = RankingPageByKind['dept'];
 type UserRankingFirst = RankingPageByKind['personal'];
 
-export function useApiRankingBoard(tab: RankingTab, _currentSchoolScore: number, _options: BoardOptions = {}): RankingBoard {
+export function useApiRankingBoard(tab: RankingTab, _currentSchoolScore: number, { includeHall = false }: BoardOptions = {}): RankingBoard {
   const signedIn = useAuthSession().status === 'signed-in';
   const myInfo = useMyInfo();
   const me = signedIn ? myInfo.data : undefined;
   const waitingForMe = signedIn && !me;
   const universityId = tab === 'school' ? null : me?.university.id ?? null;
-  const query = useRankingPages(tab, { universityId, viewerId: me?.id ?? null, enabled: !waitingForMe });
+  const viewerId = me?.id ?? null;
+  const query = useRankingPages(tab, { universityId, viewerId, enabled: !waitingForMe });
   const pages = query.data?.pages;
+  const hall = useRankingHall(tab, {
+    universityId, viewerId, viewerSchoolId: me?.university.id ?? null, list: pages,
+    enabled: includeHall && !waitingForMe && (tab === 'school' || (signedIn && universityId !== null)),
+  });
+  const hallRows = useMemo(() => toApiRows(tab, hall.pages, me).filter(row => isHallRank(row.rank)), [tab, hall.pages, me]);
   const rows = useMemo(() => (pages ? toApiRows(tab, pages, me) : []), [tab, pages, me]);
   const mine = useMemo(() => (pages ? toApiMine(tab, pages, rows, me) : null), [tab, pages, rows, me]);
   const { hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = query;
@@ -216,6 +225,7 @@ export function useApiRankingBoard(tab: RankingTab, _currentSchoolScore: number,
 
   return {
     source: 'api', status, failureDetail: errorMessage(query.error ?? myInfo.error), retry, rows, mine,
+    hall: includeHall ? { scope: hall.scope, rows: hallRows, incomplete: hall.incomplete, loading: hall.loading, retry: hall.retry } : undefined,
     totalCount: pages?.[0]?.totalCount ?? 0, hasMore: !!hasNextPage, loadingMore: isFetchingNextPage, loadMore,
     refreshing: query.isFetching && !isFetchingNextPage && !!pages, isSample: false,
   };

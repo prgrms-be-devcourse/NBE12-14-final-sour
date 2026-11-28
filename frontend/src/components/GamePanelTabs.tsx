@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { soundManager } from '../utils/sound';
 import type { GameMenuIconName } from './GameMenuIcon';
 import { WorkspaceMenuLabel } from './GameWorkspace';
@@ -41,12 +41,12 @@ export function GamePanelTabs<T extends string>({ label, tabs, selected, onSelec
   const buttons = useRef<Array<HTMLButtonElement | null>>([]);
   const [focused, setFocused] = useState<T | null>(null);
   const [visited, setVisited] = useState<ReadonlySet<T>>(() => new Set([selected]));
-  const select = (tab: T) => {
-    if (keepVisitedMounted) setVisited((previous) => previous.has(tab) ? previous : new Set([...previous, tab]));
-    onSelect(tab);
-  };
+  // A parent can also select a panel directly (for example, when entering from chat).
+  useEffect(() => {
+    if (keepVisitedMounted) setVisited((previous) => previous.has(selected) ? previous : new Set([...previous, selected]));
+  }, [keepVisitedMounted, selected]);
   const openAndFocus = (tab: T) => {
-    select(tab);
+    onSelect(tab);
     buttons.current[tabs.findIndex((item) => item.id === tab)]?.focus();
   };
   const navigate = (event: KeyboardEvent, index: number) => {
@@ -62,7 +62,7 @@ export function GamePanelTabs<T extends string>({ label, tabs, selected, onSelec
         type="button" role="tab" id={`${id}-${tab}`} aria-controls={`${id}-${tab}-panel`}
         className={tabClass(selected === tab, tone)} aria-selected={selected === tab}
         tabIndex={(focused ?? selected) === tab ? 0 : -1} onFocus={() => setFocused(tab)} onKeyDown={(event) => navigate(event, index)}
-        onClick={() => { soundManager.playTabSound(); select(tab); }}>{icon ? <WorkspaceMenuLabel icon={icon}>{text}</WorkspaceMenuLabel> : text}</button>)}
+        onClick={() => { soundManager.playTabSound(); onSelect(tab); }}>{icon ? <WorkspaceMenuLabel icon={icon}>{text}</WorkspaceMenuLabel> : text}</button>)}
     </div>
     {tabs.map(({ id: tab }) => <div key={tab} id={`${id}-${tab}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`} hidden={selected !== tab}
       tabIndex={selected === tab ? 0 : undefined} className={panel}>

@@ -101,15 +101,16 @@ def mock_menu_flow(page, panel, path):
     return menus
 
 
-def shop_metrics(page, path=None, *, open_shop=True):
+def shop_metrics(page, path=None, *, open_shop=True, api=False):
     if open_shop:
         page.get_by_role('button', name='상점', exact=True).click()
     shop = page.locator('[data-game-layout="shop"]')
-    expect(shop.get_by_text('원목 선반 진열대', exact=True)).to_be_visible()
+    expect(shop.get_by_text('아이템 진열대' if api else '원목 선반 진열대', exact=True)).to_be_visible()
+    reference = shop.get_by_role('region', name='활성 효과 상세') if api else shop.get_by_text('내 클리커 강화 제단', exact=True)
     cards = shop.locator('.game-shelf-card')
     expect(cards.first).to_be_visible()
     cards.first.scroll_into_view_if_needed()
-    altar = shop.get_by_text('내 클리커 강화 제단', exact=True).evaluate('''e => {
+    reference_edges = reference.evaluate('''e => {
         const {left, right} = e.closest('.rpg-box').getBoundingClientRect();
         return {left, right};
     }''')
@@ -137,9 +138,9 @@ def shop_metrics(page, path=None, *, open_shop=True):
     }''')
     if path is not None:
         snapshot(page, path)
-    left_delta = edges['firstLeft'] - altar['left']
-    right_delta = edges['rightmost'] - altar['right']
-    return {**edges, 'altar': altar, 'leftDelta': left_delta, 'rightDelta': right_delta,
+    left_delta = edges['firstLeft'] - reference_edges['left']
+    right_delta = edges['rightmost'] - reference_edges['right']
+    return {**edges, 'reference': reference_edges, 'leftDelta': left_delta, 'rightDelta': right_delta,
             'aligned': edges['columns'] == 2 and edges['inner']
                        and max(abs(left_delta), abs(right_delta)) <= TOLERANCE}
 
@@ -716,7 +717,7 @@ def api_shelf(browser, args):
             page.set_viewport_size({'width': width, 'height': height})
             expect(page.locator('[data-desktop-game]')).to_have_count(1)
             name = f'{width}x{height}-dpr1'
-            results[name] = shop_metrics(page, args.out / f'{name}-shop-api.png', open_shop=not results)
+            results[name] = shop_metrics(page, args.out / f'{name}-shop-api.png', open_shop=not results, api=True)
             card = page.get_by_role('button', name=f"{long_item['name']} 구매 선택")
             results[name]['copy'] = [wrapping_text(card.get_by_text(long_item[key], exact=True)) for key in ('name', 'content')]
         return results

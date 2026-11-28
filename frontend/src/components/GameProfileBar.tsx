@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { UserRound } from 'lucide-react';
 import { useApiClient } from '../api/ApiProvider';
 import { logout } from '../api/auth';
 import { errorMessage } from '../api/errors';
@@ -8,13 +9,14 @@ type ProfileAction = 'my_info' | 'member_support';
 
 interface GameProfileBarProps {
   mode: 'api' | 'mock';
+  serviceChrome: boolean;
   nickname: string;
   onNavigate: (action: ProfileAction) => void;
   onCampus: () => void;
   tools?: ReactNode;
 }
 
-function MemberProfile({ nickname, onNavigate }: Pick<GameProfileBarProps, 'nickname' | 'onNavigate'>) {
+function MemberProfile({ nickname, onNavigate, serviceChrome }: Pick<GameProfileBarProps, 'nickname' | 'onNavigate' | 'serviceChrome'>) {
   const details = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
   const client = useApiClient();
@@ -39,6 +41,7 @@ function MemberProfile({ nickname, onNavigate }: Pick<GameProfileBarProps, 'nick
       }
     }}>
       <summary ref={summary} className="game-profile-trigger">
+        {serviceChrome && <UserRound className="size-4 shrink-0" aria-hidden="true" />}
         <span className="game-profile-label">프로필 ·</span>{' '}
         <span className="game-profile-name">{nickname}</span>
       </summary>
@@ -61,16 +64,23 @@ function MemberProfile({ nickname, onNavigate }: Pick<GameProfileBarProps, 'nick
   );
 }
 
-export function GameProfileBar({ mode, nickname, onNavigate, onCampus, tools }: GameProfileBarProps) {
+export function GameProfileBar({ mode, serviceChrome, nickname, onNavigate, onCampus, tools }: GameProfileBarProps) {
   return (
-    <header className="game-top-bar game-width">
+    <header className={`game-top-bar game-width${serviceChrome ? ' game-top-bar--service' : ''}`}>
       <button type="button" onClick={onCampus} className="game-brand" aria-label="대대대 내 캠퍼스">
-        <span className="game-wordmark" aria-hidden="true">대</span>
-        <span>대대대 <span className="game-brand-caption hidden sm:inline text-xs text-[#775430]">캠퍼스 대항전</span></span>
+        {serviceChrome ? <>
+          <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" />
+          <span className="game-brand-copy"><span className="whitespace-nowrap">대대대 /</span>{' '}
+            <span className="game-brand-caption text-xs text-[#775430]">대학교 대 대학교 - 캠퍼스 대항전</span>
+          </span>
+        </> : <>
+          <span className="game-wordmark" aria-hidden="true">대</span>
+          <span>대대대 <span className="game-brand-caption hidden sm:inline text-xs text-[#775430]">캠퍼스 대항전</span></span>
+        </>}
       </button>
-      {(tools || mode === 'api') && <div className="ms-auto flex min-w-0 items-center gap-1 sm:gap-2">
+      {(tools || mode === 'api') && <div className="game-top-bar-actions ms-auto flex min-w-0 items-center gap-1 sm:gap-2">
         {tools}
-        {mode === 'api' && <MemberProfile nickname={nickname} onNavigate={onNavigate} />}
+        {mode === 'api' && <MemberProfile serviceChrome={serviceChrome} nickname={nickname} onNavigate={onNavigate} />}
       </div>}
     </header>
   );

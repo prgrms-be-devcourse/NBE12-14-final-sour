@@ -2,17 +2,19 @@ import { useId, useLayoutEffect, useRef } from 'react';
 import type { SchoolView } from '../data/schoolDirectory';
 import type { SchoolId } from '../data/schoolIds';
 import { soundManager } from '../utils/sound';
-import { SchoolBadge } from './MapParts';
+import { MapSearchStatus, SchoolBadge, formatMapSchoolLocation, formatWorkspaceSearchStatus } from './MapParts';
 import { WorkspaceMenuLabel } from './GameWorkspace';
 
-export function WorkspaceMapSchoolList({ schools, selectedSchoolId, query, onSelect, onVisit, blocked, revealMarker }: {
+export function WorkspaceMapSchoolList({ schools, selectedSchoolId, query, onSelect, onVisit, blocked, revealMarker, serviceLayout, selectionNotice }: {
   schools: readonly SchoolView[]; selectedSchoolId?: SchoolId; query: string;
-  onSelect: (id: SchoolId) => void; onVisit: (id: SchoolId) => void; blocked?: string; revealMarker: number;
+  onSelect: (id: SchoolId) => void; onVisit: (id: SchoolId) => void; blocked?: string; revealMarker: number; serviceLayout: boolean;
+  selectionNotice?: string;
 }) {
   const listRef = useRef<HTMLElement>(null);
   const noticeId = useId();
   const isSearching = query.trim().length > 0;
   const heading = isSearching ? `검색 학교 목록 - ${schools.length}개교` : `학교 목록 · ${schools.length}개교`;
+  const searchStatus = formatWorkspaceSearchStatus(serviceLayout, query, schools.length);
 
   // Marker selections may point below the visible rows; never scroll the surrounding page or move focus.
   useLayoutEffect(() => {
@@ -28,6 +30,8 @@ export function WorkspaceMapSchoolList({ schools, selectedSchoolId, query, onSel
 
   return <section ref={listRef} aria-label="학교 목록" className="game-map-list">
     <h3 className="font-bold">{heading}</h3>
+    {searchStatus && <div><MapSearchStatus text={searchStatus} /></div>}
+    {serviceLayout && selectionNotice && <p role="status" className="game-map-search-notice">{selectionNotice}</p>}
     {schools.length === 0 && <p role="status">‘{query.trim()}’에 맞는 학교가 없습니다.</p>}
     <ul className="flex flex-col gap-1">
       {schools.map((school) => {
@@ -40,7 +44,7 @@ export function WorkspaceMapSchoolList({ schools, selectedSchoolId, query, onSel
           </button>
           {selected && <>
             <div className="game-map-row-details">
-              <small>{school.region} · {school.city} · {school.score.toLocaleString('ko-KR')}점</small>
+              <small>{serviceLayout ? formatMapSchoolLocation(school) : `${school.region} · ${school.city}`} · {school.score.toLocaleString('ko-KR')}점</small>
               {blocked && <p id={noticeId} role="status">{blocked}</p>}
             </div>
             <button type="button" className="game-workspace-action game-nav-control game-map-row-visit" aria-label={`${school.name} 방문`}

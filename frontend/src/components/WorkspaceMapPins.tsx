@@ -52,14 +52,16 @@ export function WorkspaceMapPins({ pins, hint, selectedId, onSelect }: {
     const fit = () => {
       const { width, height, left, top } = layer.getBoundingClientRect();
       if (width === 0 || height === 0) return;
-      const size = { width, height };
+      // Use unanimated scene coordinates even when selection/search re-renders during a zoom.
+      const scale = area.hasAttribute('data-map-scene') ? parseFloat(getComputedStyle(area).scale) || 1 : 1;
+      const size = { width: width / scale, height: height / scale };
       const sizeOf = (node: HTMLElement) => {
         const rect = node.getBoundingClientRect();
-        return { width: rect.width, height: rect.height };
+        return { width: rect.width / scale, height: rect.height / scale };
       };
       const avoid = obstacles.map(node => {
         const rect = node.getBoundingClientRect();
-        return { x: rect.left - left, y: rect.top - top, width: rect.width, height: rect.height };
+        return { x: (rect.left - left) / scale, y: (rect.top - top) / scale, width: rect.width / scale, height: rect.height / scale };
       });
       const geometries = pins.flatMap(({ school, point }, i) => {
         const rank = ranksById.get(school.id);

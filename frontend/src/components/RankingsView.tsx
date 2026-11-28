@@ -1,11 +1,12 @@
 import React, { useState, useEffect, type ReactNode, type UIEventHandler } from 'react';
 import { Crown, RefreshCw } from 'lucide-react';
 import { ALLIANCE_INVITATIONS_ENABLED } from '../api/alliances';
+import { RankingHall } from './RankingHall';
 import { RankingSchoolMenu, RankingSchoolTrigger, type RankingSchool, type RankingSchoolNavigation } from './RankingSchoolMenu';
 import { soundManager } from '../utils/sound';
 import { useMySchool } from '../hooks/useSchoolViews';
 import { useRankingBoard, type RankingBoardRow, type RankingTab } from '../hooks/useRankingBoard';
-import { RANK_TREND_TONE, RankingRowImage, RankingStatusNotice, rankTrend, rankingCaption } from './RankingParts';
+import { RANK_TREND_TONE, RankingRowImage, RankingStatusNotice, rankTrend, rankingCaption, rankingIsEmpty, rankingListRows } from './RankingParts';
 
 interface RankingsViewProps extends RankingSchoolNavigation {
   currentSchoolScore: number;
@@ -54,13 +55,13 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
 
   const mySchool = useMySchool();
   // Mock rows or server pages, by mode (SCRUM-161).
-  const board = useRankingBoard(activeRankingTab, currentSchoolScore);
+  const board = useRankingBoard(activeRankingTab, currentSchoolScore, { includeHall: true });
   const [captionScope, captionOrder] = rankingCaption(activeRankingTab, board, mySchool.shortName);
 
   const top1: RankingBoardRow | undefined = board.rows[0];
   const top2: RankingBoardRow | undefined = board.rows[1];
   const top3: RankingBoardRow | undefined = board.rows[2];
-  const remainingRows = board.rows.slice(3);
+  const remainingRows = rankingListRows(board);
   const myRow = board.mine;
   const moreLabel = board.isSample ? '+ 10개 대학 더 불러오기' : '+ 더 불러오기';
   const onRankingScroll: UIEventHandler<HTMLDivElement> = ({ currentTarget: el }) => {
@@ -155,9 +156,9 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
 
       {board.status === 'ready' ? (<>
       <RankingScroll desktopPanel={desktopPanel} tab={activeRankingTab} onScroll={onRankingScroll}>
-      {board.rows.length === 0 && <p role="status" className="rpg-box p-3 font-pixel text-xs">표시할 순위가 없어요.</p>}
-      {/* Pixel Podium on Grassy Stage */}
-      {top1 && <div className="game-ranking-podium w-full border-3 border-[#261608] shadow-[2px_2px_0px_#261608] bg-[#38a134] overflow-hidden shrink-0 relative flex flex-col justify-end pt-2 pb-1 px-1.5">
+      {rankingIsEmpty(board) && <p role="status" className="rpg-box p-3 font-pixel text-xs">표시할 순위가 없어요.</p>}
+      {board.hall ? <RankingHall key={board.hall.scope} hall={board.hall} tab={activeRankingTab}
+        menuOpen={!!selectedSchool} openSchool={openSchoolMenu} /> : top1 && <div className="game-ranking-podium w-full border-3 border-[#261608] shadow-[2px_2px_0px_#261608] bg-[#38a134] overflow-hidden shrink-0 relative flex flex-col justify-end pt-2 pb-1 px-1.5">
         <div className="absolute inset-x-0 top-0 h-6 bg-[#38bdf8] border-b-2 border-[#261608] flex items-center justify-between px-2">
           <span className="font-pixel text-[8px] text-white font-bold">
             👑 TOP 3 명예의 전당
@@ -223,7 +224,7 @@ export const RankingsView: React.FC<RankingsViewProps> = ({
         </div>
       </div>}
 
-      {/* Scrollable Parchment Rows (rank 4 and below, as loaded) */}
+      {/* Normal paginated list (the first three featured rows are not repeated). */}
       <div
         className="game-ranking-list flex flex-col gap-1 max-h-[160px] overflow-y-auto pr-0.5"
         onScroll={desktopPanel ? undefined : onRankingScroll}

@@ -3,7 +3,7 @@ import { effectSecondsLeft } from '../api/items';
 import type { ItemShopView } from '../hooks/useItemShop';
 
 /** Only this leaf ticks. The whole game and its queries do not re-render once per second. */
-export function ActiveItemEffect({ shop }: { shop: ItemShopView }) {
+export function ActiveItemEffect({ shop, title }: { shop: ItemShopView; title?: string }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
     setNow(performance.now());
@@ -14,7 +14,8 @@ export function ActiveItemEffect({ shop }: { shop: ItemShopView }) {
   const seconds = effectSecondsLeft(shop.effect, now);
   const effect = shop.effect?.effect;
   return (
-    <section aria-label="서버 적용 효과" className="rpg-box p-2 font-pixel text-xs text-[#8b5327] flex flex-col gap-1">
+    <section aria-label={title ?? '서버 적용 효과'} className="rpg-box p-2 font-pixel text-xs text-[#8b5327] flex flex-col gap-1">
+      {title && <h2 className="font-black text-[#261608]">{title}</h2>}
       {shop.effectNotice && <p role="status">{shop.effectNotice}</p>}
       {effect && seconds > 0 ? (
         <p>{effect.name ?? '아이템 효과'} · 서버 배율 ×{effect.multiplier} · <span role="timer" aria-live="off">{seconds}초 남음</span></p>

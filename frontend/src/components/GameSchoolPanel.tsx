@@ -7,6 +7,7 @@ import { useMockGame } from '../hooks/useMockGame';
 import type { MySchoolRank } from '../hooks/useMySchoolRank';
 import type { VisitSchool, VisitSchoolView } from '../hooks/useVisitSchool';
 import { GamePanelTabs } from './GamePanelTabs';
+import type { AllianceEntry } from './ApiAllianceScreenPhone';
 import { ApiGuestbookBottomSheet } from './ApiGuestbookBottomSheet';
 import { CampusStatsSheet } from './CampusStatsSheet';
 import { ChatBottomSheet } from './ChatBottomSheet';
@@ -33,9 +34,10 @@ interface Props {
   visit: VisitSchool | null;
   onGoToMap: () => void;
   onGoToShop: () => void;
+  onOpenAlliance: (entry: AllianceEntry) => void;
 }
 
-export function GameSchoolPanel({ tab, onTabChange, mySchool, ranking, visit, onGoToMap, onGoToShop }: Props) {
+export function GameSchoolPanel({ tab, onTabChange, mySchool, ranking, visit, onGoToMap, onGoToShop, onOpenAlliance }: Props) {
   const own = useOwnSchool(mySchool);
   const visited = visit?.status === 'ready' ? visit.school : undefined;
 
@@ -51,12 +53,12 @@ export function GameSchoolPanel({ tab, onTabChange, mySchool, ranking, visit, on
 
   function renderTab(value: SchoolPanelTab, openAndFocus: (value: SchoolPanelTab) => void) {
     // No visit ID on this branch: the live room uses the authenticated member and stays mounted during visits.
-    if (value === 'chat') return <SchoolChat mySchool={mySchool} />;
+    if (value === 'chat') return <SchoolChat mySchool={mySchool} onOpenAlliance={onOpenAlliance} />;
     if (visit && !visited) return <p className="p-2">방문 학교 정보를 확인하면 이용할 수 있어요.</p>;
     if (!visit && !own.ready) return <p className="p-2">내 소속을 확인하면 이용할 수 있어요.</p>;
     if (value === 'guestbook') return <SchoolGuestbook key={visited?.id ?? own.id} school={visited} mySchool={mySchool} onGoToMap={onGoToMap} />;
     if (visited) return <VisitSchoolInfoSheet key={visited.id} school={visited} extras={visit?.extras} onOpenGuestbook={() => openAndFocus('guestbook')} />;
-    return <CampusStatsSheet onGoToShop={onGoToShop} />;
+    return <CampusStatsSheet desktop onGoToShop={onGoToShop} />;
   }
 }
 
@@ -108,9 +110,9 @@ function useApiOwnSchool(): OwnSchool {
   </> : <p role="status">내 소속을 확인하는 중이에요.</p> };
 }
 
-function SchoolChat({ mySchool }: { mySchool: SchoolView }) {
+function SchoolChat({ mySchool, onOpenAlliance }: { mySchool: SchoolView; onOpenAlliance: Props['onOpenAlliance'] }) {
   const { player } = useMockGame();
-  if (API_MODE === 'api') return <Suspense fallback={<p role="status" className="p-2">채팅 화면을 여는 중이에요.</p>}><LazyApiChat embedded /></Suspense>;
+  if (API_MODE === 'api') return <Suspense fallback={<p role="status" className="p-2">채팅 화면을 여는 중이에요.</p>}><LazyApiChat embedded onOpenAlliance={onOpenAlliance} /></Suspense>;
   return <ChatBottomSheet key={`${player.userId}:${mySchool.id}`} embedded showSoonRibbon={false}
     mySchoolInitial={mySchool.firstSyllable} myNickname={player.nickname} myDepartment={player.department} />;
 }

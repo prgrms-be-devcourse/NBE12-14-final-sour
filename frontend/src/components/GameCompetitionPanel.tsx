@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { SchoolId } from '../data/schoolIds';
+import type { AllianceNavigation } from './ApiAllianceScreenPhone';
 import { GameAllianceFlow, type AllianceScreen } from './GameAllianceFlow';
 import { GamePanelTabs } from './GamePanelTabs';
 import { MapScreenPhone, type MapContext } from './MapScreenPhone';
@@ -22,9 +23,10 @@ interface Props {
   visitBlocked?: string;
   schoolScore: number;
   onGoToLogin: () => void;
+  allianceNavigation?: AllianceNavigation;
 }
 
-export function GameCompetitionPanel({ tab, onTabChange, mapContext, onMapContextChange, onVisit, visitBlocked, schoolScore, onGoToLogin }: Props) {
+export function GameCompetitionPanel({ tab, onTabChange, mapContext, onMapContextChange, onVisit, visitBlocked, schoolScore, onGoToLogin, allianceNavigation }: Props) {
   const [allianceScreen, setAllianceScreen] = useState<AllianceScreen>('current_alliance');
 
   return <>
@@ -40,7 +42,7 @@ export function GameCompetitionPanel({ tab, onTabChange, mapContext, onMapContex
               visitBlocked={visitBlocked} onGoToLogin={onGoToLogin} />
           </MockLoadGate>;
           case 'alliance': return <GameAllianceFlow embedded screen={allianceScreen} onScreenChange={setAllianceScreen}
-            onBack={() => openAndFocus('map')} onGoToLogin={onGoToLogin} />;
+            onBack={() => openAndFocus('map')} onGoToLogin={onGoToLogin} navigation={allianceNavigation} />;
         }
       }}
     </GamePanelTabs>

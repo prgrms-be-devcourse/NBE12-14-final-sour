@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type SubmitEvent } from 'react';
-import { ChevronDown, Send, ShieldAlert } from 'lucide-react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type SubmitEvent } from 'react';
+import { ArrowLeftRight, ChevronDown, Plus, RefreshCw, School, Search, Send, ShieldAlert, ShieldBan, UsersRound } from 'lucide-react';
 import { useApiClient, useAuthSession } from '../api/ApiProvider';
 import { useMyAlliance } from '../api/alliances';
 import { allianceRoom, universityRoom, type ChatRoom } from '../api/chat';
@@ -9,27 +9,59 @@ import { errorMessage } from '../api/errors';
 import { useMyInfo, type MyInfo } from '../api/users';
 import { useChatScroll } from '../hooks/useChatScroll';
 import { ForbiddenWordsPanel } from './ForbiddenWordsPanel';
+import type { AllianceEntry } from './ApiAllianceScreenPhone';
 
 const BUTTON = 'pixel-plaque plaque-parchment min-h-11 min-w-11 px-2 text-xs font-bold cursor-pointer disabled:opacity-50';
+const ACTION = `${BUTTON} inline-flex items-center gap-1`;
+const SYMBOL = 'size-4 shrink-0';
+const CHANNELS = { school: { label: '교내 채팅', Icon: School }, union: { label: '연합 채팅', Icon: UsersRound } };
+type OpenAlliance = (entry: AllianceEntry) => void;
 const time = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' });
 const CONNECTION_TEXT = { connecting: '채팅에 연결하는 중이에요.', connected: '실시간 연결됨', reconnecting: '연결이 끊겨 다시 연결하는 중이에요.', blocked: '자동 연결을 멈췄어요. 오류를 확인하고 다시 연결해 주세요.' };
 
-interface ApiChatProps { onClose?: () => void; onGoToLogin?: () => void; connectionFactory?: ChatConnectionFactory; embedded?: boolean }
+interface ApiChatProps {
+  onClose?: () => void;
+  onGoToLogin?: () => void;
+  onOpenAlliance: OpenAlliance;
+  connectionFactory?: ChatConnectionFactory;
+  embedded?: boolean;
+}
 /** Only the live API entry mounts this component. Mock comparison screens keep their original sheet. */
-export function ApiChatBottomSheet({ onClose, onGoToLogin, connectionFactory, embedded = false }: ApiChatProps) {
+export function ApiChatBottomSheet({ onClose, onGoToLogin, onOpenAlliance, connectionFactory, embedded = false }: ApiChatProps) {
   const signedIn = useAuthSession().status === 'signed-in';
   const me = useMyInfo();
-  const [view, setView] = useState<'school' | 'union' | 'words'>('school');
-  // The alliance socket opens on the first visit to its tab and then stays, like the school room, until the sheet closes.
+  const [channel, setChannel] = useState<keyof typeof CHANNELS>('school');
+  const [wordsViewer, setWordsViewer] = useState<number | null>(null);
+  const wordsOpen = signedIn && wordsViewer !== null && wordsViewer === me.data?.id;
+  // The alliance socket opens on the first visit to the channel and then stays, like the school room, until the sheet closes.
   const [unionOpened, setUnionOpened] = useState(false);
   const wordsButton = useRef<HTMLButtonElement>(null);
+  const restoreWordsFocus = useRef(false);
+  const otherChannel = channel === 'school' ? 'union' : 'school';
+  const { label, Icon } = CHANNELS[channel];
+  const canOpenWords = signedIn && !!me.data;
+  useLayoutEffect(() => {
+    if (wordsOpen || !restoreWordsFocus.current) return;
+    restoreWordsFocus.current = false;
+    wordsButton.current?.focus();
+  }, [wordsOpen]);
   return <div className="w-full h-full bg-[#fdf5df] border-t-4 border-[#261608] flex flex-col overflow-hidden font-pixel text-[#261608]">
     <header className="bg-[#faecc7] border-b-2 border-[#261608] p-2 flex flex-wrap items-center gap-1 shrink-0">
-      <h2 className="text-sm font-black mr-1">채팅</h2>
-      <button type="button" aria-pressed={view === 'school'} onClick={() => setView('school')} className={BUTTON}>교내 채팅</button>
-      <button type="button" aria-pressed={view === 'union'} onClick={() => { setView('union'); setUnionOpened(true); }} className={BUTTON}>연합 채팅</button>
-      <button ref={wordsButton} type="button" aria-pressed={view === 'words'} onClick={() => setView('words')} className={BUTTON}>금칙어</button>
-      {!embedded && <button type="button" aria-label="채팅창 닫기" onClick={onClose} className={`${BUTTON} ml-auto`}><ChevronDown className="w-4 h-4" aria-hidden="true" /></button>}
+      <h2 aria-live="polite" className="text-sm font-black flex items-center gap-1"><Icon className={SYMBOL} aria-hidden="true" />{label}</h2>
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+        {!wordsOpen && <div className="flex flex-wrap justify-end gap-1">
+          <button type="button" aria-label={`다른 채널: ${CHANNELS[otherChannel].label} 열기`} onClick={() => {
+            setChannel(otherChannel);
+            if (otherChannel === 'union') setUnionOpened(true);
+          }} className={ACTION}><ArrowLeftRight className={SYMBOL} aria-hidden="true" />다른 채널</button>
+          <button ref={wordsButton} type="button" disabled={!canOpenWords} onClick={() => setWordsViewer(me.data?.id ?? null)} className={ACTION}>
+            <ShieldBan className={SYMBOL} aria-hidden="true" />금칙어
+          </button>
+        </div>}
+        {!embedded && <button type="button" aria-label="채팅창 닫기" onClick={onClose} className={`${BUTTON} ml-1 grid place-items-center`}>
+          <ChevronDown className={SYMBOL} aria-hidden="true" />
+        </button>}
+      </div>
     </header>
     {!signedIn ? <div role="status" className="p-3 text-sm">
       <p>채팅을 이용하려면 로그인해 주세요.</p>
@@ -37,13 +69,14 @@ export function ApiChatBottomSheet({ onClose, onGoToLogin, connectionFactory, em
     </div> : !me.data ? <div className="p-3 text-sm">
       {me.isError ? <><p role="alert">{errorMessage(me.error)}</p><button type="button" className={BUTTON} onClick={() => void me.refetch()}>내 정보 다시 불러오기</button></> : <p role="status">내 학교 정보를 확인하는 중이에요.</p>}
     </div> : <>
-      {view === 'words' && <ForbiddenWordsPanel viewerId={me.data.id} onBack={() => { setView('school'); wordsButton.current?.focus(); }} />}
-      <div hidden={view !== 'school'} className={view === 'school' ? 'flex flex-col flex-1 min-h-0' : 'hidden'}>
+      {wordsOpen && <ForbiddenWordsPanel viewerId={me.data.id} onBack={() => { restoreWordsFocus.current = true; setWordsViewer(null); }} />}
+      <div hidden={wordsOpen || channel !== 'school'} className="flex flex-col flex-1 min-h-0">
         <ChatRoomPanel key={`${me.data.id}:${me.data.university.id}`} me={me.data} room={universityRoom(me.data.university.id)}
-          title={me.data.university.name} label="교내 메시지" visible={view === 'school'} connectionFactory={connectionFactory} />
+          title={me.data.university.name} label="교내 메시지" visible={!wordsOpen && channel === 'school'} connectionFactory={connectionFactory} />
       </div>
-      {unionOpened && <div hidden={view !== 'union'} className={view === 'union' ? 'flex flex-col flex-1 min-h-0' : 'hidden'}>
-        <AllianceChat key={me.data.id} me={me.data} visible={view === 'union'} connectionFactory={connectionFactory} />
+      {unionOpened && <div hidden={wordsOpen || channel !== 'union'} className="flex flex-col flex-1 min-h-0">
+        <AllianceChat key={me.data.id} me={me.data} visible={!wordsOpen && channel === 'union'} connectionFactory={connectionFactory}
+          onOpenAlliance={onOpenAlliance} />
       </div>}
     </>}
   </div>;
@@ -52,7 +85,7 @@ export function ApiChatBottomSheet({ onClose, onGoToLogin, connectionFactory, em
 interface RoomProps { me: MyInfo; visible: boolean; connectionFactory?: ChatConnectionFactory }
 
 /** The room follows GET /alliances/me: no alliance, no socket. A changed alliance remounts a fresh room. */
-function AllianceChat({ me, visible, connectionFactory }: RoomProps) {
+function AllianceChat({ me, visible, connectionFactory, onOpenAlliance }: RoomProps & { onOpenAlliance: OpenAlliance }) {
   const alliance = useMyAlliance(me.id, { visible });
   const { refetch } = alliance;
   const wasVisible = useRef(visible);
@@ -60,11 +93,22 @@ function AllianceChat({ me, visible, connectionFactory }: RoomProps) {
     if (visible && !wasVisible.current) void refetch({ cancelRefetch: false });
     wasVisible.current = visible;
   }, [visible, refetch]);
-  const recheck = <button type="button" className={BUTTON} disabled={alliance.isFetching} onClick={() => void alliance.refetch()}>연합 다시 확인</button>;
+  const recheck = <button type="button" className={ACTION} disabled={alliance.isFetching} onClick={() => void alliance.refetch()}>
+    <RefreshCw className={SYMBOL} aria-hidden="true" />연합 다시 확인
+  </button>;
   if (alliance.isPending) return <p role="status" className="p-3 text-sm">우리 학교의 연합을 확인하는 중이에요.</p>;
-  if (alliance.isError) return <div className="p-3 text-sm"><p role="alert">{errorMessage(alliance.error)}</p>{recheck}</div>;
-  if (!alliance.data) return <div className="p-3 text-sm">
-    <p role="status">우리 학교가 속한 연합이 없어요. 연합을 만들거나 가입이 승인되면 연합 채팅을 이용할 수 있어요.</p>{recheck}
+  if (alliance.isError) return <div className="p-3 text-sm space-y-2 overflow-y-auto"><p role="alert">{errorMessage(alliance.error)}</p>{recheck}</div>;
+  if (!alliance.data) return <div className="p-3 text-sm space-y-2 overflow-y-auto">
+    <p role="status">우리 학교가 속한 연합이 없어요. 연합을 만들거나 가입이 승인되면 연합 채팅을 이용할 수 있어요.</p>
+    <div className="flex flex-wrap gap-2">
+      <button type="button" className={ACTION} onClick={() => onOpenAlliance('create')}>
+        <Plus className={SYMBOL} aria-hidden="true" />연합 만들기
+      </button>
+      <button type="button" className={ACTION} onClick={() => onOpenAlliance('search')}>
+        <Search className={SYMBOL} aria-hidden="true" />가입할 연합 찾기
+      </button>
+      {recheck}
+    </div>
   </div>;
   const { id, name, expiredAt } = alliance.data;
   return <ChatRoomPanel key={id} me={me} room={allianceRoom(id)} title={`${name} 연합 · ${time.format(new Date(expiredAt))} KST까지`}

@@ -33,6 +33,7 @@ const { MockGameProvider } = await import('../src/hooks/useMockGame');
 const { useApiRankingBoard, toApiRows, toApiMine } = await import('../src/hooks/useRankingBoard');
 const { RANK_TREND_TONE, RankingStatusNotice, SIGNED_OUT_RANKING_NOTICE, rankTrend, rankingCaption } = await import('../src/components/RankingParts');
 const { RankingScreenPhone } = await import('../src/components/RankingScreenPhone');
+const { RankingHall } = await import('../src/components/RankingHall');
 const { RankingsView } = await import('../src/components/RankingsView');
 const { RankingSchoolMenu, RankingSchoolTrigger } = await import('../src/components/RankingSchoolMenu');
 const { RankingScreen1Phone } = await import('../src/components/RankingScreen1Phone');
@@ -75,8 +76,8 @@ const ok = (data: unknown) => new Response(JSON.stringify({ code: 'SUCCESS', mes
 const fail = (status: number, code: string, message: string) => new Response(JSON.stringify({ code, message, data: null }), { status });
 
 let board: ReturnType<typeof useApiRankingBoard>;
-function Probe({ tab }: { tab: 'school' | 'dept' | 'personal' }) {
-  board = useApiRankingBoard(tab, 0);
+function Probe({ tab, includeHall }: { tab: 'school' | 'dept' | 'personal'; includeHall?: boolean }) {
+  board = useApiRankingBoard(tab, 0, { includeHall });
   return React.createElement(React.Fragment, null,
     React.createElement(RankingStatusNotice, { board }),
     React.createElement('ol', { 'aria-label': '순위' }, board.rows.map((row) => React.createElement('li', { key: row.key }, `${row.rank} ${row.name}${row.isMine ? ' (내 소속)' : ''}`))),
@@ -84,12 +85,14 @@ function Probe({ tab }: { tab: 'school' | 'dept' | 'personal' }) {
   );
 }
 interface Call { path: string; auth: string | null }
-function mount(tab: 'school' | 'dept' | 'personal', { signedIn = true, respond }: { signedIn?: boolean; respond?: (url: URL) => Response | undefined } = {}) {
+function mount(tab: 'school' | 'dept' | 'personal', { signedIn = true, includeHall = false, respond }: {
+  signedIn?: boolean; includeHall?: boolean; respond?: (url: URL, signal: AbortSignal | null | undefined) => Response | Promise<Response> | undefined;
+} = {}) {
   const calls: Call[] = [];
   const client = createApiClient({ fetch: (async (input, init) => {
     const url = new URL(String(input), 'http://localhost');
     calls.push({ path: `${url.pathname}${url.search}`, auth: new Headers(init?.headers).get('Authorization') });
-    const custom = respond?.(url);
+    const custom = respond?.(url, init?.signal);
     if (custom) return custom;
     const page = Number(url.searchParams.get('page'));
     if (url.pathname.endsWith('/rankings/universities')) return ok(SCHOOL_PAGES[page]);
@@ -100,9 +103,12 @@ function mount(tab: 'school' | 'dept' | 'personal', { signedIn = true, respond }
     throw new Error(`Unexpected path: ${url.pathname}`);
   }) as typeof fetch });
   const queryClient = createQueryClient(); clients.push(queryClient);
+  // Aborted requests can settle after cleanup; don't leave the cache's real GC timer running in this harness.
+  queryClient.setDefaultOptions({ queries: { ...queryClient.getDefaultOptions().queries, gcTime: Infinity } });
   if (signedIn) { client.session.signIn('member-a'); queryClient.setQueryData(userKeys.me, ME); }
-  render(React.createElement(ApiProvider, { client, queryClient, children: React.createElement(Probe, { tab }) }));
-  return { calls, rankingCalls: () => calls.filter((call) => call.path.includes('/rankings/')) };
+  const tree = (current: typeof tab) => React.createElement(ApiProvider, { client, queryClient, children: React.createElement(Probe, { tab: current, includeHall }) });
+  const view = render(tree(tab));
+  return { calls, queryClient, changeTab: (current: typeof tab) => view.rerender(tree(current)), rankingCalls: () => calls.filter((call) => call.path.includes('/rankings/')) };
 }
 const listed = () => screen.getAllByRole('listitem').map((item) => item.textContent);
 
@@ -276,6 +282,104 @@ test('목업 PC·모바일 순위에서 시상대·일반 목록·내 학교만 
   }
 });
 
+test('명예의 전당은 실제 순위로 그룹화하고 현재 명패의 ID를 갱신 후에도 유지한다', () => {
+  const [first, second, third, fourth] = toApiRows('school', SCHOOL_PAGES, ME);
+  const rows = [{ ...first, rank: 1 }, { ...second, rank: 1 }, { ...third, rank: 3 }, fourth];
+  const opened: number[] = [];
+  const hall = (items: typeof rows) => React.createElement(RankingHall, {
+    hall: { scope: 'school', rows: items, loading: false, incomplete: false, retry: () => {} },
+    tab: 'school', menuOpen: false, openSchool: ({ id }) => opened.push(id),
+  });
+  const view = render(hall(rows));
+  assert.deepEqual(screen.getAllByRole('heading', { level: 3 }).map(node => node.textContent), ['공동 1위', '3위']);
+  assertAbsent(screen.queryByRole('button', { name: '3위 다음' }));
+  fireEvent.click(screen.getByRole('button', { name: '1위 다음' }));
+  assertAbsent(screen.queryByRole('button', { name: `${first.name} 학교 메뉴` }));
+  fireEvent.click(screen.getByRole('button', { name: `${second.name} 학교 메뉴` }));
+  assert.deepEqual(opened, [second.schoolId]);
+  view.rerender(hall([rows[1], rows[0], rows[2]]));
+  assert.ok(screen.getByRole('button', { name: `${second.name} 학교 메뉴` }));
+  view.rerender(hall([rows[0], rows[2]]));
+  assert.ok(screen.getByRole('button', { name: `${first.name} 학교 메뉴` }));
+  assertAbsent(screen.queryByRole('button', { name: '1위 다음' }));
+});
+
+const HALL_PAGES = [
+  { ...SCHOOL_PAGES[0], items: Array.from({ length: 20 }, (_, index) => school(index === 0 ? 1 : 2, 100 + index, `대학 ${index}`, index === 0 ? 900 : 800)), totalCount: 45 },
+  { ...SCHOOL_PAGES[1], items: [school(2, 119, '중복', 800), school(2, 120, '경계 동점', 800)], hasNext: true, totalCount: 45 },
+  { ...SCHOOL_PAGES[1], items: [school(4, 140, '경계 밖', 100)], page: 2, hasNext: true, totalCount: 65 },
+];
+
+test('명예의 전당은 첫 페이지와 목록 캐시를 재사용하고 실제 경계에서 멈춘다', async () => {
+  const f = mount('school', { includeHall: true, respond: url => ok(HALL_PAGES[Number(url.searchParams.get('page'))]) });
+  await waitFor(() => assert.equal(board.hall?.rows.at(-1)?.name, '경계 동점'));
+  assert.ok(board.hall?.rows.every(row => row.rank <= 3));
+  const calledPages = () => f.rankingCalls().map(call => Number(new URL(call.path, 'http://localhost').searchParams.get('page')));
+  assert.deepEqual(calledPages(), [0, 1, 2]);
+  assert.equal(board.rows.length, 20);
+  assert.equal(board.hall?.rows.filter(row => row.rank === 2).length, 20);
+  assert.equal(board.hasMore, true);
+  await act(async () => { board.loadMore(); });
+  await waitFor(() => assert.equal(board.rows.at(-1)?.name, '경계 동점'));
+  assert.deepEqual(calledPages(), [0, 1, 2, 1]);
+  assert.equal(board.rows.filter(row => row.key === 'school:119').length, 1);
+});
+
+test('추가 조회 실패는 받은 명패를 살리고 재시도에서 밀린 순위와 중복을 정리한다', async () => {
+  let failTail = true;
+  const f = mount('school', { includeHall: true, respond: url => {
+    const page = Number(url.searchParams.get('page'));
+    if (page === 2 && failTail) return fail(500, 'COMMON_INTERNAL_ERROR', '명예의 전당 경계 실패');
+    if (page === 1 && !failTail) return ok({ ...HALL_PAGES[1], items: [school(2, 121, '갱신 동점', 800)] });
+    return ok(HALL_PAGES[page]);
+  } });
+  await waitFor(() => assert.equal(board.hall?.incomplete, true));
+  assert.equal(board.hall?.rows.at(-1)?.name, '경계 동점');
+  assert.equal(board.status, 'ready');
+  failTail = false;
+  await act(async () => { board.hall?.retry(); });
+  await waitFor(() => assert.equal(board.hall?.incomplete, false));
+  assert.ok(board.hall?.rows.some(row => row.name === '갱신 동점'));
+  assert.equal(board.hall?.rows.some(row => row.name === '경계 동점'), false);
+  await act(async () => { await f.queryClient.invalidateQueries({ predicate: query => query.queryKey.includes('hall') && query.isActive() }); });
+  assert.equal(f.rankingCalls().filter(call => call.path.includes('page=0')).length, 1);
+  assert.equal(f.rankingCalls().filter(call => call.path.includes('page=2')).length, 3);
+});
+
+test('활성 탭을 바꾸면 진행 중인 명예의 전당 페이지 요청이 취소된다', async () => {
+  let pending: AbortSignal | null | undefined;
+  const f = mount('school', { includeHall: true, respond: (url, signal) => {
+    if (!url.pathname.endsWith('/rankings/universities')) return undefined;
+    if (url.searchParams.get('page') === '0') return ok(HALL_PAGES[0]);
+    pending = signal;
+    return new Promise((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  } });
+  await waitFor(() => assert.ok(pending));
+  f.changeTab('dept');
+  await waitFor(() => assert.equal(board.rows[0]?.key, 'dept:7'));
+  assert.equal(pending?.aborted, true);
+  assert.deepEqual(board.hall?.rows.map(row => row.key), ['dept:7', 'dept:8']);
+  assert.equal(f.rankingCalls().filter(call => call.path.includes('/users')).length, 0);
+});
+
+test('학교나 사용자가 바뀌면 이전 조회 범위의 추가 페이지를 취소한다', async () => {
+  const pending: AbortSignal[] = [];
+  const f = mount('school', { includeHall: true, respond: (url, signal) => {
+    if (url.searchParams.get('page') !== '1' || !signal) return ok(HALL_PAGES[0]);
+    pending.push(signal);
+    if (pending.length === 3) return ok({ ...HALL_PAGES[1], hasNext: false });
+    return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  } });
+  await waitFor(() => assert.equal(pending.length, 1));
+  await act(async () => { f.queryClient.setQueryData(userKeys.me, { ...ME, university: { ...ME.university, id: 2 } }); });
+  await waitFor(() => assert.equal(pending.length, 2));
+  assert.equal(pending[0].aborted, true);
+  await act(async () => { f.queryClient.setQueryData(userKeys.me, { ...ME, id: 11, university: { ...ME.university, id: 2 } }); });
+  await waitFor(() => assert.equal(board.hall?.rows.at(-1)?.name, '경계 동점'));
+  assert.equal(pending.length, 3);
+  assert.equal(pending[1].aborted, true);
+});
+
 test('학교 메뉴의 점수는 연 시점에 고정되고 다시 열면 새 점수를 표시한다', () => {
   const row = toApiRows('school', SCHOOL_PAGES, ME)[0];
   function SnapshotProbe({ score }: { score: number }) {
@@ -342,11 +446,21 @@ test('로그인 전에는 학교 순위만 익명으로 조회하고 학과·개
   assert.ok(board.rows.every((row) => !row.isMine));
   cleanup();
 
-  const scoped = mount('personal', { signedIn: false });
+  const scoped = mount('personal', { signedIn: false, includeHall: true });
   assert.equal(board.status, 'signed-out');
   assert.ok(screen.getByText(SIGNED_OUT_RANKING_NOTICE));
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(scoped.rankingCalls(), []);
+  assert.deepEqual(board.hall?.rows, []);
+});
+
+test('순위가 비어 있고 다음 페이지가 없으면 명예의 전당 조회를 시작하지 않는다', async () => {
+  const f = mount('dept', { includeHall: true, respond: url => url.pathname.endsWith('/departments')
+    ? ok({ ...DEPT_PAGE, items: [], myDepartment: null, totalCount: 0 }) : undefined });
+  await waitFor(() => assert.equal(board.status, 'ready'));
+  assert.deepEqual(board.hall?.rows, []);
+  assert.equal(board.hall?.loading, false);
+  assert.equal(f.rankingCalls().length, 1);
 });
 
 test('조회 실패는 서버 문구로 안내하고 다시 시도하면 목록을 보인다', async () => {

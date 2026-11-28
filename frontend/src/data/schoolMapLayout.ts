@@ -51,7 +51,7 @@ export interface Size {
  * Single phone height 488 → 492 after the search box became 44px tall (T44-D3).
  * Remeasured 2026-11-10 after the 390×844 PhoneShell (T1b, tests/e2e/map-layout.mjs): single phone 336/366/382×466 at
  * 360/390/≥430px viewports; both 2-Phone maps are now full width, 382×483.
- * Full-screen phones (T2) have other sizes; MAP_AREA_HEIGHT (MapParts.tsx) keeps them between the shortest and tallest
+ * Full-screen phones (T2) have other sizes; MAP_AREA_HEIGHT (MapSceneViewport.tsx) keeps them between the shortest and tallest
  * aspects here, and a crop depends only on the aspect (mapLayerFit), so these checks still cover them.
  */
 export const MAP_AREAS_PX: readonly Size[] = [

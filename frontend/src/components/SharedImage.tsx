@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useSharedImage } from '../hooks/useSharedImages.tsx';
 import { validImageUrl, type ImageTarget } from '../utils/sharedImages.ts';
 import { SCHOOL_LOGO_ASSETS } from '../data/schoolLogos.ts';
@@ -14,7 +14,7 @@ export function ImageFallback({
   defaultUrl?: string;
   name: string;
   className?: string;
-  fallback?: string;
+  fallback?: ReactNode;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [failedDefaultUrl, setFailedDefaultUrl] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function SharedImage({
   target: ImageTarget;
   name: string;
   className?: string;
-  fallback?: string;
+  fallback?: ReactNode;
   defaultUrl?: string;
 }) {
   const image = useSharedImage(target);

@@ -68,6 +68,9 @@ test('SCRUM-212: 시안 모드에서도 메뉴·도구는 처음에는 닫혀 �
   assertAbsent(screen.queryByRole('navigation', { name: '서비스 흐름' }));
   assertAbsent(screen.queryByRole('region', { name: '[시연] 도구' }));
   assert.ok(screen.getByRole('button', { name: '테스트 도구' }));
+  const brand = screen.getByRole('button', { name: '대대대 내 캠퍼스' });
+  assert.equal(brand.querySelector('.game-wordmark')?.textContent, '대');
+  assertAbsent(within(brand).queryByText('대학교 대 대학교 - 캠퍼스 대항전'));
   const [shell] = shells();
   assert.equal(shell.dataset.phoneShell, 'framed');
   assert.match(shell.className, /h-\[844px\]/);

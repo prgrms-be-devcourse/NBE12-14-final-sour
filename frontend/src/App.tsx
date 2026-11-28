@@ -12,6 +12,7 @@ import { GameWorkspace, WorkspaceShortcut } from './components/GameWorkspace';
 import { GameSchoolPanel, LazyApiChat, type SchoolPanelTab } from './components/GameSchoolPanel';
 import { GameCompetitionPanel, type CompetitionTab } from './components/GameCompetitionPanel';
 import { GameAllianceFlow, type AllianceScreen } from './components/GameAllianceFlow';
+import type { AllianceEntry } from './components/ApiAllianceScreenPhone';
 import { GameProfileBar } from './components/GameProfileBar';
 import { AllianceNavProvider, BottomNav, NavTab, type AllianceNavValue } from './components/BottomNav';
 import { RankingsView } from './components/RankingsView';
@@ -69,7 +70,7 @@ import { CampusAmbienceProvider, useAmbienceControl } from './hooks/useCampusTim
 import type { AmbienceOverride } from './data/campusAmbience';
 import { soundManager } from './utils/sound';
 import { MOCK_TOOLS } from './utils/mockTools';
-import { Smartphone, Gamepad2, Layers, Trophy, ShoppingBag, MapPin, Image as ImageIcon, Compass, MessageSquare, BookOpen, Sparkles } from 'lucide-react';
+import { Smartphone, Gamepad2, Layers, Trophy, ShoppingBag, MapPin, Image as ImageIcon, Compass, MessageSquare, BookOpen, Sparkles, Wrench } from 'lucide-react';
 
 /** Service flow screens (M5-D). Demo tools and design comparisons are left out of the 44px touch areas. */
 const SERVICE_VIEW_MODES = new Set<string>(['gameplay', 'signup', 'login', 'single_map', 'visiting', 'ranking', 'shop', 'alliance_apply', 'current_alliance', 'battle_apply', 'battle_status', 'support_guest', 'my_info', 'purchase_history', 'member_support', 'admin']);
@@ -80,7 +81,7 @@ type OtherView = AllianceScreen | 'ranking_screens' | 'our_guestbook_screens' | 
   | 'support_guest' | 'my_info' | 'purchase_history' | 'member_support' | 'admin';
 type GameView = ({ mode: 'visiting'; schoolId: SchoolId }
   | { mode: 'shop'; schoolId: SchoolId | null } // Retain the campus under the shop, irrespective of viewport.
-  | { mode: OtherView; schoolId: null }) & { focusCenter?: boolean };
+  | { mode: OtherView; schoolId: null }) & { focusCenter?: boolean; allianceEntry?: AllianceEntry };
 
 const useActivitySource = selectByMode<(myUniversityId: number | null) => UniversityActivitySource | null>({
   api: useApiUniversityActivitySource,
@@ -97,7 +98,8 @@ function AppContent() {
   const [isOurGuestbookSheetOpen, setIsOurGuestbookSheetOpen] = useState<boolean>(false);
   const [isStatsSheetOpen, setIsStatsSheetOpen] = useState<boolean>(false);
   const [schoolPanelTab, setSchoolPanelTab] = useState<SchoolPanelTab>('detail');
-  const [competitionTab, setCompetitionTab] = useState<CompetitionTab>('map');
+  const [competition, setCompetition] = useState<{ tab: CompetitionTab; allianceEntry?: AllianceEntry }>({ tab: 'map' });
+  const setCompetitionTab = useCallback((tab: CompetitionTab) => setCompetition({ tab }), []);
   const [purchaseConfirming, setPurchaseConfirming] = useState(false);
   const [isMockMenuOpen, setIsMockMenuOpen] = useState<boolean>(false);
   const [mapContext, setMapContext] = useState<MapContext>(INITIAL_MAP_CONTEXT);
@@ -110,10 +112,13 @@ function AppContent() {
   const isServiceView = SERVICE_VIEW_MODES.has(viewMode);
   const compact = isPhone || gameLayout === 'compact';
   const wideCampus = gameLayout === 'wide' && (viewMode === 'gameplay' || viewMode === 'visiting' || viewMode === 'shop');
-  const backdrop = compact && isServiceView ? 'device-full-with-profile min-h-dvh bg-[#f1f5f9]' : 'game-backdrop';
-  const visit = useVisitSchool(visitSchoolId);
+  const serviceChrome = API_MODE === 'api' && isServiceView;
   const shellVariant = compact && isServiceView ? 'full' : 'framed';
-  const viewWrap = shellVariant === 'full' ? 'w-full flex flex-col' : 'w-full flex flex-col items-center py-2 animate-fadeIn';
+  const backdrop = shellVariant === 'full'
+    ? `device-full-with-profile min-h-dvh bg-[#f1f5f9]${serviceChrome ? ' device-full-with-profile--service' : ''}`
+    : 'game-backdrop';
+  const visit = useVisitSchool(visitSchoolId);
+  const viewWrap = shellVariant === 'full' ? 'game-compact-view w-full flex flex-col' : 'w-full flex flex-col items-center py-2 animate-fadeIn';
   const game = useMockGame();
   const campusClicks = useCampusClicks();
   const campusAttacks = useCampusAttacks(campusClicks.beginUpgrade);
@@ -159,6 +164,13 @@ function AppContent() {
     setIsVisitGuestbookOpen(false);
     setActiveTab('campus');
     setView({ mode: 'gameplay', schoolId: null, focusCenter: true });
+  };
+  const openAllianceFromChat = (allianceEntry: AllianceEntry) => {
+    if (wideCampus) setCompetition({ tab: 'alliance', allianceEntry });
+    else {
+      setIsChatSheetOpen(false);
+      setView({ mode: 'current_alliance', schoolId: null, allianceEntry });
+    }
   };
   const goToMap = () => {
     if (wideCampus) { setCompetitionTab('map'); return; }
@@ -282,13 +294,13 @@ function AppContent() {
       if (wideCampus) setCompetitionTab('alliance');
       else setViewMode('current_alliance');
     }, hasAlert: hasAllianceAlert }),
-    [wideCampus, hasAllianceAlert, setViewMode],
+    [wideCampus, hasAllianceAlert, setViewMode, setCompetitionTab],
   );
 
-  const hasAffordableShopItem = (itemShop
+  const hasAffordableShopItem = itemShop
     ? itemShop.items.some((item) => item.payType === 'CONTRIBUTION' && item.type === 'MULTIPLIER' && myContribution >= item.price)
-    : shopItems.some((item) => !item.previewOnly && myContribution >= item.cost))
-    || (clicker.upgradeCost !== null && myContribution >= clicker.upgradeCost);
+    : shopItems.some((item) => !item.previewOnly && myContribution >= item.cost)
+      || (clicker.upgradeCost !== null && myContribution >= clicker.upgradeCost);
 
   // The launchers and settings mount only while the tool sheet is open.
   const viewMenus = MOCK_TOOLS && isMockMenuOpen && (
@@ -585,9 +597,12 @@ function AppContent() {
     <UniversityActivityContext.Provider value={activitySource}>
     <AllianceNavProvider value={allianceNav}>
       <div data-desktop-game={wideCampus ? '' : undefined} className={`w-full flex flex-col items-center justify-start select-none text-[#261608] ${backdrop}`}>
-        <GameProfileBar mode={API_MODE} nickname={playerInfo.nickname} onCampus={goToMySchool} onNavigate={setViewMode}
+        <GameProfileBar mode={API_MODE} serviceChrome={serviceChrome} nickname={playerInfo.nickname} onCampus={goToMySchool} onNavigate={setViewMode}
           tools={MOCK_TOOLS && <button type="button" aria-haspopup="dialog" className="game-workspace-action shrink-0"
-            onClick={(event) => { event.currentTarget.focus(); setIsMockMenuOpen(true); soundManager.playTabSound(); }}>테스트 도구</button>} />
+            onClick={(event) => { event.currentTarget.focus(); setIsMockMenuOpen(true); soundManager.playTabSound(); }}>
+            {serviceChrome && <Wrench className="size-4 shrink-0" aria-hidden="true" />}
+            테스트 도구
+          </button>} />
         {API_MODE === 'api' && <ApiPlayerSync getPendingScore={campusClicks.getPendingScore} />}
         {API_MODE === 'api' && <ApiSchoolScoreSync getPendingScore={campusClicks.getPendingScore} isSending={campusClicks.isSending} />}
         {API_MODE === 'api' && <ApiTestToolsNotice schoolName={schoolNameTest} />}
@@ -619,8 +634,9 @@ function AppContent() {
         <div className="contents" data-touch-area={SERVICE_VIEW_MODES.has(viewMode) ? '44' : undefined}>
         <GameWorkspace wide={wideCampus}
           left={<GameSchoolPanel tab={schoolPanelTab} onTabChange={setSchoolPanelTab} mySchool={mySchool} ranking={schoolRanking}
-            visit={visitSchoolId === null ? null : visit} onGoToMap={goToMap} onGoToShop={openShop} />}
-          right={<GameCompetitionPanel tab={competitionTab} onTabChange={setCompetitionTab}
+            visit={visitSchoolId === null ? null : visit} onGoToMap={goToMap} onGoToShop={openShop} onOpenAlliance={openAllianceFromChat} />}
+          right={<GameCompetitionPanel tab={competition.tab} onTabChange={setCompetitionTab}
+            allianceNavigation={competition.allianceEntry && { entry: competition.allianceEntry, onArrive: () => setCompetitionTab('alliance') }}
             mapContext={mapContext} onMapContextChange={setMapContext} schoolScore={schoolScore} visitBlocked={visitBlocked}
             onVisit={openSchool} onGoToLogin={() => setViewMode('login')} />}
         >
@@ -780,6 +796,7 @@ function AppContent() {
         ) : viewMode === 'alliance_apply' || viewMode === 'current_alliance' || viewMode === 'battle_apply' || viewMode === 'battle_status' ? (
           <div className={viewWrap}>
             <GameAllianceFlow screen={viewMode} onScreenChange={setViewMode} onNavigateTab={navigateTab}
+              navigation={view.allianceEntry && { entry: view.allianceEntry, onArrive: () => setViewMode(viewMode) }}
               onBack={() => setViewMode('gameplay')} onGoToLogin={() => setViewMode('login')} />
           </div>
         ) : viewMode === 'support_guest' ? (
@@ -788,7 +805,7 @@ function AppContent() {
           </div>
         ) : viewMode === 'my_info' ? (
           <div className={viewWrap}>
-            <MyInfoScreenPhone onBack={() => setViewMode('login')} onGoToLogin={() => setViewMode('login')}
+            <MyInfoScreenPhone onBack={goToMySchool} onGoToLogin={() => setViewMode('login')}
               onOpenPurchaseHistory={() => setViewMode('purchase_history')} onOpenSupports={() => setViewMode('member_support')}
               onOpenAdmin={() => setViewMode('admin')} />
           </div>
@@ -877,6 +894,7 @@ function AppContent() {
                     }}>
                       {API_MODE === 'api' ? <React.Suspense fallback={<p role="status" className="p-3 font-pixel text-sm">채팅 화면을 여는 중이에요.</p>}>
                         <LazyApiChat
+                          onOpenAlliance={openAllianceFromChat}
                           onClose={() => { setIsChatSheetOpen(false); soundManager.playTabSound(); }}
                           onGoToLogin={() => { setIsChatSheetOpen(false); setViewMode('login'); }} />
                       </React.Suspense> : <ChatBottomSheet

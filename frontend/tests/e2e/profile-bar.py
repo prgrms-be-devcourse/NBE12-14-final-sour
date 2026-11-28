@@ -6,7 +6,58 @@ from urllib.parse import urlsplit
 from playwright.sync_api import expect, sync_playwright
 
 NICKNAME = '아주긴닉네임' * 7
+BRAND = '대대대 / 대학교 대 대학교 - 캠퍼스 대항전'
 ITEMS = [('👤', '내 정보'), ('💬', '문의'), ('🚪', '로그아웃')]
+
+
+def verify_service_brand(page, header, trigger, activate, tools):
+    brand = header.get_by_role('button', name='대대대 내 캠퍼스')
+    expect(brand).to_have_text(BRAND, use_inner_text=True)
+    logo = brand.locator('img[alt=""]')
+    expect(logo).to_have_attribute('src', '/favicon.svg')
+    expect(logo).to_be_visible()
+    assert logo.evaluate('image => image.complete && image.naturalWidth > 0')
+    expect(trigger).to_have_accessible_name(f'프로필 · {NICKNAME}')
+    expect(trigger.locator('svg[aria-hidden="true"]')).to_be_visible()
+    tool_button = header.get_by_role('button', name='테스트 도구', exact=True)
+    if tools:
+        expect(tool_button.locator('svg[aria-hidden="true"]')).to_be_visible()
+        activate(tool_button)
+        expect(page.get_by_role('dialog', name='테스트 도구')).to_be_visible()
+        page.keyboard.press('Escape')
+        expect(tool_button).to_be_focused()
+    else:
+        expect(tool_button).to_have_count(0)
+    page.evaluate('document.fonts.ready')
+    assert header.evaluate('''header => {
+        const brand = header.querySelector('.game-brand').getBoundingClientRect();
+        const actions = header.querySelector('.game-top-bar-actions').getBoundingClientRect();
+        const copy = header.querySelector('.game-brand-copy');
+        return copy.scrollWidth <= copy.clientWidth && brand.right <= innerWidth && actions.right <= innerWidth &&
+            (brand.right <= actions.left || brand.bottom <= actions.top) && header.scrollWidth <= header.clientWidth;
+    }''')
+
+
+def verify_back_and_guestbook(page, activate, guestbook_reads, touch, height):
+    activate(page.get_by_role('button', name='뒤로가기'))
+    campus = page.locator('[data-game-layout="my-campus"]')
+    expect(campus).to_be_visible()
+    expect(campus.get_by_role('main')).to_be_focused()
+    expect(page.get_by_text('로그인 · 서버 연동')).to_have_count(0)
+    if touch and height > 480:
+        assert page.locator('[data-phone-shell="full"]').evaluate('shell => Math.abs(shell.getBoundingClientRect().bottom - innerHeight) <= 1')
+
+    activate(page.get_by_role('button', name='우리 학교 방명록 보기'))
+    refresh = page.get_by_role('button', name='방명록 새로고침', exact=True)
+    expect(refresh).to_be_enabled()
+    expect(refresh.locator('svg[aria-hidden="true"]')).to_be_visible()
+    assert guestbook_reads == ['GET']
+    with page.expect_response(lambda response: urlsplit(response.url).path.endswith('/universities/8/guestbooks')):
+        activate(refresh)
+    expect(refresh).to_be_enabled()
+    assert guestbook_reads == ['GET', 'GET']
+    if touch:
+        activate(page.get_by_role('button', name='방명록 닫기'))
 
 
 def verify(browser, url, width, height, touch=False, tools=False):
@@ -16,6 +67,7 @@ def verify(browser, url, width, height, touch=False, tools=False):
                'department': {'id': 1, 'name': '공학과'}, 'clicker': {'level': 1, 'clickPower': 1, 'nextLevelRequiredScore': 200},
                'totalContribScore': 1000, 'totalAttackScore': 0}
     writes = []
+    guestbook_reads = []
 
     def fixture(route):
         path = urlsplit(route.request.url).path.removeprefix('/api/v1')
@@ -24,6 +76,9 @@ def verify(browser, url, width, height, touch=False, tools=False):
                 '/rankings/universities': {'items': [], 'myUniversity': None, 'hasNext': False, 'page': 0,
                                            'size': 20, 'totalCount': 0},
                 '/supports/me': {'items': [], 'page': 0, 'size': 20, 'totalCount': 0, 'hasNext': False}}
+        if path == '/universities/8/guestbooks':
+            guestbook_reads.append(route.request.method)
+            data[path] = {'items': [], 'nextCursor': None, 'hasNext': False}
         if path == '/auth/logout':
             writes.append(route.request.method)
             if len(writes) == 1:
@@ -43,8 +98,7 @@ def verify(browser, url, width, height, touch=False, tools=False):
         page.goto(url, wait_until='networkidle')
         header = page.get_by_role('banner').filter(has=page.get_by_role('button', name='대대대 내 캠퍼스'))
         trigger = header.locator('summary')
-        expect(trigger).to_have_accessible_name(f'프로필 · {NICKNAME}')
-        page.evaluate('document.fonts.ready')
+        verify_service_brand(page, header, trigger, activate, tools)
 
         def typography():
             return trigger.evaluate('''trigger => {
@@ -132,6 +186,8 @@ def verify(browser, url, width, height, touch=False, tools=False):
             assert after[key] == before[key], (key, before, after)
         assert after['inBounds'] and after['centered'] and after['fitsLabel'], after
 
+        verify_back_and_guestbook(page, activate, guestbook_reads, touch, height)
+
         activate(trigger)
         activate(menu.get_by_role('button', name='문의', exact=True))
         expect(page.get_by_role('heading', name='내 문의', exact=True)).to_be_visible()
@@ -144,7 +200,7 @@ def verify(browser, url, width, height, touch=False, tools=False):
         activate(menu.get_by_role('button', name='로그아웃', exact=True))
         expect(trigger).to_have_count(0)
         assert writes == ['POST', 'POST']
-        print(f'PASS {width}×{height}: typography, truncation, menu order and names, navigation and logout')
+        print(f'PASS {width}×{height}: brand, typography, menu, campus return, guestbook refresh and logout')
         return before['fontFamily']
     finally:
         page.close()

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft } from 'lucide-react';
 import { useApiClient } from '../api/ApiProvider';
 import { getForbiddenWords } from '../api/chat';
 import { errorMessage } from '../api/errors';
@@ -14,7 +15,9 @@ export function ForbiddenWordsPanel({ viewerId, onBack }: { viewerId: number; on
   return <section aria-labelledby={titleId} className="flex-1 min-h-0 overflow-y-auto p-3 font-pixel text-[#261608]">
     <h2 id={titleId} ref={heading} tabIndex={-1} className="font-bold text-sm">공통 금칙어 목록</h2>
     <p className="text-xs my-2">채팅과 방명록에 공통으로 적용돼요. 포함된 표현은 서버가 **로 가려요.</p>
-    <button type="button" onClick={onBack} className="pixel-plaque plaque-parchment min-h-11 px-3 text-xs">채팅으로 돌아가기</button>
+    <button type="button" onClick={onBack} className="pixel-plaque plaque-parchment min-h-11 px-3 text-xs inline-flex items-center gap-1">
+      <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />채팅으로 돌아가기
+    </button>
     {words.isPending ? <p role="status">금칙어를 불러오는 중이에요.</p> : words.isError ? <div>
       <p role="alert">{errorMessage(words.error)}</p>
       <button type="button" onClick={() => void words.refetch()} disabled={words.isFetching}

@@ -80,6 +80,25 @@ test('공개 빈 목록·비회원 작성 안내·로그인/닫기, 가짜 샘�
   assert.deepEqual(f.navigation, ['login', 'close']); assert.equal(f.posts().length, 0);
 });
 
+test('방명록 새로고침은 장식 아이콘을 숨기고, 재조회 중에는 버튼을 비활성화한다', async () => {
+  let finish!: (response: Response) => void;
+  const f = mount({ list: () => new Promise((resolve) => { finish = resolve; }) });
+  await screen.findByText('방명록을 불러오고 있습니다.');
+  await act(async () => finish(ok(page())));
+  await screen.findByText('아직 남겨진 방명록이 없습니다.');
+
+  const refresh = screen.getByRole<HTMLButtonElement>('button', { name: '방명록 새로고침' });
+  assert.ok(refresh.querySelector('svg[aria-hidden="true"]'));
+  fireEvent.click(refresh);
+  await waitFor(() => assert.ok(refresh.disabled));
+  fireEvent.click(refresh);
+  assert.equal(f.calls.length, 2);
+  await act(async () => finish(ok(page([item(31)]))));
+  await screen.findByText('응원 31');
+  assert.equal(refresh.disabled, false);
+  assert.equal(f.posts().length, 0);
+});
+
 test('우리 학교는 DB 프로필의 학교 ID를 사용하며 작성 불가·지도 이동, 비회원은 조회도 하지 않는다', async () => {
   const f = mount({ own: true }); await screen.findByText(/우리 학교에는 글을 남길 수 없어요/);
   assert.deepEqual(f.calls.map((call) => call.school), [1]); assertAbsent(screen.queryByRole('textbox'));

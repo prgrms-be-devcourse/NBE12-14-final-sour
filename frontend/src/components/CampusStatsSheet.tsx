@@ -1,3 +1,4 @@
+import { ClickerUpgradeAltar } from './ClickerUpgradeAltar';
 import { DialogPanel } from './DialogPanel';
 import { useMockGame } from '../hooks/useMockGame';
 import { useClicker } from '../hooks/useClicker';
@@ -7,7 +8,7 @@ import { useClicker } from '../hooks/useClicker';
  * both features, then the contribution and clicker boxes that used to sit under the campus. Shows the shared
  * mock game values as they are; no new calculation.
  */
-export function CampusStatsSheet({ onGoToShop }: { onGoToShop: () => void }) {
+export function CampusStatsSheet({ onGoToShop, desktop = false }: { onGoToShop: () => void; desktop?: boolean }) {
   const { campus, state } = useMockGame();
   const clicker = useClicker();
   return (
@@ -25,10 +26,12 @@ export function CampusStatsSheet({ onGoToShop }: { onGoToShop: () => void }) {
         </ul>
       </section>
       <DialogPanel myContribution={state.contribution} clickerLevel={clicker.level} />
-      <button type="button" onClick={onGoToShop}
-        className="pixel-plaque plaque-yellow min-h-11 font-pixel text-xs font-bold cursor-pointer">
-        상점에서 강화하기
-      </button>
+      {clicker.api ? <ClickerUpgradeAltar clicker={clicker} contribution={state.contribution} desktop={desktop} /> : (
+        <button type="button" onClick={onGoToShop}
+          className="pixel-plaque plaque-yellow min-h-11 font-pixel text-xs font-bold cursor-pointer">
+          상점에서 강화하기
+        </button>
+      )}
     </div>
   );
 }

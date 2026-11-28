@@ -1,6 +1,7 @@
 // Pieces shared by the two ranking screens (SCRUM-161): row image, caption and the not-ready notice.
 
-import React from 'react';
+import React, { type ReactNode } from 'react';
+import { isHallRank } from '../api/rankingHall';
 import type { RankingBoard, RankingBoardRow, RankingTab } from '../hooks/useRankingBoard';
 import { ImageFallback, SharedImage } from './SharedImage.tsx';
 import { LoadNotice } from './LoadNotice';
@@ -16,12 +17,21 @@ export const RANK_TREND_TONE: Record<RankTrend, string> = {
 };
 
 /** The mock's demo image store, or the server's URL with the bundled school logo and the first syllable as fallbacks. */
-export const RankingRowImage: React.FC<{ row: RankingBoardRow; className?: string }> = ({ row, className }) =>
+export const RankingRowImage: React.FC<{ row: RankingBoardRow; className?: string; fallback?: ReactNode }> = ({ row, className, fallback = row.firstSyllable }) =>
   row.image.kind === 'shared' ? (
-    <SharedImage target={row.image.target} name={row.name} fallback={row.firstSyllable} className={className} />
+    <SharedImage target={row.image.target} name={row.name} fallback={fallback} className={className} />
   ) : (
-    <ImageFallback url={row.image.url ?? undefined} defaultUrl={row.image.defaultUrl} name={row.name} fallback={row.firstSyllable} className={className} />
+    <ImageFallback url={row.image.url ?? undefined} defaultUrl={row.image.defaultUrl} name={row.name} fallback={fallback} className={className} />
   );
+
+/** Keep the usual list and load-more independent of the supplemental hall scan. */
+export function rankingListRows(board: RankingBoard) {
+  return board.hall ? board.rows.filter((row, index) => index >= 3 || !isHallRank(row.rank)) : board.rows.slice(3);
+}
+
+export function rankingIsEmpty({ rows, hall }: RankingBoard) {
+  return rows.length === 0 && !hall?.loading && !hall?.incomplete && !hall?.rows.length;
+}
 
 export const SIGNED_OUT_RANKING_NOTICE = '로그인하면 내 학교의 학과·개인 순위를 볼 수 있어요.';
 

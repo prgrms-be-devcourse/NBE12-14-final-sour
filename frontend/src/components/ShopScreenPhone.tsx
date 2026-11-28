@@ -1,10 +1,9 @@
-import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { AlertTriangle, Check, X } from 'lucide-react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AlertTriangle, Check, Store, X } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { BottomNav, NavTab } from './BottomNav';
 import { type MockStoreItem } from '../data/gameRules';
 import { useMockGame } from '../hooks/useMockGame';
-import { useClicker } from '../hooks/useClicker';
 import { useItemShop } from '../hooks/useItemShop';
 import { ApiItemShop } from './ApiItemShop';
 import { useMockRequest } from '../hooks/useMockRequest.tsx';
@@ -27,30 +26,39 @@ function ShopFrame({ embedded, children }: { embedded: boolean; children: React.
     : <PhoneShell background="bg-[#5c3414]">{children}</PhoneShell>;
 }
 
-export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
+export function ShopScreenPhone(props: ShopScreenPhoneProps) {
+  const shop = useItemShop();
+  if (!shop) return <MockShopScreenPhone {...props} />;
+  return (
+    <ShopFrame embedded={props.embedded ?? false}>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b-3 border-[#261608] bg-[#8b5327] px-3 py-2 font-pixel text-[#fef3c7]">
+        <h1 className="flex items-center gap-1.5 text-sm font-black"><Store aria-hidden="true" className="size-4 shrink-0" />캠퍼스 잡화점</h1>
+        <p className="border-2 border-[#261608] bg-[#fdf5df] px-2 py-1 text-xs font-bold text-[#261608]">보유 기여도 {shop.balance?.toLocaleString('ko-KR') ?? '—'}점</p>
+      </header>
+      <div className="dither-wood bg-[#6e3d16] p-2.5">
+        <ApiItemShop shop={shop} onConfirmationChange={props.onConfirmationChange} />
+      </div>
+    </ShopFrame>
+  );
+}
+
+const MockShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
   embedded = false,
   onConfirmationChange,
   onNavigateTab,
 }) => {
   const game = useMockGame();
-  const clicker = useClicker();
-  const api = clicker.api;
-  const itemShop = useItemShop();
-  const upgradeHelpId = useId();
-  const clickerLevel = clicker.level ?? '—';
+  const { level: clickerLevel, upgradeCost, power: clickerPower } = game.clicker;
   const contribution = game.state.contribution;
-  const upgradeCost = clicker.upgradeCost;
-  const clickerPower = clicker.power;
-  const canUpgrade = api ? api.canUpgrade : upgradeCost !== null && contribution >= upgradeCost;
+  const canUpgrade = upgradeCost !== null && contribution >= upgradeCost;
 
   // Selected card for purchase confirmation
   const [selectedItemId, setSelectedItemId] = useState<string>('coffee');
   const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  // Only mock purchases/upgrades use this request runner; API items have a root controller.
   const request = useMockRequest();
   const buying = request.isPending('shop-buy');
-  const upgrading = api ? api.pending : request.isPending('shop-upgrade');
+  const upgrading = request.isPending('shop-upgrade');
   const [requestError, setRequestError] = useState<{ key: 'shop-buy' | 'shop-upgrade'; message: string } | null>(null);
 
   const storeItems = game.storeItems;
@@ -62,7 +70,7 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
   }, [confirmedItemId]);
 
   const [imageConfirming, setImageConfirming] = useState(false);
-  const confirming = !api && (imageConfirming || (showConfirmDialog && !!selectedItem && !selectedItem.previewOnly));
+  const confirming = imageConfirming || (showConfirmDialog && !!selectedItem && !selectedItem.previewOnly);
   useLayoutEffect(() => {
     if (!confirming) return;
     onConfirmationChange?.(true);
@@ -84,7 +92,7 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
   };
 
   const handleConfirmPurchase = () => {
-    if (!selectedItem || selectedItem.previewOnly || api?.pending || api?.reconcile) return;
+    if (!selectedItem || selectedItem.previewOnly) return;
     const item = selectedItem;
     setRequestError(null);
     request.run('shop-buy', (ok) => {
@@ -110,7 +118,6 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
   };
 
   const handleUpgradeClicker = () => {
-    if (api) { api.upgrade(); return; }
     setRequestError(null);
     request.run('shop-upgrade', (ok) => {
       if (!ok) {
@@ -300,7 +307,7 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
                 </span>
               </div>
               <span className="font-pixel text-[10px] text-[#8b5327] font-bold">
-                {api?.loadNotice ? '정보 확인 중' : clicker.nextClicker ? `다음 목표: Lv.${clicker.nextClicker.level}` : '최고 단계 달성'}
+                {game.nextClicker ? `다음 목표: Lv.${game.nextClicker.level}` : '최고 단계 달성'}
               </span>
             </div>
 
@@ -318,7 +325,6 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
                   </span>
                 </div>
 
-                {/* Large 16-bit Original Pixel Clicker Tool Icon (부엉이 만년필 / 터치 촉) */}
                 <div className="relative z-10 flex flex-col items-center">
                   <svg
                     viewBox="0 0 24 24"
@@ -369,7 +375,7 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
                   <div className="flex items-center justify-between text-[10px] font-pixel mb-1">
                     <span className="font-bold text-[#8b5327]">강화 비용 대비 보유 기여도</span>
                     <span className="font-press-start text-[9px] font-bold text-[#261608]">
-                      {api?.loadNotice ? '—' : upgradeCost === null ? 'MAX' : `${contribution.toLocaleString('ko-KR')} / ${upgradeCost.toLocaleString('ko-KR')}점`}
+                      {upgradeCost === null ? 'MAX' : `${contribution.toLocaleString('ko-KR')} / ${upgradeCost.toLocaleString('ko-KR')}점`}
                     </span>
                   </div>
 
@@ -378,7 +384,7 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
                     {/* 잔액이 강화 비용 이상이면 100%, 최고 단계도 100% */}
                     <div
                       className="h-full bg-[#facc15] border-r-2 border-[#261608] transition-all duration-300 relative"
-                      style={{ width: `${api?.loadNotice ? 0 : upgradeCost === null || upgradeCost === 0 ? 100 : Math.min(100, contribution / upgradeCost * 100)}%` }}
+                      style={{ width: `${upgradeCost === null ? 100 : Math.min(100, contribution / upgradeCost * 100)}%` }}
                     >
                       {/* Pixel hash lines */}
                       <div className="w-full h-full opacity-30 bg-[linear-gradient(45deg,#261608_25%,transparent_25%,transparent_50%,#261608_50%,#261608_75%,transparent_75%,transparent)] bg-[size:6px_6px]" />
@@ -390,20 +396,19 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
                 {/* Wraps the button below on narrow screens instead of cutting the preview (M6-D1). */}
                 <div className="mt-2 flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
                   <span data-testid="clicker-upgrade-preview" className="mr-auto text-[9px] font-pixel text-[#8b5327] font-bold whitespace-nowrap">
-                    {api?.loadNotice ? '정보 확인 중' : clicker.nextClicker ? `${clickerPower} → ${clicker.nextClicker.power}점` : '최고 단계'}
+                    {game.nextClicker ? `${clickerPower} → ${game.nextClicker.power}점` : '최고 단계'}
                   </span>
                   <button
                     type="button"
                     onClick={handleUpgradeClicker}
                     disabled={!canUpgrade || upgrading}
-                    aria-describedby={api ? upgradeHelpId : undefined}
-                    className={`pixel-plaque ${api ? 'min-h-12' : ''} px-3 py-1 text-center font-pixel text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                    className={`pixel-plaque px-3 py-1 text-center font-pixel text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer ${
                       canUpgrade ? 'plaque-green' : 'plaque-parchment text-[#261608] opacity-60 cursor-not-allowed'
                     }`}
                   >
                     <span>{upgrading ? '요청 중…' : '업그레이드'}</span>
                     <span className="font-press-start text-[8px] bg-[#facc15] text-[#261608] border border-[#261608] px-1 py-0.2">
-                      {api?.loadNotice ? '—' : upgradeCost === null ? 'MAX' : `${upgradeCost.toLocaleString('ko-KR')}점`}
+                      {upgradeCost === null ? 'MAX' : `${upgradeCost.toLocaleString('ko-KR')}점`}
                     </span>
                   </button>
                 </div>
@@ -411,46 +416,20 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
             </div>
           </div>
 
-          {api && (
-            <div className="rpg-box p-2 font-pixel text-xs text-[#8b5327] flex flex-col gap-2" aria-busy={api.pending}>
-              <p id={upgradeHelpId} role="status">{api.loadNotice ?? api.disabledReason ?? '서버 레벨표 기준 · 개인 기여도만 차감합니다.'}</p>
-              {api.loadNotice && <button type="button" onClick={api.reload} className="pixel-plaque plaque-parchment min-h-12 px-3 font-bold cursor-pointer">클리커 정보 다시 조회</button>}
-              {api.error && <p role="alert" className="font-bold text-[#b91c1c]">{api.error}</p>}
-              {api.status && <p role="status">{api.status}</p>}
-              {api.reconcile && <button type="button" onClick={api.reconcile} className="pixel-plaque plaque-yellow min-h-12 px-3 font-bold cursor-pointer">서버 상태 확인</button>}
-              {api.levels.length > 0 && (
-                <details>
-                  <summary className="cursor-pointer min-h-12 flex items-center font-bold">클리커 레벨표 보기</summary>
-                  <div tabIndex={0} role="region" aria-label="클리커 레벨표 스크롤" className="max-h-52 overflow-auto">
-                    <table className="w-full border-separate border-spacing-0 text-center whitespace-nowrap">
-                      <caption className="py-2">서버 클리커 레벨표 · 해당 레벨 도달 비용</caption>
-                      <thead className="sticky top-0 z-10 bg-[#fdf5df]"><tr><th scope="col" className="p-2">레벨</th><th scope="col" className="p-2">클릭 세기</th><th scope="col" className="p-2">도달 비용</th></tr></thead>
-                      <tbody>{api.levels.map((row) => <tr key={row.level}>
-                        <th scope="row" className="sticky left-0 bg-[#fdf5df] p-2">Lv.{row.level}</th>
-                        <td className="p-2">{row.clickPower.toLocaleString('ko-KR')}점</td>
-                        <td className="p-2">{row.requiredScore.toLocaleString('ko-KR')}점</td>
-                      </tr>)}</tbody>
-                    </table>
-                  </div>
-                </details>
-              )}
-            </div>
-          )}
           {requestError?.key === 'shop-upgrade' && (
             <p role="alert" className="font-pixel text-[10px] font-bold text-[#b91c1c] bg-[#fee2e2] border border-[#b91c1c] px-1.5 py-1">
               {requestError.message}
             </p>
           )}
           <div className="rpg-box p-2 font-pixel text-[10px] text-[#8b5327]" role="status">
-            <p>{api ? '클리커와 아이템은 서버 값 · 개인 기여도만 소비합니다.' : '수치는 목업용 임시 값 · 개인 기여도만 소비 · 구매로 레벨 하락 없음'}</p>
-            <p>{api ? '서버 기본 세기 기준' : game.activeBuff ? `${game.activeBuff.name} · ${game.remainingSeconds}초 남음` : '활성 버프 없음'} · 현재 클릭당 {clicker.normalPower}점</p>
-            {!api && <p>버프는 1개만 활성화 · 새로 사용하면 기존 효과 교체</p>}
+            <p>수치는 목업용 임시 값 · 개인 기여도만 소비 · 구매로 레벨 하락 없음</p>
+            <p>{game.activeBuff ? `${game.activeBuff.name} · ${game.remainingSeconds}초 남음` : '활성 버프 없음'} · 현재 클릭당 {game.normalPower}점</p>
+            <p>버프는 1개만 활성화 · 새로 사용하면 기존 효과 교체</p>
             {upgradeCost !== null && contribution < upgradeCost && <p>강화까지 {(upgradeCost - contribution).toLocaleString('ko-KR')}점 부족</p>}
           </div>
 
           {/* ========================================================= */}
           {/* WOODEN SHELVES SECTION HEADER                             */}
-          {api ? itemShop && <ApiItemShop shop={itemShop} onConfirmationChange={onConfirmationChange} /> : <>
           {/* ========================================================= */}
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
@@ -581,7 +560,6 @@ export const ShopScreenPhone: React.FC<ShopScreenPhoneProps> = ({
               </div>
             </div>
           )}
-          </>}
         </div>
       </div>
 

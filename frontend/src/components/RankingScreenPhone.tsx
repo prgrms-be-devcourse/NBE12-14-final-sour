@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ALLIANCE_INVITATIONS_ENABLED } from '../api/alliances';
+import { RankingHall } from './RankingHall';
 import { RankingSchoolMenu, RankingSchoolTrigger, type RankingSchool, type RankingSchoolNavigation } from './RankingSchoolMenu';
 import { PhoneShell } from './PhoneShell';
 import { Crown, Sparkles, ArrowUp, ArrowDown, Minus, RefreshCw, ChevronUp, MoveVertical } from 'lucide-react';
@@ -8,7 +9,7 @@ import { BottomNav, NavTab } from './BottomNav';
 import { useMySchool } from '../hooks/useSchoolViews';
 import { useDragScroll } from '../hooks/useDragScroll';
 import { useRankingBoard, type RankingBoardRow, type RankingTab } from '../hooks/useRankingBoard';
-import { RANK_TREND_TONE, RankingRowImage, RankingStatusNotice, rankTrend, rankingCaption } from './RankingParts';
+import { RANK_TREND_TONE, RankingRowImage, RankingStatusNotice, rankTrend, rankingCaption, rankingIsEmpty, rankingListRows } from './RankingParts';
 
 interface RankingScreenPhoneProps extends RankingSchoolNavigation {
   currentSchoolScore: number;
@@ -42,7 +43,7 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
 
   const mySchool = useMySchool();
   // Mock rows or server pages, by mode (SCRUM-161). The mock keeps its pretend 350 ms load-more delay.
-  const board = useRankingBoard(activeRankingTab, currentSchoolScore, { mockLoadDelayMs: 350 });
+  const board = useRankingBoard(activeRankingTab, currentSchoolScore, { mockLoadDelayMs: 350, includeHall: true });
   const totalCount = board.totalCount;
   const [captionScope, captionOrder] = rankingCaption(activeRankingTab, board, mySchool.shortName);
 
@@ -60,14 +61,15 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
   const top2: RankingBoardRow | undefined = board.rows[1];
   const top3: RankingBoardRow | undefined = board.rows[2];
 
-  // Ranks 4 and below, as loaded
-  const listRows = board.rows.slice(3);
+  // Keep the paginated list independent of additional hall results.
+  const listRows = rankingListRows(board);
 
   // My school/item: also shown when its page is not loaded yet
   const myItem = board.mine;
 
-  // Sticky top 1st place bar appears when podium is scrolled past (scrollTop > 170px)
-  const showStickyTop1Summary = activeRankingTab === 'school' && scrollTop > 175 && !!top1;
+  // Do not single out one school in the sticky summary while first place is shared or still incomplete.
+  const hallLeaders = board.hall?.rows.filter(row => row.rank === 1);
+  const stickyLeader = !board.hall ? top1 : !board.hall.incomplete && !board.hall.loading && hallLeaders?.length === 1 ? hallLeaders[0] : undefined;
 
   const renderBadge = (item: RankingBoardRow, size: 'sm' | 'md' | 'lg' = 'sm') => {
     const sizeClasses =
@@ -224,8 +226,8 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
         </div>
       </div>
 
-      {/* 4. Sticky Compact 1st Summary: Slides down when TOP 3 Podium scrolls out */}
-      {showStickyTop1Summary && top1 && (
+      {/* 4. Sticky Compact 1st Summary */}
+      {activeRankingTab === 'school' && scrollTop > 175 && stickyLeader && (
         <div className="w-full px-2 py-1 bg-[#faecc7]/95 border-b border-[#261608]/40 shrink-0 z-20 animate-fadeIn">
           <div className="rpg-box px-2 py-1 bg-[#fef08a] border border-[#261608] flex items-center justify-between shadow-[1px_1px_0px_#261608]">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -233,21 +235,21 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
               <span className="font-press-start text-[9px] text-[#b45309] font-black">
                 1
               </span>
-              <RankingSchoolTrigger row={top1} open={openSchoolMenu} className="flex items-center gap-1.5 min-w-0">
+              <RankingSchoolTrigger row={stickyLeader} open={openSchoolMenu} className="flex items-center gap-1.5 min-w-0">
                 <span aria-hidden="true" className="w-4.5 h-4.5 bg-[#1d4ed8] border border-[#261608] flex items-center justify-center font-pixel text-[8px] text-white font-bold shrink-0">
-                  <RankingRowImage row={top1} className="w-full h-full" />
+                  <RankingRowImage row={stickyLeader} className="w-full h-full" />
                 </span>
-                <span className="font-pixel text-[11px] font-black text-[#261608] truncate">{top1.name}</span>
+                <span className="font-pixel text-[11px] font-black text-[#261608] truncate">{stickyLeader.name}</span>
               </RankingSchoolTrigger>
               <span className="text-[8px] font-pixel text-[#8b5327] hidden sm:inline">
-                ({top1.subtitle})
+                ({stickyLeader.subtitle})
               </span>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[9px] font-pixel text-[#8b5327] font-bold">현재 1위</span>
               <span className="font-press-start text-[9px] font-black text-[#261608]">
-                {top1.score.toLocaleString('ko-KR')}
+                {stickyLeader.score.toLocaleString('ko-KR')}
               </span>
             </div>
           </div>
@@ -282,9 +284,9 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
         {board.status !== 'ready' ? (
           <RankingStatusNotice board={board} />
         ) : (<>
-        {/* ========================================================= */}
-        {/* TOP 3 PODIUM ON A GRASSY STAGE (Scrolls with the feed)     */}
-        {/* ========================================================= */}
+        {!board.isSample && rankingIsEmpty(board) && <p role="status" className="rpg-box p-3 font-pixel text-xs">표시할 순위가 없어요.</p>}
+        {board.hall ? <RankingHall key={board.hall.scope} hall={board.hall} tab={activeRankingTab}
+          menuOpen={!!selectedSchool} openSchool={openSchoolMenu} /> :
         <div className="w-full border-3 border-[#261608] shadow-[3px_3px_0px_#261608] bg-[#38a134] overflow-hidden shrink-0 relative flex flex-col justify-end pt-3 pb-1 px-2 mb-2">
           {/* Sky Strip & Sun */}
           <div className="absolute inset-x-0 top-0 h-9 bg-[#38bdf8] border-b-2 border-[#261608] flex items-center justify-between px-3">
@@ -303,11 +305,9 @@ export const RankingScreenPhone: React.FC<RankingScreenPhoneProps> = ({
             {renderPodium(top1, 1)}
             {renderPodium(top3, 3)}
           </div>
-        </div>
+        </div>}
 
-        {/* ========================================================= */}
-        {/* LIST ROWS 4 TO N                                          */}
-        {/* ========================================================= */}
+        {/* Normal paginated list (the first three featured rows are not repeated). */}
         <div className="flex items-center justify-between text-[10px] font-pixel text-[#8b5327] px-1 mb-1 font-bold">
           <span>순위 및 소속</span>
           <span>{board.isSample ? '누적 점수 · 변동' : '누적 점수'}</span>

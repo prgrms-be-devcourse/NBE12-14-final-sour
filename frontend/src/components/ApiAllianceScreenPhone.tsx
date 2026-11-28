@@ -61,8 +61,15 @@ export function timeLeft(iso: string, now: number): string | null {
 
 const kst = (iso: string) => `${dateFormat.format(new Date(iso))} (KST)`;
 
+export type AllianceEntry = 'create' | 'search';
+export interface AllianceNavigation {
+  entry: AllianceEntry;
+  onArrive: () => void;
+}
+
 interface ApiAllianceScreenPhoneProps {
   embedded?: boolean;
+  navigation?: AllianceNavigation;
   onBack: () => void;
   onGoToLogin: () => void;
   onNavigateTab?: (tab: NavTab) => void;
@@ -76,7 +83,7 @@ interface ApiAllianceScreenPhoneProps {
 
 export function ApiAllianceScreenPhone({
   embedded = false, onBack, onGoToLogin, onNavigateTab, applications = defaultApplications, matches = defaultMatches, now = Date.now,
-  invitationsEnabled = ALLIANCE_INVITATIONS_ENABLED,
+  invitationsEnabled = ALLIANCE_INVITATIONS_ENABLED, navigation,
 }: ApiAllianceScreenPhoneProps) {
   const signedIn = useAuthSession().status === 'signed-in';
   const me = useMyInfo();
@@ -91,7 +98,7 @@ export function ApiAllianceScreenPhone({
         <h1 className="text-sm font-black">연합</h1>
       </header>
       {signedIn && me.data ? <AllianceHome key={me.data.id} userId={me.data.id} universityName={me.data.university.name}
-        applications={applications} matches={matches} now={now} invitationsEnabled={invitationsEnabled} /> : (
+        applications={applications} matches={matches} now={now} invitationsEnabled={invitationsEnabled} navigation={navigation} /> : (
         <div className="flex-1 min-h-0 overflow-y-auto p-3 font-pixel text-[#261608]">
           <div role="status" className={`${BOX} items-center text-center`}>
             <p className="text-sm font-bold">연합을 만들거나 보려면 로그인해 주세요</p>
@@ -104,16 +111,32 @@ export function ApiAllianceScreenPhone({
   );
 }
 
-function AllianceHome({ userId, universityName, applications, matches, now, invitationsEnabled }: {
+function useAllianceEntry(navigation?: AllianceNavigation) {
+  const [selectedTab, setTab] = useState<AllianceTab>('overview');
+  const tab = navigation ? (navigation.entry === 'search' ? 'search' : 'overview') : selectedTab;
+  const overviewHeading = useRef<HTMLHeadingElement>(null);
+  const searchHeading = useRef<HTMLHeadingElement>(null);
+  const createForm = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!navigation) return;
+    setTab(tab);
+    const target = navigation.entry === 'create' ? createForm.current ?? overviewHeading.current : searchHeading.current;
+    target?.focus();
+    navigation.onArrive();
+  }, [navigation, tab]);
+  return { tab, setTab, overviewHeading, searchHeading, createForm };
+}
+
+function AllianceHome({ userId, universityName, applications, matches, now, invitationsEnabled, navigation }: {
   userId: number; universityName: string; applications: SentApplicationMemory; matches: MatchMemory; now: () => number;
-  invitationsEnabled: boolean;
+  invitationsEnabled: boolean; navigation?: AllianceNavigation;
 }) {
   const membership = useMyAlliance(userId, { now });
   const mine = membership.isSuccess ? membership.data : undefined;
   const refresh = () => void membership.refetch({ cancelRefetch: false });
   const [sent, setSent] = useState(() => applications.get(userId));
   const [notice, setNotice] = useState<string | null>(null);
-  const [tab, setTab] = useState<AllianceTab>('overview');
+  const { tab, setTab, overviewHeading, searchHeading, createForm } = useAllianceEntry(navigation);
   const rememberSent = (application: AllianceApplication) => {
     const next = { applicationId: application.id, allianceId: application.allianceId };
     applications.set(userId, next);
@@ -157,7 +180,7 @@ function AllianceHome({ userId, universityName, applications, matches, now, invi
       {sent && <SentApplicationCard userId={userId} sent={sent} now={now}
         onMissing={() => forgetSent(`가입 신청한 연합 #${sent.allianceId}을(를) 찾을 수 없어 신청 기억을 지웠어요.`)}
         onForget={() => forgetSent(null)} />}
-      <CreateAllianceForm userId={userId} universityName={universityName} onCreated={() => forgetSent('연합을 만들었어요.')}
+      <CreateAllianceForm formRef={createForm} userId={userId} universityName={universityName} onCreated={() => forgetSent('연합을 만들었어요.')}
         onCheckMembership={refresh} />
     </>;
   }
@@ -166,7 +189,7 @@ function AllianceHome({ userId, universityName, applications, matches, now, invi
     const visible = panel === tab;
     switch (panel) {
       case 'overview': return <>
-        <h2 className="text-sm font-black">우리 연합</h2>
+        <h2 ref={overviewHeading} tabIndex={-1} className="text-sm font-black">우리 연합</h2>
         {notice && <p role="status" className={`${BOX} text-xs`}>{notice}</p>}
         {mineContent}
       </>;
@@ -179,7 +202,7 @@ function AllianceHome({ userId, universityName, applications, matches, now, invi
       case 'matches': return mine
         ? <AllianceMatches key={mine.id} userId={userId} alliance={mine} visible={visible} memory={matches} now={now} />
         : <MatchMembershipNotice unjoined={mine === null} openAndFocus={openAndFocus} />;
-      case 'search': return <AllianceSearch userId={userId} now={now} mine={mine} onSent={rememberSent} />;
+      case 'search': return <AllianceSearch headingRef={searchHeading} userId={userId} now={now} mine={mine} onSent={rememberSent} />;
       case 'history': return <>
         <h2 className="text-sm font-black">이전 연합 대결 이력</h2>
         <AllianceHistory userId={userId} visible={visible} detail={(alliance, matchId, close) =>
@@ -606,8 +629,8 @@ function MatchActions({ userId, match, side }: { userId: number; match: Alliance
   );
 }
 
-function CreateAllianceForm({ userId, universityName, onCreated, onCheckMembership }: {
-  userId: number; universityName: string; onCreated: () => void; onCheckMembership: () => void;
+function CreateAllianceForm({ formRef, userId, universityName, onCreated, onCheckMembership }: {
+  formRef: React.Ref<HTMLFormElement>; userId: number; universityName: string; onCreated: () => void; onCheckMembership: () => void;
 }) {
   const id = useId();
   const [name, setName] = useState('');
@@ -634,7 +657,7 @@ function CreateAllianceForm({ userId, universityName, onCreated, onCheckMembersh
   const length = name.trim().length;
 
   return (
-    <form noValidate onSubmit={submit} aria-label="연합 만들기" className={`${BOX} text-xs`}>
+    <form ref={formRef} tabIndex={-1} noValidate onSubmit={submit} aria-label="연합 만들기" className={`${BOX} text-xs`}>
       <p>{universityName}이(가) 창립 학교가 되는 연합을 만들어요. 연합에는 학교 2곳까지 들어갈 수 있고, 한 학교는 연합 하나에만 소속돼요.</p>
       <label htmlFor={`${id}-name`} className="font-bold">연합 이름</label>
       <input id={`${id}-name`} value={name} autoComplete="off" disabled={create.isPending} aria-invalid={problem !== null || fields.name !== undefined}
@@ -677,8 +700,8 @@ function CreateAllianceForm({ userId, universityName, onCreated, onCheckMembersh
   );
 }
 
-function AllianceSearch({ userId, now, mine, onSent }: {
-  userId: number; now: () => number; mine: Alliance | null | undefined; onSent: (application: AllianceApplication) => void;
+function AllianceSearch({ headingRef, userId, now, mine, onSent }: {
+  headingRef: React.Ref<HTMLHeadingElement>; userId: number; now: () => number; mine: Alliance | null | undefined; onSent: (application: AllianceApplication) => void;
 }) {
   const id = useId();
   const [input, setInput] = useState('');
@@ -698,7 +721,7 @@ function AllianceSearch({ userId, now, mine, onSent }: {
     lookup(parsed.allianceId);
   };
   return <>
-    <h2 className="text-sm font-black">연합 찾기</h2>
+    <h2 ref={headingRef} tabIndex={-1} className="text-sm font-black">연합 찾기</h2>
     <form noValidate onSubmit={submit} aria-labelledby={`${id}-title`} className={`${BOX} text-xs`}>
       <h3 id={`${id}-title`} className="text-sm font-black">연합 ID로 찾기</h3>
       <label htmlFor={`${id}-id`} className="font-bold">연합 ID</label>

@@ -4,6 +4,7 @@ import { after, afterEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
 import React from 'react';
 import { JSDOM } from 'jsdom';
+import { assertAbsent } from './helpers/domAssert';
 
 // Map DOM integration (M1). Layout, image cropping and real tap targets still need a browser check.
 const assetHooks = registerHooks({
@@ -28,6 +29,7 @@ dom.window.HTMLElement.prototype.scrollIntoView = function () {};
 const { render, screen, fireEvent, cleanup, within } = await import('@testing-library/react');
 const { MockGameProvider } = await import('../src/hooks/useMockGame');
 const { MapScreenPhone } = await import('../src/components/MapScreenPhone');
+const { MapSceneViewport } = await import('../src/components/MapSceneViewport');
 const { Screen1NationalMap } = await import('../src/components/Screen1NationalMap');
 const { Screen2RegionMap } = await import('../src/components/Screen2RegionMap');
 const { MAP_REGIONS } = await import('../src/data/schoolMapLayout');
@@ -48,26 +50,26 @@ const resultCount = () => screen.getByTestId('school-result-count').textContent;
 const listIds = () => Array.from(screen.getByRole('list', { name: '학교 목록' }).querySelectorAll('li[data-school-id]')).map((li) => Number(li.getAttribute('data-school-id')));
 const markerIds = () => Array.from(mapArea().querySelectorAll('button[data-school-id]')).map((b) => Number(b.getAttribute('data-school-id')));
 
-test('공동 상위 학교가 많아도 권역마다 점수판은 세 개이며 검색은 대표를 바꾸지 않는다', () => {
+const sceneCallbacks = { onSelectSchool: () => {}, onClusterSelect: () => {}, serviceLayout: false };
+const renderScene = (region: (typeof MAP_REGIONS)[number], scene: React.ReactNode) =>
+  render(React.createElement(MockGameProvider, null, React.createElement(MapSceneViewport, { region, animated: false, children: scene })));
+
+test('공동 상위 학교가 많아도 권역마다 PC·모바일 점수판은 세 개다', () => {
   const schools = getSchoolViews().map(school => ({ ...school, rank: 1, score: 0, isTop3: true }));
   for (const region of ['수도권', '충청'] as const) {
-    const props = { schools, query: '', onRegionChange: () => {}, onQueryChange: () => {}, onSelectSchool: () => {}, embedded: true };
-    const renderMap = (options: typeof props) => React.createElement(MockGameProvider, null,
-      region === '충청' ? React.createElement(Screen2RegionMap, options) : React.createElement(Screen1NationalMap, { ...options, region }));
-    const view = render(renderMap(props));
-    const area = screen.getByTestId('map-area');
-    const expected = filterSchools(schools, region, '');
-    assert.equal(area.querySelectorAll('button[data-school-id]').length, expected.length);
-    assert.deepEqual([...area.querySelectorAll('.game-map-pin-rank')].map(node => Number((node as HTMLElement).dataset.pinId)), expected.slice(0, 3).map(school => school.id));
-    const filtered = { ...props, query: expected.at(-1)!.name };
-    view.rerender(renderMap(filtered));
-    assert.deepEqual([...area.querySelectorAll('.game-map-pin-rank')].map(node => Number((node as HTMLElement).dataset.pinId)), expected.slice(0, 3).map(school => school.id));
-    view.unmount();
-    const mobileProps = { ...props, embedded: false };
-    const mobile = render(React.createElement(MockGameProvider, null,
-      region === '충청' ? React.createElement(Screen2RegionMap, mobileProps) : React.createElement(Screen1NationalMap, { ...mobileProps, region })));
-    assert.deepEqual([...screen.getByTestId('map-area').querySelectorAll('button[data-top-rank]')].map(node => Number((node as HTMLElement).dataset.schoolId)), expected.slice(0, 3).map(school => school.id));
-    mobile.unmount();
+    const regionSchools = filterSchools(schools, region, '');
+    for (const embedded of [true, false]) {
+      const props = { ...sceneCallbacks, embedded };
+      const view = renderScene(region, region === '충청'
+        ? React.createElement(Screen2RegionMap, { ...props, regionSchools })
+        : React.createElement(Screen1NationalMap, { ...props, schools, regionSchools, region }));
+      const area = mapArea();
+      const ribbons = embedded ? '.game-map-pin-rank' : 'button[data-top-rank]';
+      assert.equal(area.querySelectorAll('button[data-school-id]').length, regionSchools.length);
+      assert.deepEqual([...area.querySelectorAll<HTMLElement>(ribbons)].map(node => Number(node.dataset.pinId ?? node.dataset.schoolId)),
+        regionSchools.slice(0, 3).map(school => school.id));
+      view.unmount();
+    }
   }
 });
 
@@ -80,8 +82,8 @@ test('좌표 없는 상위 학교와 미집계 학교를 제외하고 후보 수
       ...base.map(school => ({ ...school, isTop3: capital.slice(0, count).some(item => item.id === school.id), rank: capital.slice(0, count).some(item => item.id === school.id) ? 2 : 77 })),
     ];
     for (const workspace of [true, false]) {
-      const props = { schools, region: '수도권' as const, query: '', onRegionChange: () => {}, onQueryChange: () => {}, onSelectSchool: () => {}, embedded: workspace };
-      const view = render(React.createElement(MockGameProvider, null, React.createElement(Screen1NationalMap, props)));
+      const props = { ...sceneCallbacks, schools, region: '수도권' as const, regionSchools: filterSchools(schools, '수도권', ''), embedded: workspace };
+      const view = renderScene(props.region, React.createElement(Screen1NationalMap, props));
       const markers = [...screen.getByTestId('map-area').querySelectorAll('button[data-top-rank]')];
       assert.deepEqual(markers.map(node => Number((node as HTMLElement).dataset.schoolId)), capital.slice(0, Math.min(count, 3)).map(school => school.id));
       assert.ok(markers.every(node => node.getAttribute('data-top-rank') === '2'));
@@ -95,8 +97,8 @@ test('전국 지도는 좌표 없는 후보를 제외한 뒤 최대 세 학교�
   const base = getSchoolViews();
   const schools = [{ ...base[0], id: 999999, rank: 1, isTop3: true }, ...base.map(school => ({ ...school, rank: 1, isTop3: true }))];
   for (const workspace of [true, false]) {
-    const props = { schools, region: '전체' as const, query: '', onRegionChange: () => {}, onQueryChange: () => {}, onSelectSchool: () => {}, embedded: workspace };
-    const view = render(React.createElement(MockGameProvider, null, React.createElement(Screen1NationalMap, props)));
+    const props = { ...sceneCallbacks, schools, region: '전체' as const, regionSchools: schools, embedded: workspace };
+    const view = renderScene(props.region, React.createElement(Screen1NationalMap, props));
     const markers = [...screen.getByTestId('map-area').querySelectorAll('button[data-top-rank]')];
     assert.deepEqual(markers.map(node => Number((node as HTMLElement).dataset.schoolId)), base.slice(0, 3).map(school => school.id));
     view.unmount();
@@ -105,6 +107,7 @@ test('전국 지도는 좌표 없는 후보를 제외한 뒤 최대 세 학교�
 
 test('7개 권역 칩이 모두 동작하고 지도와 목록이 같은 권역을 보여 준다', () => {
   mount();
+  assertAbsent(screen.queryByRole('button', { name: '지방 선택하기' }));
   const views = getSchoolViews();
   for (const region of MAP_REGIONS) {
     fireEvent.click(chip(region));
@@ -143,7 +146,9 @@ test('내 학교 태그는 공통 순위의 순위를 보인다', () => {
 test('검색은 결과 수를 갱신하고 결과가 없으면 안내와 지우기 버튼을 보인다', () => {
   mount();
   const input = screen.getByRole('textbox', { name: '학교 검색' });
+  const topBefore = markerIds();
   fireEvent.change(input, { target: { value: 'kaist' } });
+  assert.deepEqual(markerIds(), topBefore, '검색은 지도 하이라이트를 변경하지 않는다');
   assert.equal(resultCount(), '1개교');
   assert.deepEqual(listIds(), [SCHOOL_ID.kaist]);
   fireEvent.change(input, { target: { value: '없는학교' } });

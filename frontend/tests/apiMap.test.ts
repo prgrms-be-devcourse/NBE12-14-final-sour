@@ -11,9 +11,12 @@ import { SCHOOL_ID, type SchoolId } from '../src/data/schoolIds';
 import type { MyInfo } from '../src/api/users';
 import type { MapUniversity } from '../src/api/map';
 import { installDialogStub } from './helpers/dialogStub';
-import { assertAbsent } from './helpers/domAssert';
+import { assertAbsent, assertSameNode } from './helpers/domAssert';
 
 const assets = registerHooks({ load(url, context, nextLoad) {
+  if (/\/api\/mode\.ts$/.test(url)) return {
+    format: 'module', source: 'export const API_MODE = "api"; export function selectByMode(impl) { return impl.api; }', shortCircuit: true,
+  };
   if (/\.(jpg|png|webp|svg)(\?.*)?$/.test(url)) return { format: 'module', source: 'export default "/asset";', shortCircuit: true };
   return nextLoad(url, context);
 } });
@@ -32,7 +35,7 @@ const { userKeys } = await import('../src/api/users');
 const { MAP_UNIVERSITY_LIMIT } = await import('../src/api/map');
 const { MockGameProvider } = await import('../src/hooks/useMockGame');
 const { useApiMapSchools, toMapSchoolViews } = await import('../src/hooks/useMapSchools');
-const { Screen1NationalMap } = await import('../src/components/Screen1NationalMap');
+const { MapScreenPhone } = await import('../src/components/MapScreenPhone');
 const { LoadNotice } = await import('../src/components/LoadNotice');
 const { REAL_UNIVERSITIES } = await import('../src/data/universitiesData');
 const clients: Array<ReturnType<typeof createQueryClient>> = [];
@@ -59,17 +62,14 @@ const ok = (data: unknown) => new Response(JSON.stringify({ code: 'SUCCESS', mes
 const fail = (status: number, code: string, message: string) => new Response(JSON.stringify({ code, message, data: null }), { status });
 
 let map: ReturnType<typeof useApiMapSchools>;
-function Probe({ onSelect }: { onSelect: (id: SchoolId) => void }) {
+function Probe({ onSelect, embedded }: { onSelect: (id: SchoolId) => void; embedded?: boolean }) {
   map = useApiMapSchools();
   if (map.status !== 'ready') {
     return React.createElement(LoadNotice, { status: map.status, name: '학교 지도', failureDetail: map.failureDetail, onRetry: map.retry });
   }
-  return React.createElement(Screen1NationalMap, {
-    schools: map.schools, region: '전체', query: '', onRegionChange: () => {}, onQueryChange: () => {},
-    onSelectSchool: onSelect, onNavigateTab: () => {},
-  });
+  return React.createElement(MapScreenPhone, { onSelectSchool: onSelect, panel: embedded ? { onVisit: onSelect } : undefined });
 }
-function mount({ signedIn = true, respond }: { signedIn?: boolean; respond?: (url: URL, n: number) => Response | undefined } = {}) {
+function mount({ signedIn = true, embedded, respond }: { signedIn?: boolean; embedded?: boolean; respond?: (url: URL, n: number) => Response | undefined } = {}) {
   const calls: Array<{ path: string; auth: string | null }> = [];
   const selected: SchoolId[] = [];
   let mapCalls = 0;
@@ -86,7 +86,7 @@ function mount({ signedIn = true, respond }: { signedIn?: boolean; respond?: (ur
   const queryClient = createQueryClient(); clients.push(queryClient);
   if (signedIn) { client.session.signIn('member-a'); queryClient.setQueryData(userKeys.me, ME); }
   render(React.createElement(MockGameProvider, null,
-    React.createElement(ApiProvider, { client, queryClient, children: React.createElement(Probe, { onSelect: (id: SchoolId) => selected.push(id) }) })));
+    React.createElement(ApiProvider, { client, queryClient, children: React.createElement(Probe, { embedded, onSelect: (id: SchoolId) => selected.push(id) }) })));
   return { calls, selected };
 }
 const mapArea = () => screen.getByTestId('map-area');
@@ -133,6 +133,69 @@ test('지도는 300개까지 익명 조회하고, 서버 순위로 TOP 3·내 �
   assert.equal(within(list).getByText('전남대학교').closest('li')?.getAttribute('data-school-id'), String(SCHOOL_ID.chonnam));
   fireEvent.click(screen.getByRole('button', { name: /^전남대학교 전국 1위$/ }));
   assert.deepEqual(f.selected, [SCHOOL_ID.chonnam]);
+});
+
+test('서비스 권역 선택은 접힌 채 시작하고 검색·초점을 유지하며 충청을 왕복한다', async () => {
+  mount();
+  const toggle = await screen.findByRole('button', { name: '지방 선택하기' });
+  const input = screen.getByRole<HTMLInputElement>('textbox', { name: '학교 검색' });
+  const group = () => screen.getByRole('group', { name: '권역 선택' });
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  assertAbsent(screen.queryByRole('group', { name: '권역 선택' }));
+  const bucket = screen.getByRole('button', { name: /^충북 대학 .*충청 확대$/ });
+  assert.ok(bucket.querySelector('.game-map-cluster-label'));
+  bucket.focus();
+  fireEvent.click(bucket);
+  assertSameNode(document.activeElement, toggle);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(mapArea().getAttribute('data-region'), '충청');
+
+  fireEvent.change(input, { target: { value: 'KAIST' } });
+  fireEvent.click(toggle);
+  assert.equal(toggle.getAttribute('aria-controls'), group().id);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  for (const name of ['전체', '수도권', '충청']) {
+    const chip = within(group()).getByRole('button', { name });
+    chip.focus();
+    fireEvent.click(chip);
+    assertSameNode(document.activeElement, chip);
+    assert.equal(chip.getAttribute('aria-pressed'), 'true');
+    assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(input.value, 'KAIST');
+    assert.equal(mapArea().getAttribute('data-region'), name);
+  }
+  fireEvent.click(screen.getByRole('button', { name: '지방 숨기기' }));
+  assertAbsent(screen.queryByRole('group', { name: '권역 선택' }));
+  fireEvent.click(within(mapArea()).getByRole('button', { name: /^KAIST 전국/ }));
+  const selected = within(screen.getByRole('list', { name: '학교 목록' })).getByText('KAIST').closest('li');
+  assert.match(selected?.textContent ?? '', /충남·대전 · 대전/);
+});
+
+test('PC 선택 행은 중복 지명만 줄이고 0점·검색·선택 상태와 명시적 방문을 유지한다', async () => {
+  const { selected } = mount({ embedded: true });
+  const toggle = await screen.findByRole('button', { name: '지방 선택하기' });
+  const list = screen.getByRole('region', { name: '학교 목록' });
+  const name = '서울대학교';
+  fireEvent.click(within(list).getByRole('button', { name }));
+  assert.deepEqual(selected, []);
+  assert.equal(within(list).getByText('서울 · 0점').textContent, '서울 · 0점');
+  const input = screen.getByRole('textbox', { name: '학교 검색' });
+  const ribbons = () => [...mapArea().querySelectorAll<HTMLElement>('[data-top-rank]')].map(node => node.dataset.schoolId);
+  const ranked = ribbons();
+  assert.equal(ranked.length, 3);
+  fireEvent.change(input, { target: { value: name } });
+  assert.deepEqual(ribbons(), ranked);
+  fireEvent.click(toggle);
+  const chip = (region: string) => within(screen.getByRole('group', { name: '권역 선택' })).getByRole('button', { name: region });
+  fireEvent.click(chip('제주'));
+  assert.equal(screen.getByTestId('map-search-status').textContent, '검색 결과 없음');
+  assert.ok(screen.getByText('선택 학교가 검색 결과에 없습니다.'));
+  fireEvent.click(chip('전체'));
+  fireEvent.click(within(list).getByRole('button', { name: `${name} 방문` }));
+  assert.deepEqual(selected, [SCHOOL_ID.snu]);
+  fireEvent.change(input, { target: { value: 'KAIST' } });
+  fireEvent.click(within(list).getByRole('button', { name: 'KAIST' }));
+  assert.equal(within(list).getByText('충남·대전 · 대전 · 0점').textContent, '충남·대전 · 대전 · 0점');
 });
 
 // 4xx is not retried by the query client (queryClient.ts), so the failure shows at once.

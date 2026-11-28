@@ -1,8 +1,8 @@
 // Shared chrome for the national and 충청 map phones: status bar, search + region chips, school list sheet
 // and school markers. Plan: docs/261108-1930-m1_school_map_data_plan.md 4-2, 4-3.
 import type { SchoolId } from '../data/schoolIds.ts';
-import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Search, Crown, X, ChevronUp, ChevronDown } from 'lucide-react';
+import React, { useId, useLayoutEffect, useRef, useState, type Ref } from 'react';
+import { Search, Crown, X, ChevronUp, ChevronDown, ZoomIn } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { BottomNav, type NavTab } from './BottomNav';
 import { PhoneShell } from './PhoneShell';
@@ -10,13 +10,6 @@ import { ImageFallback, SharedImage } from './SharedImage.tsx';
 import { SCHOOL_LOGO_ASSETS } from '../data/schoolLogos.ts';
 import { MAP_DESIGN_FRAME_PX, MAP_REGIONS, mapLayerFit, type MapRegion } from '../data/schoolMapLayout.ts';
 import type { SchoolView } from '../data/schoolDirectory.ts';
-
-/**
- * Map area height (T2, user decision 2026-11-10): fills the space the header and list sheet leave, kept between the
- * tallest and widest aspects in MAP_AREAS_PX (466/382 to 466/336), where the marker checks prove nothing is cropped.
- * `100cqw` is the width of MapScrollBody, the container.
- */
-export const MAP_AREA_HEIGHT = 'flex-1 min-h-[calc(100cqw*466/382)] max-h-[calc(100cqw*466/336)]';
 
 /**
  * Search header and map. On a phone too short for both (full-screen mode), this column scrolls instead of the map
@@ -60,28 +53,21 @@ export function MapLayer({ children }: { children: React.ReactNode }) {
   );
 }
 
-export interface MapControlsProps {
-  schools: readonly SchoolView[];
-  query: string;
+export interface MapSceneProps {
+  regionSchools: readonly SchoolView[];
   selectedSchoolId?: SchoolId;
-  onRegionChange: (region: MapRegion) => void;
-  onQueryChange: (query: string) => void;
   onSelectSchool: (schoolId: SchoolId) => void;
-  onNavigateTab?: (tab: NavTab) => void;
-  /** Workspace uses a map and list in the shared scroll area; standalone retains the phone sheet. */
-  embedded?: boolean;
-  selectionNotice?: string;
-  renderPanelList?: (schools: readonly SchoolView[]) => React.ReactNode;
+  embedded: boolean;
 }
 
-/** Compact status shown beside the workspace search input while searching. */
+/** Compact result status while searching the workspace map. */
 export function formatWorkspaceSearchStatus(workspace: boolean, query: string, count: number): string | undefined {
   if (!workspace || query.trim().length === 0) return undefined;
   return count > 0 ? `${count}개교` : '검색 결과 없음';
 }
 
-export function MapFrame({ embedded = false, search, list, children }: {
-  embedded?: boolean; search: React.ReactNode; list: React.ReactNode; searching?: boolean; children: React.ReactNode;
+export function MapFrame({ embedded, search, list, children }: {
+  embedded: boolean; search: React.ReactNode; list: React.ReactNode; children: React.ReactNode;
 }) {
   return <PhoneShell embedded={embedded} background="bg-[#38bdf8]" className="game-map-frame justify-between">
     <MapScrollBody>
@@ -93,32 +79,74 @@ export function MapFrame({ embedded = false, search, list, children }: {
   </PhoneShell>;
 }
 
+interface MapRegionPicker {
+  expanded: boolean;
+  onToggle: () => void;
+  toggleRef: Ref<HTMLButtonElement>;
+}
+
+function LegacyMapBadge({ region }: { region: MapRegion }) {
+  return <div className="bg-[#facc15] border-2 border-[#261608] px-2 py-1 flex items-center gap-1 shadow-[1px_1px_0px_#261608] shrink-0">
+    {region === '전체' ? <span className="w-2 h-2 bg-[#e11d48] border border-[#261608]" /> : <ZoomIn className="w-3 h-3 text-[#261608]" />}
+    <span className="font-pixel text-[10px] font-black text-[#261608]">{region === '전체' ? '전국 지도' : `${region} 확대`}</span>
+  </div>;
+}
+
+function MapRegionChips({ region, onRegionChange, disclosure }: {
+  region: MapRegion; onRegionChange: (region: MapRegion) => void; disclosure?: { id: string; expanded: boolean };
+}) {
+  return <fieldset id={disclosure?.id} hidden={disclosure?.expanded === false} aria-label="권역 선택"
+    className={`game-map-regions min-w-0 ${disclosure ? 'game-map-regions--disclosure' : 'flex items-center gap-2 overflow-x-auto px-1 py-2.5 -mt-2.5 scrollbar-none'}`}>
+    {MAP_REGIONS.map((item) => {
+      const isActive = item === region;
+      return <button type="button" key={item} aria-pressed={isActive}
+        onClick={() => { soundManager.playTabSound(); onRegionChange(item); }}
+        className={`pixel-plaque px-2 py-0.5 text-[9px] font-pixel font-bold whitespace-nowrap cursor-pointer transition-transform ${
+          isActive ? 'plaque-yellow' : 'plaque-parchment text-[#8b5327]'
+        }`}>
+        {item}
+      </button>;
+    })}
+  </fieldset>;
+}
+
+export function MapSearchStatus({ text }: { text: string }) {
+  return <span role="status" data-testid="map-search-status"
+    className="game-map-search-status bg-[#faecc7] border-2 border-[#261608] px-2 py-1 font-pixel text-[10px] font-bold text-[#261608] shadow-[1px_1px_0px_#261608] shrink-0 whitespace-nowrap">
+    {text}
+  </span>;
+}
+
 export function MapSearchHeader({
   region,
   query,
   placeholder,
-  badge,
   searchStatus,
   selectionNotice,
+  regionPicker,
   onRegionChange,
   onQueryChange,
 }: {
   region: MapRegion;
   query: string;
   placeholder: string;
-  badge: React.ReactNode;
-  /** Compact inline status shown beside the search input while searching on PC workspace. */
+  /** Result count shown on the PC workspace while searching. */
   searchStatus?: string;
   selectionNotice?: string;
+  regionPicker?: MapRegionPicker;
   onRegionChange: (region: MapRegion) => void;
   onQueryChange: (query: string) => void;
 }) {
+  const regionListId = useId();
+  const currentRegionId = useId();
+
   return (
-    <div className="w-full bg-[#fdf5df] border-b-3 border-[#261608] p-2 flex flex-col gap-2.5 shrink-0 z-30 shadow-[0_2px_0px_#261608]">
+    <div className={`w-full bg-[#fdf5df] border-b-3 border-[#261608] p-2 flex flex-col shrink-0 z-30 shadow-[0_2px_0px_#261608] ${regionPicker ? 'game-map-service-search gap-1' : 'gap-2.5'}`}>
+      {regionPicker && <span id={currentRegionId} className="sr-only">현재 권역: {region}</span>}
       <div className="flex items-center gap-1.5">
         {/* Border drawn as inset shadows so the box stays as tall as the 44px input (T44-D3). */}
         <div data-testid="map-search-box" className="flex-1 min-w-0 bg-[#ffffff] shadow-[inset_0_0_0_2px_#261608,inset_3px_3px_0px_#261608] px-2.5 flex items-center gap-1.5">
-          <Search className="w-3.5 h-3.5 text-[#8b5327] shrink-0" />
+          <Search className="w-3.5 h-3.5 text-[#8b5327] shrink-0" aria-hidden="true" />
           <input
             type="text"
             value={query}
@@ -138,41 +166,25 @@ export function MapSearchHeader({
             </button>
           )}
         </div>
-        {searchStatus ? (
-          <span
-            role="status"
-            data-testid="map-search-status"
-            className="game-map-search-status bg-[#faecc7] border-2 border-[#261608] px-2 py-1 font-pixel text-[10px] font-bold text-[#261608] shadow-[1px_1px_0px_#261608] shrink-0 whitespace-nowrap"
-          >
-            {searchStatus}
-          </span>
-        ) : badge}
+        {regionPicker ? <button type="button" ref={regionPicker.toggleRef} aria-expanded={regionPicker.expanded}
+          aria-controls={regionListId} aria-describedby={currentRegionId}
+          className="game-map-region-toggle pixel-plaque plaque-yellow"
+          onClick={() => { soundManager.playTabSound(); regionPicker.onToggle(); }}>
+          {regionPicker.expanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+          {regionPicker.expanded ? '지방 숨기기' : '지방 선택하기'}
+        </button> : searchStatus ? <MapSearchStatus text={searchStatus} /> : <LegacyMapBadge region={region} />}
       </div>
 
-      {selectionNotice !== undefined && <p role="status" className="game-map-search-notice">{selectionNotice}</p>}
-      <fieldset className="game-map-regions flex min-w-0 items-center gap-2 overflow-x-auto px-1 py-2.5 -mt-2.5 scrollbar-none" aria-label="권역 선택">
-        {MAP_REGIONS.map((item) => {
-          const isActive = item === region;
-          return (
-            <button
-              type="button"
-              key={item}
-              aria-pressed={isActive}
-              onClick={() => {
-                soundManager.playTabSound();
-                onRegionChange(item);
-              }}
-              className={`pixel-plaque px-2 py-0.5 text-[9px] font-pixel font-bold whitespace-nowrap cursor-pointer transition-transform ${
-                isActive ? 'plaque-yellow' : 'plaque-parchment text-[#8b5327]'
-              }`}
-            >
-              {item}
-            </button>
-          );
-        })}
-      </fieldset>
+      {!regionPicker && selectionNotice !== undefined && <p role="status" className="game-map-search-notice">{selectionNotice}</p>}
+      <MapRegionChips region={region} onRegionChange={onRegionChange}
+        disclosure={regionPicker ? { id: regionListId, expanded: regionPicker.expanded } : undefined} />
     </div>
   );
+}
+
+/** Preserve the original order and omit only an immediately repeated place name. */
+export function formatMapSchoolLocation({ region, city }: Pick<SchoolView, 'region' | 'city'>): string {
+  return region === city ? region : `${region} · ${city}`;
 }
 
 export function SchoolBadge({ school, className }: { school: SchoolView; className: string }) {
@@ -286,6 +298,7 @@ export function SchoolListSheet({
   onQueryChange,
   onSelectSchool,
   onNavigateTab = () => {},
+  serviceLayout = false,
 }: {
   title: string;
   schools: readonly SchoolView[];
@@ -294,6 +307,7 @@ export function SchoolListSheet({
   onQueryChange: (query: string) => void;
   onSelectSchool: (schoolId: SchoolId) => void;
   onNavigateTab?: (tab: NavTab) => void;
+  serviceLayout?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const select = (schoolId: SchoolId) => {
@@ -391,7 +405,7 @@ export function SchoolListSheet({
                     )}
                   </div>
                   <p className="font-pixel text-[8px] text-[#8b5327] truncate">
-                    {school.region} · {school.city}
+                    {serviceLayout && selected ? formatMapSchoolLocation(school) : `${school.region} · ${school.city}`}
                   </p>
                 </div>
               </div>
