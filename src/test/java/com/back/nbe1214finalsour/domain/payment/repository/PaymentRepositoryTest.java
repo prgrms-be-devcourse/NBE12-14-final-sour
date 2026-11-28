@@ -199,6 +199,29 @@ class PaymentRepositoryTest {
         assertThat(found.getPaymentKey()).isNull();
     }
 
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = PaymentStatus.class,
+            names = {"IN_PROGRESS", "DONE", "ABORTED", "EXPIRED", "CANCELED"})
+    @DisplayName("READY가 아닌 주문이면 승인을 시작하지 않고 0을 돌려준다")
+    void startIfReadyIgnoresNonReadyOrder(PaymentStatus status) {
+        // given
+        Payment payment = paymentRepository.saveAndFlush(Payment.ready(userId, ChargeAmount.KRW_5000));
+        forceStatus(payment.getId(), status);
+        entityManager.clear(); // JDBC로 바꾼 상태를 모르는 READY 엔티티를 컨텍스트에 남기지 않음
+
+        // when
+        int updated = paymentRepository.startIfReady(payment.getOrderId(), userId, 5_000L, PAYMENT_KEY);
+        entityManager.clear(); // 영속성 컨텍스트를 비워 DB에서 다시 읽음
+
+        // then
+        Payment found = paymentRepository.findById(payment.getId()).orElseThrow();
+        assertThat(updated).isZero();
+        assertThat(found.getStatus()).isEqualTo(status);
+        // DONE·CANCELED는 forceStatus가 넣은 다른 키가 남아 있으므로 null이 아니라 "이 키가 아님"을 확인한다
+        assertThat(found.getPaymentKey()).isNotEqualTo(PAYMENT_KEY);
+    }
+
     // 다른 회원: 첫 회원과 같은 대학·학과로 만든다. 닉네임·이메일 해시는 유니크라 다른 테스트가 쓰지 않는 값을 쓴다
     private Long insertOtherUser() {
         return jdbcTemplate.queryForObject("""
